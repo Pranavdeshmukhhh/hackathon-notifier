@@ -1,8 +1,11 @@
 import logging
 import os
 from datetime import datetime
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
 import sys
 
 # Ensure utf-8 encoding for standard output
@@ -16,7 +19,11 @@ logger = logging.getLogger(__name__)
 # Import the existing db module
 from db.mongo_client import get_collection
 
+# Rate limiter – 30 requests/min per IP
+limiter = Limiter(key_func=get_remote_address)
 app = FastAPI(title="Hackathon Notifier API")
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 # CORS – restrict to actual frontend origin; no credentials needed
 _frontend_url = os.getenv("FRONTEND_URL", "https://hackathon-notifier.vercel.app")
@@ -66,7 +73,8 @@ def read_root():
     return {"message": "Hackathon API is running"}
 
 @app.get("/api/hackathons")
-def get_hackathons():
+@limiter.limit("30/minute")
+def get_hackathons(request: Request):
     try:
         collection = get_collection()
         cursor = collection.find({}).limit(200)
