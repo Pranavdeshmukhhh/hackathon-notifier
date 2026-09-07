@@ -1,4 +1,5 @@
 import logging
+import os
 from datetime import datetime
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -17,11 +18,11 @@ from db.mongo_client import get_collection
 
 app = FastAPI(title="Hackathon Notifier API")
 
-# Allow requests from the Vite frontend (usually runs on port 5173)
+# CORS – restrict to actual frontend origin; no credentials needed
+_frontend_url = os.getenv("FRONTEND_URL", "https://hackathon-notifier.vercel.app")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
+    allow_origins=[_frontend_url],
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -113,8 +114,8 @@ def get_hackathons():
 
         return {"success": True, "count": len(sorted_docs), "data": sorted_docs, "stats": stats}
     except Exception as e:
-        logger.error(f"Error fetching hackathons: {e}")
-        return {"success": False, "error": str(e), "data": [], "stats": {}}
+        logger.error("Error fetching hackathons", exc_info=True)
+        return {"success": False, "error": "Internal server error", "data": [], "stats": {}}
 
 if __name__ == "__main__":
     import uvicorn
