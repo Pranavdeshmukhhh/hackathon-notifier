@@ -6,3 +6,4 @@ pyTelegramBotAPI
 fastapi
 uvicorn[standard]
 curl_cffi
+slowapi
