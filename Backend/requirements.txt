@@ -5,3 +5,4 @@ beautifulsoup4
 pyTelegramBotAPI
 fastapi
 uvicorn[standard]
+curl_cffi
