@@ -7,6 +7,7 @@ fastapi
 uvicorn[standard]
 curl_cffi
 slowapi
+cachetools
 pytest
 responses
 mongomock
