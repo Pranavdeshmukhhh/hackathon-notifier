@@ -1,0 +1,7 @@
+pymongo[srv]
+python-dotenv
+requests
+beautifulsoup4
+pyTelegramBotAPI
+fastapi
+uvicorn[standard]
