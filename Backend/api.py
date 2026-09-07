@@ -60,6 +60,7 @@ def _sort_hackathons(docs: list[dict]) -> list[dict]:
 
 
 @app.get("/")
+@app.head("/")
 def read_root():
     return {"message": "Hackathon API is running"}
 
