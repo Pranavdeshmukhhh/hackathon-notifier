@@ -25,6 +25,8 @@ from filters.keyword_filter import classify_all, filter_hackathons, is_duplicate
 from notifier.telegram_bot import send_batch, start_polling
 from scrapers.devfolio_scraper import scrape_devfolio
 from scrapers.unstop_scraper import scrape_unstop
+from scrapers.devpost_scraper import scrape_devpost
+from scrapers.hackerearth_scraper import scrape_hackerearth
 
 # ── Logging — configured ONCE here, all other modules use getLogger(__name__) ─
 logging.basicConfig(
@@ -44,18 +46,23 @@ logger = logging.getLogger(__name__)
 
 def _run_scrapers() -> list[dict]:
     """
-    Run Devfolio and Unstop scrapers CONCURRENTLY.
+    Run all scrapers CONCURRENTLY.
 
-    Using 2 threads (one per scraper) cuts wall-clock time roughly in half
-    compared to running them sequentially.
+    Sources:
+      - Devfolio  (HTML scraping)
+      - Unstop    (API + HTML fallback — may be blocked by Cloudflare)
+      - Devpost   (free public JSON API — very reliable)
+      - HackerEarth (Chrome extension events API — very reliable)
     """
     scrapers = {
-        "Devfolio": scrape_devfolio,
-        "Unstop":   scrape_unstop,
+        "Devfolio":     scrape_devfolio,
+        "Unstop":       scrape_unstop,
+        "Devpost":      scrape_devpost,
+        "HackerEarth":  scrape_hackerearth,
     }
     combined: list[dict] = []
 
-    with ThreadPoolExecutor(max_workers=2, thread_name_prefix="scraper") as pool:
+    with ThreadPoolExecutor(max_workers=4, thread_name_prefix="scraper") as pool:
         futures = {pool.submit(fn): name for name, fn in scrapers.items()}
         for future in as_completed(futures):
             name = futures[future]
