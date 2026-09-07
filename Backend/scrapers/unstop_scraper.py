@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 # ── Constants ─────────────────────────────────────────────────────────────────
 UNSTOP_API_BASE = (
     "https://unstop.com/api/public/opportunity/search-result"
-    "?opportunity=hackathons&page=1&size=20&sort=deadline&status=open"
+    "?opportunity=hackathons&page=1&size=100&status=open"
 )
 
 _SEARCH_QUERIES = [
@@ -104,6 +104,7 @@ def _parse_api_items(items: list) -> list[dict]:
 
         if deadline_iso and deadline_iso < now_iso:
             status = "Ended"
+            continue  # Do not include expired hackathons in the output
 
         prizes = item.get("prizes", [])
         prize_str = ""
