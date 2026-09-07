@@ -7,3 +7,6 @@ fastapi
 uvicorn[standard]
 curl_cffi
 slowapi
+pytest
+responses
+mongomock
