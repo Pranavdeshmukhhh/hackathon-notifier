@@ -78,6 +78,13 @@ def _run_scrapers() -> list[dict]:
 
 
 # ── Geocoding ─────────────────────────────────────────────────────────────────
+import ssl
+import geopy.geocoders
+ctx = ssl.create_default_context()
+ctx.check_hostname = False
+ctx.verify_mode = ssl.CERT_NONE
+geopy.geocoders.options.default_ssl_context = ctx
+
 geolocator = Nominatim(user_agent="hackathon-notifier")
 _location_cache = {}
 
