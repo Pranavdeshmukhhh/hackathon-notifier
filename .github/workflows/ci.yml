@@ -21,9 +21,12 @@ jobs:
           cache: pip
           cache-dependency-path: Backend/requirements.txt
 
-      - name: Install dependencies
-        run: pip install -r Backend/requirements.txt
-
-      - name: Run tests
+          - name: Run tests with coverage
         working-directory: Backend
-        run: python -m pytest tests/ -v --tb=short
+        run: |
+          python -m pytest tests/ -v --tb=short \
+            --cov=. \
+            --cov-omit="tests/*,*/__pycache__/*" \
+            --cov-report=term-missing \
+            --cov-fail-under=70
+
