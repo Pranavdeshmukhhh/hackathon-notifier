@@ -40,12 +40,14 @@ import main as main_module
 # ── Background: Telegram Bot Polling ─────────────────────────────────────────
 
 def _run_bot_polling():
-    """Start Telegram bot polling (blocks forever)."""
+    """Start Telegram bot polling (blocks forever, retries on crash)."""
     logger.info("🤖 Starting Telegram bot polling thread...")
-    try:
-        start_polling()
-    except Exception:
-        logger.exception("Telegram polling crashed — bot commands will not work.")
+    while True:
+        try:
+            start_polling()
+        except Exception as e:
+            logger.exception("Telegram polling crashed: %s. Retrying in 15 seconds...", e)
+            time.sleep(15)
 
 
 # ── Background: Scheduled Scraping ───────────────────────────────────────────
