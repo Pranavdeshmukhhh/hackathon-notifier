@@ -60,12 +60,12 @@ const HackathonCard = ({ hackathon }) => {
               className={`college-badge college-badge--${collegeType.toLowerCase()}`}
               title={collegeName}
             >
-              🏛 {collegeType}
+              {collegeType}
             </span>
           )}
           {isInternship && (
             <span className="internship-badge">
-              💼 Internship
+              Internship
             </span>
           )}
         </div>
