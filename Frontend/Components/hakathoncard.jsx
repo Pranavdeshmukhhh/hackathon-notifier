@@ -77,7 +77,12 @@ const HackathonCard = ({ hackathon }) => {
         {location && (
           <div className="hack-card-location">
             <MapPinIcon />
-            <span>{location}</span>
+            <span>
+              {location}
+              {hackathon.distance_km !== undefined && (
+                <span className="distance-label"> • {hackathon.distance_km} km away</span>
+              )}
+            </span>
           </div>
         )}
 

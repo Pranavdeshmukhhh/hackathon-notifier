@@ -12,3 +12,4 @@ tenacity
 pytest
 responses
 mongomock
+geopy

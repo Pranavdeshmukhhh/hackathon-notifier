@@ -19,6 +19,7 @@ import threading
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pymongo.errors import DuplicateKeyError
+from geopy.geocoders import Nominatim
 
 from db.mongo_client import get_collection
 from filters.keyword_filter import classify_all, filter_hackathons, is_duplicate
@@ -76,6 +77,53 @@ def _run_scrapers() -> list[dict]:
     return combined
 
 
+# ── Geocoding ─────────────────────────────────────────────────────────────────
+geolocator = Nominatim(user_agent="hackathon-notifier")
+_location_cache = {}
+
+def _geocode_locations(hackathons: list[dict]):
+    """
+    Enriches hackathon dicts with lat/lng by geocoding the 'location' field.
+    Obeys Nominatim 1 request/sec rate limit.
+    """
+    logger.info("Geocoding %d hackathons...", len(hackathons))
+    count_new = 0
+    for h in hackathons:
+        loc = h.get("location")
+        if not loc or h.get("mode", "").lower() == "online":
+            continue
+        
+        # Unstop usually provides "City, State". Geocoding just the city often works better.
+        query = str(loc).split(",")[0].strip()
+        if not query:
+            continue
+            
+        if query in _location_cache:
+            coords = _location_cache[query]
+            if coords:
+                h["lat"] = coords[0]
+                h["lng"] = coords[1]
+            continue
+            
+        try:
+            logger.info("Geocoding new location: %s", query)
+            geo = geolocator.geocode(query, timeout=10)
+            if geo:
+                _location_cache[query] = (geo.latitude, geo.longitude)
+                h["lat"] = geo.latitude
+                h["lng"] = geo.longitude
+            else:
+                _location_cache[query] = None
+            count_new += 1
+            time.sleep(1.1)  # Strictly obey rate limits
+        except Exception as e:
+            logger.error("Geocoding failed for %s: %s", query, e)
+            _location_cache[query] = None
+            time.sleep(1.1)
+    
+    logger.info("Geocoded %d new unique locations.", count_new)
+
+
 # ── Pipeline ──────────────────────────────────────────────────────────────────
 
 def run_pipeline() -> int:
@@ -98,6 +146,9 @@ def run_pipeline() -> int:
         return 0
 
     logger.info("Total scraped (before classification): %d", len(all_hackathons))
+
+    # ── Step 2.5: Geocode Locations ───────────────────────────────────────────
+    _geocode_locations(all_hackathons)
 
     # ── Step 3: Classify ALL hackathons with metadata ─────────────────────────
     classify_all(all_hackathons)
