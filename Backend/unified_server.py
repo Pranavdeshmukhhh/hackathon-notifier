@@ -53,8 +53,8 @@ def _run_bot_polling():
 # ── Background: Scheduled Scraping ───────────────────────────────────────────
 
 def _run_scheduler():
-    """Run the scraping pipeline every 4 hours."""
-    INTERVAL_HOURS = 4
+    """Run the scraping pipeline every 1 hour."""
+    INTERVAL_HOURS = 1
     INTERVAL_SECONDS = INTERVAL_HOURS * 3600
 
     # Wait 30 seconds on startup to let the API server finish booting
