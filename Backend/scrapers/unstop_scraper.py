@@ -18,6 +18,8 @@ _SEARCH_QUERIES = [
     "",                          # generic
     "&searchTerm=college",       # college-affiliated hackathons
     "&searchTerm=internship",    # internship / hiring challenges
+    "&searchTerm=IIT",           # IIT specific
+    "&searchTerm=NIT",           # NIT specific
 ]
 
 REQUEST_TIMEOUT = 15
@@ -124,6 +126,7 @@ def _parse_api_items(items: list) -> list[dict]:
             "tags":         tags,
             "link":         link,
             "source":       "Unstop",
+            "location":     mode_raw,
             "prize":        prize_str,
             "organization": org,
             "scraped_at":   datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),

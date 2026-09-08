@@ -5,6 +5,7 @@ import time
 import statistics
 from collections import deque
 from datetime import datetime
+import math
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -59,6 +60,7 @@ app.add_middleware(
 def _sort_hackathons(docs: list[dict]) -> list[dict]:
     """
     Sort hackathons: upcoming (soonest first) -> no date -> ended/past (most recent first).
+    If lat and lng are provided in the request (handled outside), they will be pre-sorted.
     """
     today = datetime.utcnow().strftime("%Y-%m-%d")
     upcoming, no_date, past = [], [], []
@@ -95,10 +97,10 @@ def read_root():
     return {"message": "Hackathon API is running"}
 
 @app.get("/api/hackathons")
-@limiter.limit("30/minute")
-def get_hackathons(request: Request):
+def get_hackathons(request: Request, lat: float = None, lng: float = None):
     # --- cache hit → skip Mongo entirely ---
-    cached = _cache.get(_CACHE_KEY)
+    cache_key = f"{_CACHE_KEY}_{lat}_{lng}" if lat and lng else _CACHE_KEY
+    cached = _cache.get(cache_key)
     if cached is not None:
         logger.debug("Cache HIT")
         return cached
@@ -110,9 +112,26 @@ def get_hackathons(request: Request):
         docs = []
         for doc in cursor:
             doc["_id"] = str(doc["_id"])
+            # Calculate distance if we have coords
+            if lat is not None and lng is not None and "lat" in doc and "lng" in doc:
+                try:
+                    d_lat = math.radians(doc["lat"] - lat)
+                    d_lng = math.radians(doc["lng"] - lng)
+                    a = math.sin(d_lat/2) * math.sin(d_lat/2) + \
+                        math.cos(math.radians(lat)) * math.cos(math.radians(doc["lat"])) * \
+                        math.sin(d_lng/2) * math.sin(d_lng/2)
+                    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1-a))
+                    distance_km = 6371 * c
+                    doc["distance_km"] = round(distance_km, 1)
+                except Exception:
+                    pass
             docs.append(doc)
 
         sorted_docs = _sort_hackathons(docs)
+        
+        # If lat/lng is provided, sort upcoming offline events by distance
+        if lat is not None and lng is not None:
+            sorted_docs.sort(key=lambda x: (x.get("is_past", False), x.get("distance_km", 999999)))
 
         # Collect stats
         all_tags = set()
@@ -152,7 +171,7 @@ def get_hackathons(request: Request):
         payload = {"success": True, "count": len(sorted_docs), "data": sorted_docs, "stats": stats}
 
         # --- populate cache ---
-        _cache[_CACHE_KEY] = payload
+        _cache[cache_key] = payload
         return payload
     except Exception as e:
         logger.error("Error fetching hackathons", exc_info=True)

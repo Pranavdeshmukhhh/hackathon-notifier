@@ -13,6 +13,9 @@ function App() {
   const [error, setError] = useState(null);
   const [activeCategory, setActiveCategory] = useState('All');
   const [activeTag, setActiveTag] = useState('All');
+  const [userLocation, setUserLocation] = useState(null);
+  const [isLocating, setIsLocating] = useState(false);
+  const [locationError, setLocationError] = useState(null);
   const [stats, setStats] = useState({
     total: 0,
     unique_tags: 0,
@@ -23,11 +26,15 @@ function App() {
     college_types: [],
   });
 
-  const fetchHackathons = async () => {
+  const fetchHackathons = async (lat = null, lng = null) => {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch(API_URL);
+      let url = API_URL;
+      if (lat && lng) {
+        url += `?lat=${lat}&lng=${lng}`;
+      }
+      const response = await fetch(url);
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const result = await response.json();
       if (result.success) {
@@ -47,12 +54,35 @@ function App() {
     }
   };
 
+  const handleNearMeClick = () => {
+    if (!navigator.geolocation) {
+      setLocationError("Geolocation is not supported by your browser");
+      return;
+    }
+    setIsLocating(true);
+    setLocationError(null);
+    
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const lat = position.coords.latitude;
+        const lng = position.coords.longitude;
+        setUserLocation({ lat, lng });
+        setIsLocating(false);
+        fetchHackathons(lat, lng);
+      },
+      (err) => {
+        setLocationError("Unable to retrieve your location");
+        setIsLocating(false);
+      }
+    );
+  };
+
   useEffect(() => {
-    fetchHackathons();
+    fetchHackathons(userLocation?.lat, userLocation?.lng);
 
     // Auto-refresh every 5 minutes (300000 ms)
     const intervalId = setInterval(() => {
-      fetchHackathons();
+      fetchHackathons(userLocation?.lat, userLocation?.lng);
     }, 5 * 60 * 1000);
 
     return () => clearInterval(intervalId);
@@ -135,9 +165,17 @@ function App() {
           <span>Hackathon Notifier</span>
         </div>
         <div className="navbar-links">
+          <button 
+            className={`btn-secondary ${userLocation ? 'active' : ''}`} 
+            onClick={handleNearMeClick}
+            disabled={isLocating}
+            title="Sort hackathons by distance"
+          >
+            {isLocating ? 'Locating...' : '📍 Near Me'}
+          </button>
           <a href="#">Dashboard</a>
           <a href="#">About</a>
-          <button className="btn-primary" id="refresh-btn" onClick={fetchHackathons}>
+          <button className="btn-primary" id="refresh-btn" onClick={() => fetchHackathons(userLocation?.lat, userLocation?.lng)}>
             Refresh
           </button>
         </div>
@@ -209,6 +247,12 @@ function App() {
       )}
 
       {/* ── Error State ── */}
+      {locationError && (
+        <div className="error-box" style={{marginBottom: '1rem', backgroundColor: '#fff3cd', color: '#856404'}}>
+          <p>{locationError}</p>
+        </div>
+      )}
+
       {error && (
         <div className="error-box" id="error-box">
           <h3>Connection Error</h3>
