@@ -4,6 +4,7 @@ import time
 import random
 from datetime import datetime
 from curl_cffi import requests
+from tenacity import retry, stop_after_attempt, wait_exponential, before_sleep_log
 
 logger = logging.getLogger(__name__)
 
@@ -130,38 +131,36 @@ def _parse_api_items(items: list) -> list[dict]:
     return results
 
 
+@retry(
+    stop=stop_after_attempt(3),
+    wait=wait_exponential(multiplier=1, min=2, max=15),
+    before_sleep=before_sleep_log(logger, logging.WARNING),
+    reraise=True,
+)
+def _fetch_query(session, url: str) -> list[dict]:
+    """Fetch a single Unstop API query with exponential-backoff retries."""
+    resp = session.get(url, timeout=REQUEST_TIMEOUT)
+    if resp.status_code != 200:
+        raise RuntimeError(f"Unstop API returned status {resp.status_code}")
+    data = resp.json()
+    items = data.get("data", {}).get("data", [])
+    return _parse_api_items(items)
+
+
 def _fetch_via_api() -> list[dict]:
     session = _get_session()
     all_items = {}
 
     for query in _SEARCH_QUERIES:
         url = f"{UNSTOP_API_BASE}{query}"
-        success = False
-        
-        for attempt in range(2):
-            try:
-                resp = session.get(url, timeout=REQUEST_TIMEOUT)
-                
-                if resp.status_code != 200:
-                    logger.warning(f"Unstop API {query} returned status {resp.status_code}")
-                    break
-                    
-                data = resp.json()
-                items = data.get("data", {}).get("data", [])
-                
-                parsed = _parse_api_items(items)
-                for p in parsed:
-                    all_items[p["link"]] = p
-                
-                success = True
-                break
-                    
-            except Exception as e:
-                logger.warning("Unstop API query '%s' attempt %d failed: %s", query, attempt+1, e)
-                time.sleep(random.uniform(2.0, 4.0))  # wait before retry
-                
-        if success:
-            time.sleep(random.uniform(1.5, 3.0)) # Be nice to the API
+        try:
+            parsed = _fetch_query(session, url)
+            for p in parsed:
+                all_items[p["link"]] = p
+        except Exception as e:
+            logger.warning("Unstop API query '%s' failed after retries: %s", query, e)
+
+        time.sleep(random.uniform(1.5, 3.0))  # Be nice to the API
 
     return list(all_items.values())
 

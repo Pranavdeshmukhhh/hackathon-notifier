@@ -15,6 +15,7 @@ from datetime import datetime
 from typing import Optional
 
 import requests
+from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type, before_sleep_log
 
 logger = logging.getLogger(__name__)
 
@@ -142,6 +143,21 @@ def _parse_hackathon(item: dict) -> Optional[dict]:
     }
 
 
+# ── Retry wrapper ─────────────────────────────────────────────────────────────
+@retry(
+    stop=stop_after_attempt(3),
+    wait=wait_exponential(multiplier=1, min=2, max=15),
+    retry=retry_if_exception_type(requests.exceptions.RequestException),
+    before_sleep=before_sleep_log(logger, logging.WARNING),
+    reraise=True,
+)
+def _fetch_page(session: requests.Session, params: dict) -> dict:
+    """Fetch a single Devpost API page with exponential-backoff retries."""
+    resp = session.get(DEVPOST_API, params=params, timeout=REQUEST_TIMEOUT)
+    resp.raise_for_status()
+    return resp.json()
+
+
 def scrape_devpost() -> list[dict]:
     """
     Return a list of normalised hackathon dicts from Devpost.
@@ -159,9 +175,7 @@ def scrape_devpost() -> list[dict]:
                 "page": page,
             }
             logger.info("Devpost API: fetching page %d/%d…", page, MAX_PAGES)
-            resp = session.get(DEVPOST_API, params=params, timeout=REQUEST_TIMEOUT)
-            resp.raise_for_status()
-            data = resp.json()
+            data = _fetch_page(session, params)
 
             hackathons = data.get("hackathons", [])
             if not hackathons:
@@ -180,7 +194,7 @@ def scrape_devpost() -> list[dict]:
                 time.sleep(0.5)
 
         except requests.exceptions.RequestException as e:
-            logger.warning("Devpost API: page %d failed: %s", page, e)
+            logger.warning("Devpost API: page %d failed after retries: %s", page, e)
             break
         except Exception:
             logger.warning("Devpost API: unexpected error on page %d", page, exc_info=True)

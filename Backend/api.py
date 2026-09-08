@@ -159,6 +159,31 @@ def get_hackathons(request: Request):
         return {"success": False, "error": "Internal server error", "data": [], "stats": {}}
 
 
+@app.get("/health")
+def health_check():
+    """
+    Liveness + readiness probe.
+    Returns 200 if Mongo is reachable, 503 otherwise.
+    Hook this up to UptimeRobot / Render health-check.
+    """
+    try:
+        col = get_collection()
+        if col is None:
+            return JSONResponse(
+                status_code=503,
+                content={"status": "unhealthy", "reason": "database unavailable"},
+            )
+        # Fast round-trip to verify the connection is actually alive
+        col.database.client.admin.command("ping")
+        return {"status": "healthy", "database": "connected"}
+    except Exception as e:
+        logger.error("Health check failed: %s", e)
+        return JSONResponse(
+            status_code=503,
+            content={"status": "unhealthy", "reason": str(e)},
+        )
+
+
 @app.get("/api/metrics")
 def get_metrics():
     """Return p50/p95 response times (ms) for the last 500 requests."""

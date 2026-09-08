@@ -20,6 +20,7 @@ from typing import Optional
 
 import requests
 from bs4 import BeautifulSoup
+from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type, before_sleep_log
 
 logger = logging.getLogger(__name__)
 
@@ -55,31 +56,30 @@ def _get_session() -> requests.Session:
 
 # ── Internal helpers ──────────────────────────────────────────────────────────
 
+@retry(
+    stop=stop_after_attempt(MAX_RETRIES),
+    wait=wait_exponential(multiplier=1, min=2, max=30),
+    retry=retry_if_exception_type(requests.exceptions.RequestException),
+    before_sleep=before_sleep_log(logger, logging.WARNING),
+    reraise=True,
+)
+def _fetch_page_inner(session: requests.Session, url: str) -> str:
+    """Fetch page HTML; tenacity handles retries with exponential backoff."""
+    resp = session.get(url, timeout=REQUEST_TIMEOUT)
+    resp.raise_for_status()
+    return resp.text
+
+
 def _fetch_page(url: str) -> Optional[str]:
-    """Download page HTML with retries. Returns None on permanent failure."""
+    """Download page HTML with exponential-backoff retries. Returns None on failure."""
     session = _get_session()
-    for attempt in range(1, MAX_RETRIES + 1):
-        try:
-            logger.info("Fetching Devfolio page (attempt %d/%d)…", attempt, MAX_RETRIES)
-            resp = session.get(url, timeout=REQUEST_TIMEOUT)
-            resp.raise_for_status()
-            logger.info("Devfolio fetch OK (HTTP %d)", resp.status_code)
-            return resp.text
-
-        except requests.exceptions.Timeout:
-            logger.warning("Devfolio timeout (attempt %d/%d)", attempt, MAX_RETRIES)
-        except requests.exceptions.ConnectionError:
-            logger.warning("Devfolio connection error (attempt %d/%d)", attempt, MAX_RETRIES)
-        except requests.exceptions.HTTPError as exc:
-            logger.warning("Devfolio HTTP error %s (attempt %d/%d)", exc, attempt, MAX_RETRIES)
-        except requests.exceptions.RequestException as exc:
-            logger.warning("Devfolio request error %s (attempt %d/%d)", exc, attempt, MAX_RETRIES)
-
-        if attempt < MAX_RETRIES:
-            time.sleep(RETRY_DELAY_S)
-
-    logger.error("Devfolio: all %d attempts failed.", MAX_RETRIES)
-    return None
+    try:
+        html = _fetch_page_inner(session, url)
+        logger.info("Devfolio fetch OK")
+        return html
+    except Exception:
+        logger.error("Devfolio: all %d attempts failed.", MAX_RETRIES)
+        return None
 
 
 def _fetch_detail(slug: str) -> dict:

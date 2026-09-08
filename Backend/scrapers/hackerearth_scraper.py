@@ -14,6 +14,7 @@ from datetime import datetime
 from typing import Optional
 
 import requests
+from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type, before_sleep_log
 
 logger = logging.getLogger(__name__)
 
@@ -119,6 +120,25 @@ def _parse_event(item: dict) -> Optional[dict]:
     }
 
 
+# ── Retry wrapper ─────────────────────────────────────────────────────────────
+@retry(
+    stop=stop_after_attempt(3),
+    wait=wait_exponential(multiplier=1, min=2, max=15),
+    retry=retry_if_exception_type(requests.exceptions.RequestException),
+    before_sleep=before_sleep_log(logger, logging.WARNING),
+    reraise=True,
+)
+def _fetch_events(session: requests.Session) -> list:
+    """Fetch HackerEarth events with exponential-backoff retries."""
+    resp = session.get(HACKEREARTH_API, timeout=REQUEST_TIMEOUT)
+    resp.raise_for_status()
+    data = resp.json()
+    events = data.get("response", []) if isinstance(data, dict) else data
+    if not isinstance(events, list):
+        raise ValueError("HackerEarth API: unexpected response format.")
+    return events
+
+
 def scrape_hackerearth() -> list[dict]:
     """
     Return a list of normalised hackathon dicts from HackerEarth.
@@ -130,15 +150,7 @@ def scrape_hackerearth() -> list[dict]:
 
     try:
         logger.info("HackerEarth API: fetching events…")
-        resp = session.get(HACKEREARTH_API, timeout=REQUEST_TIMEOUT)
-        resp.raise_for_status()
-        data = resp.json()
-
-        # The response is {"response": [...]} 
-        events = data.get("response", []) if isinstance(data, dict) else data
-        if not isinstance(events, list):
-            logger.warning("HackerEarth API: unexpected response format.")
-            return []
+        events = _fetch_events(session)
 
         results = []
         for item in events:
@@ -155,7 +167,7 @@ def scrape_hackerearth() -> list[dict]:
         return results
 
     except requests.exceptions.RequestException as e:
-        logger.warning("HackerEarth API failed: %s", e)
+        logger.warning("HackerEarth API failed after retries: %s", e)
         return []
     except Exception:
         logger.warning("HackerEarth API: unexpected error", exc_info=True)

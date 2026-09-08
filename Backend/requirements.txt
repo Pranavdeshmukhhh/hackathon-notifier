@@ -8,6 +8,7 @@ uvicorn[standard]
 curl_cffi
 slowapi
 cachetools
+tenacity
 pytest
 responses
 mongomock
