@@ -30,8 +30,8 @@ app = FastAPI(title="Hackathon Notifier API")
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
-# ---------- In-memory TTL cache (matches 4-hour scrape interval) ----------
-_CACHE_TTL = int(os.getenv("CACHE_TTL_SECONDS", 4 * 3600))  # default 4 h
+# ---------- In-memory TTL cache (matches 1-hour scrape interval) ----------
+_CACHE_TTL = int(os.getenv("CACHE_TTL_SECONDS", 1 * 3600))  # default 1 h
 _cache: TTLCache = TTLCache(maxsize=1, ttl=_CACHE_TTL)
 _CACHE_KEY = "hackathons"
 

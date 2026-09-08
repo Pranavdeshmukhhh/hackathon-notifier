@@ -163,9 +163,9 @@ def main():
         except Exception as e:
             logger.exception("Scraping pipeline failed (e.g. no internet). Will retry next cycle.")
         
-        # Wait 4 hours
-        logger.info("Sleeping for 4 hours...")
-        time.sleep(4 * 3600)
+        # Wait 1 hour
+        logger.info("Sleeping for 1 hour...")
+        time.sleep(1 * 3600)
 
 
 if __name__ == "__main__":
