@@ -4,7 +4,7 @@ import sys
 import time
 import statistics
 from collections import deque
-from datetime import datetime
+from datetime import datetime, timezone
 import math
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
@@ -62,7 +62,7 @@ def _sort_hackathons(docs: list[dict]) -> list[dict]:
     Sort hackathons: upcoming (soonest first) -> no date -> ended/past (most recent first).
     If lat and lng are provided in the request (handled outside), they will be pre-sorted.
     """
-    today = datetime.utcnow().strftime("%Y-%m-%d")
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     upcoming, no_date, past = [], [], []
 
     for doc in docs:

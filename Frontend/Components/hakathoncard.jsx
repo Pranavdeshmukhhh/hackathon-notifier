@@ -39,7 +39,6 @@ const HackathonCard = ({ hackathon }) => {
   const collegeType = hackathon.college_type || '';
   const collegeName = hackathon.college_name || '';
   const isInternship = hackathon.is_internship === true;
-  const opportunityType = hackathon.opportunity_type || 'Hackathon';
   const location = hackathon.location || '';
 
   return (

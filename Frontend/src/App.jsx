@@ -1,10 +1,13 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import HackathonCard from '../Components/hakathoncard';
 import './index.css';
 
 let API_URL = import.meta.env.VITE_API_URL || (import.meta.env.PROD ? 'https://hackathon-notifier.onrender.com' : 'http://localhost:8000');
 if (API_URL.endsWith('/')) API_URL = API_URL.slice(0, -1);
 if (!API_URL.endsWith('/api/hackathons')) API_URL += '/api/hackathons';
+
+// ── How long (ms) before we show the "Render is waking up" banner ──
+const COLD_START_WARN_MS = 5_000;
 
 function App() {
   const [hackathons, setHackathons] = useState([]);
@@ -20,6 +23,7 @@ function App() {
   const [locationError, setLocationError] = useState(null);
   const [activeSection, setActiveSection] = useState('home');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [showColdStartBanner, setShowColdStartBanner] = useState(false);
   const [stats, setStats] = useState({
     total: 0,
     unique_tags: 0,
@@ -36,15 +40,35 @@ function App() {
   const aboutRef = useRef(null);
   const eventsRef = useRef(null);
 
-  const fetchHackathons = async (lat = null, lng = null) => {
+  // Ref to track in-flight fetch so we can abort on re-fetch
+  const abortControllerRef = useRef(null);
+  // Ref for cold-start banner timer
+  const coldStartTimerRef = useRef(null);
+  // Ref for the 5-min polling interval
+  const intervalRef = useRef(null);
+
+  const fetchHackathons = useCallback(async (lat = null, lng = null) => {
+    // Cancel any in-flight request
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    abortControllerRef.current = new AbortController();
+
     setLoading(true);
     setError(null);
+    setShowColdStartBanner(false);
+
+    // Show cold-start banner after COLD_START_WARN_MS if still loading
+    coldStartTimerRef.current = setTimeout(() => {
+      setShowColdStartBanner(true);
+    }, COLD_START_WARN_MS);
+
     try {
       let url = API_URL;
       if (lat && lng) {
         url += `?lat=${lat}&lng=${lng}`;
       }
-      const response = await fetch(url);
+      const response = await fetch(url, { signal: abortControllerRef.current.signal });
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const result = await response.json();
 
@@ -61,12 +85,15 @@ function App() {
         throw new Error(result.error || 'Unknown error from API');
       }
     } catch (e) {
+      if (e.name === 'AbortError') return; // silently ignore aborted requests
       setError('Could not connect to the API. Make sure the backend is running.');
       console.error(e);
     } finally {
+      clearTimeout(coldStartTimerRef.current);
+      setShowColdStartBanner(false);
       setLoading(false);
     }
-  };
+  }, []);
 
   const handleNearMeClick = () => {
     if (!navigator.geolocation) {
@@ -91,13 +118,26 @@ function App() {
     );
   };
 
+  // Initial fetch + polling — only restarts interval after fetch completes
   useEffect(() => {
-    fetchHackathons(userLocation?.lat, userLocation?.lng);
-    const intervalId = setInterval(() => {
-      fetchHackathons(userLocation?.lat, userLocation?.lng);
+    const lat = userLocation?.lat ?? null;
+    const lng = userLocation?.lng ?? null;
+
+    fetchHackathons(lat, lng);
+
+    // Clear any existing interval
+    if (intervalRef.current) clearInterval(intervalRef.current);
+
+    intervalRef.current = setInterval(() => {
+      fetchHackathons(lat, lng);
     }, 5 * 60 * 1000);
-    return () => clearInterval(intervalId);
-  }, []);
+
+    return () => {
+      clearInterval(intervalRef.current);
+      if (abortControllerRef.current) abortControllerRef.current.abort();
+      clearTimeout(coldStartTimerRef.current);
+    };
+  }, [userLocation?.lat, userLocation?.lng, fetchHackathons]);
 
   // ── Sorting ──
   const sortHackathons = (list, method) => {
@@ -129,7 +169,6 @@ function App() {
   const applyFilters = (category, tag, search, sort) => {
     let result = hackathons;
 
-    // Category filter
     if (category === 'Top College') {
       result = result.filter(h => h.is_top_college === true);
     } else if (category === 'Internship') {
@@ -138,12 +177,10 @@ function App() {
       result = result.filter(h => h.opportunity_type === 'Hackathon');
     }
 
-    // Tag filter
     if (tag !== 'All') {
       result = result.filter(h => h.tags && h.tags.includes(tag));
     }
 
-    // Search filter
     if (search.trim()) {
       const q = search.toLowerCase();
       result = result.filter(h =>
@@ -153,9 +190,7 @@ function App() {
       );
     }
 
-    // Sort
     result = sortHackathons(result, sort);
-
     setFiltered(result);
   };
 
@@ -212,14 +247,7 @@ function App() {
 
   // Split filtered results
   const upcomingHackathons = filtered.filter(h => !h.is_past);
-  const missedHackathons = filtered.filter(h => h.is_past);
-
-  // Source breakdown
-  const sourceBreakdown = {};
-  hackathons.forEach(h => {
-    const src = h.source || 'Unknown';
-    sourceBreakdown[src] = (sourceBreakdown[src] || 0) + 1;
-  });
+  const missedHackathons   = filtered.filter(h => h.is_past);
 
   return (
     <div className="app-container">
@@ -253,16 +281,27 @@ function App() {
         </div>
       </nav>
 
+      {/* ── Cold-start Banner (shown after 5s of loading) ── */}
+      {showColdStartBanner && (
+        <div className="cold-start-banner">
+          <div className="cold-start-spinner"></div>
+          <span>
+            <strong>Backend is waking up</strong> (Render free tier cold-start — usually takes ~30s on first visit). Hang tight…
+          </span>
+        </div>
+      )}
+
       {/* ── Hero Section ── */}
       <section className="hero" id="hero-section" ref={homeRef}>
         <div className="hero-content">
           <h1>Never miss a<br />hackathon again.</h1>
           <p>
-            The knowledge infrastructure for ambitious developers. 
-            Automatically scraping Devfolio, Unstop, Devpost & HackerEarth 
+            The knowledge infrastructure for ambitious developers.{' '}
+            Automatically scraping Devfolio, Unstop, Devpost &amp; HackerEarth{' '}
             to classify and deliver opportunities straight to you.
           </p>
-          <div style={{ display: 'flex', gap: '1rem' }}>
+          {/* hero-cta-buttons wrapper enables proper wrapping on mobile */}
+          <div className="hero-cta-buttons">
             <button className="btn-primary" onClick={() => scrollToSection('events')}>Browse Hackathons</button>
             <button className="btn-secondary" onClick={() => scrollToSection('dashboard')}>View Dashboard</button>
           </div>

@@ -15,7 +15,7 @@ TCP/TLS handshakes.
 import logging
 import re
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 import requests
@@ -228,7 +228,7 @@ def _parse_card(card) -> Optional[dict]:
             "tags":         tags,
             "link":         link,
             "source":       "Devfolio",
-            "scraped_at":   datetime.utcnow().isoformat() + "Z",
+            "scraped_at":   datetime.now(timezone.utc).replace(tzinfo=None).isoformat() + "Z",
         }
 
     except Exception:
