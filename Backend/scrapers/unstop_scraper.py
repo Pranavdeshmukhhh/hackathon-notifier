@@ -161,7 +161,7 @@ def _fetch_via_api() -> list[dict]:
     all_items = {}
 
     for query in _SEARCH_QUERIES:
-        for page in range(1, 21):  # up to 20 pages (2000 items) per query
+        for page in range(1, 51):  # up to 50 pages (5000 items) per query
             url = f"{UNSTOP_API_BASE}&page={page}{query}"
             try:
                 raw_items, parsed, current_page, last_page = _fetch_query(session, url)

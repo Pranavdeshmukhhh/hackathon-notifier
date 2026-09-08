@@ -168,13 +168,13 @@ def scrape_devpost() -> list[dict]:
     session = _get_session()
     all_results: list[dict] = []
 
-    for page in range(1, MAX_PAGES + 1):
+    for page in range(1, 51):
         try:
             params = {
                 "status[]": ["upcoming", "open"],
                 "page": page,
             }
-            logger.info("Devpost API: fetching page %d/%d…", page, MAX_PAGES)
+            logger.info("Devpost API: fetching page %d/50…", page)
             data = _fetch_page(session, params)
 
             hackathons = data.get("hackathons", [])
