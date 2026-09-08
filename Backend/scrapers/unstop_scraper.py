@@ -79,6 +79,31 @@ def _parse_api_items(items: list) -> list[dict]:
         else:
             mode = "Unknown"
 
+        # Location — extract real city/venue, not the mode string
+        city    = item.get("city", "") or ""
+        venue   = item.get("venue", "") or ""
+        org_city = item.get("organisation", {}).get("city", "") or ""
+        if city:
+            location_str = city
+        elif venue and venue.lower() not in ("online", "offline"):
+            location_str = venue
+        elif org_city:
+            location_str = org_city
+        elif mode == "Online":
+            location_str = "Online"
+        else:
+            location_str = ""
+
+        # Registrations
+        regn_reqs = item.get("regnRequirements", {})
+        total_regs = (
+            regn_reqs.get("total_teams_registered")
+            or item.get("registered_count")
+            or item.get("total_registrations")
+            or item.get("registerations")  # Unstop typo variant
+            or 0
+        )
+
         # Deadline
         raw_deadline = item.get("regnRequirements", {}).get("end_regn_dt") or item.get("end_date") or ""
         deadline = "TBA"
@@ -118,18 +143,19 @@ def _parse_api_items(items: list) -> list[dict]:
         org = item.get("organisation", {}).get("name", "")
 
         results.append({
-            "title":        title,
-            "deadline":     deadline,
-            "deadline_iso": deadline_iso,
-            "status":       status,
-            "mode":         mode,
-            "tags":         tags,
-            "link":         link,
-            "source":       "Unstop",
-            "location":     mode_raw,
-            "prize":        prize_str,
-            "organization": org,
-            "scraped_at":   datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+            "title":               title,
+            "deadline":            deadline,
+            "deadline_iso":        deadline_iso,
+            "status":              status,
+            "mode":                mode,
+            "tags":                tags,
+            "link":                link,
+            "source":              "Unstop",
+            "location":            location_str,
+            "prize":               prize_str,
+            "organization":        org,
+            "total_registrations": int(total_regs) if total_regs else 0,
+            "scraped_at":          datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
         })
 
     return results

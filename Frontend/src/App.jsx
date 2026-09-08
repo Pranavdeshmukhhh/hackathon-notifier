@@ -7,151 +7,242 @@ if (API_URL.endsWith('/')) API_URL = API_URL.slice(0, -1);
 if (!API_URL.endsWith('/api/hackathons')) API_URL += '/api/hackathons';
 
 const COLD_START_WARN_MS = 5_000;
-const PAGE_SIZE = 12; // cards per page
+const PAGE_SIZE = 12;
 
-// ── About Modal ──────────────────────────────────────────────────────────────
-function AboutModal({ onClose }) {
-  // close on backdrop click or Escape key
+// ── Classy animated H logo ────────────────────────────────────────────────────
+function HLogo({ size = 36 }) {
+  return (
+    <svg
+      className="brand-h-svg"
+      width={size}
+      height={size}
+      viewBox="0 0 36 36"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      aria-hidden="true"
+    >
+      <rect width="36" height="36" rx="10" fill="#0f172a" />
+      {/* Vertical bars */}
+      <rect x="8" y="8" width="5" height="20" rx="2.5" fill="white" />
+      <rect x="23" y="8" width="5" height="20" rx="2.5" fill="white" />
+      {/* Cross bar */}
+      <rect x="8" y="15.5" width="20" height="5" rx="2.5" fill="#10b981" />
+      {/* Accent dot */}
+      <circle className="brand-h-dot" cx="18" cy="18" r="1.5" fill="white" />
+    </svg>
+  );
+}
+
+// ── Dashboard Stats Popup ─────────────────────────────────────────────────────
+function DashboardPopup({ stats, hackathons, onClose }) {
+  const upcomingCount = hackathons.filter(h => !h.is_past).length;
+  const missedCount   = hackathons.filter(h => h.is_past).length;
+  const onlineCount   = hackathons.filter(h => (h.mode || '').toLowerCase() === 'online').length;
+  const offlineCount  = hackathons.filter(h => (h.mode || '').toLowerCase() === 'offline').length;
+
   useEffect(() => {
     const onKey = (e) => { if (e.key === 'Escape') onClose(); };
     document.addEventListener('keydown', onKey);
     document.body.style.overflow = 'hidden';
-    return () => {
-      document.removeEventListener('keydown', onKey);
-      document.body.style.overflow = '';
-    };
+    return () => { document.removeEventListener('keydown', onKey); document.body.style.overflow = ''; };
   }, [onClose]);
+
+  const sources = stats.sources || [];
+  const sourceBreakdown = sources.map(src => ({
+    name: src,
+    count: hackathons.filter(h => (h.source || '').toLowerCase() === src.toLowerCase()).length,
+  }));
 
   return (
     <div className="modal-backdrop" onClick={onClose}>
-      <div className="modal-window" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-label="About the maker">
+      <div className="modal-window dash-popup" onClick={e => e.stopPropagation()} role="dialog" aria-modal="true" aria-label="Dashboard statistics">
         <button className="modal-close" onClick={onClose} aria-label="Close">✕</button>
 
-        <div className="modal-header">
-          <div className="modal-avatar">PD</div>
+        <div className="modal-header dash-header">
+          <HLogo size={40} />
           <div>
-            <h2 className="modal-name">Pranav Deshmukh</h2>
-            <p className="modal-role">B.Tech 2nd Year · Full-Stack Developer</p>
+            <h2 className="modal-name">Live Dashboard</h2>
+            <p className="modal-role">Real-time stats · Auto-refreshes every 5 min</p>
           </div>
         </div>
 
         <div className="modal-body">
-          <p className="modal-bio">
-            Hey! I'm <strong>Pranav Deshmukh</strong>, a 2nd-year B.Tech student passionate about building tools
-            that actually solve real problems for students. I got tired of manually checking multiple platforms
-            for hackathons, so I built this — a fully automated, real-time hackathon aggregator.
-          </p>
-
-          <div className="modal-badge-row">
-            <span className="modal-badge modal-badge--green">🏗️ Architecture by Pranav</span>
-            <span className="modal-badge modal-badge--blue">🤖 AI-Assisted Development</span>
-          </div>
-
-          <div className="modal-section">
-            <h3>About this project</h3>
-            <p>
-              The entire system architecture — from the multi-source scraping pipeline, concurrent execution,
-              MongoDB deduplication, classification engine, to the Telegram notification bot — was <strong>designed
-              and engineered by me</strong>. AI tools were used to accelerate development, but every architectural
-              decision, data model, and product feature was conceived and built by me.
-            </p>
-          </div>
-
-          <div className="modal-section">
-            <h3>Tech Stack</h3>
-            <div className="modal-tech-grid">
-              <div className="modal-tech-item"><span>⚡</span> FastAPI + Python</div>
-              <div className="modal-tech-item"><span>🌿</span> MongoDB Atlas</div>
-              <div className="modal-tech-item"><span>⚛️</span> React + Vite</div>
-              <div className="modal-tech-item"><span>🤖</span> Telegram Bot API</div>
-              <div className="modal-tech-item"><span>☁️</span> Render + Vercel</div>
-              <div className="modal-tech-item"><span>🕷️</span> curl-cffi / BeautifulSoup</div>
+          {/* Key metrics */}
+          <div className="dash-metric-grid">
+            <div className="dash-metric">
+              <span className="dash-metric-val">{stats.total || hackathons.length}</span>
+              <span className="dash-metric-label">Total Events</span>
+            </div>
+            <div className="dash-metric">
+              <span className="dash-metric-val" style={{color:'#10b981'}}>{upcomingCount}</span>
+              <span className="dash-metric-label">Upcoming</span>
+            </div>
+            <div className="dash-metric">
+              <span className="dash-metric-val" style={{color:'#64748b'}}>{missedCount}</span>
+              <span className="dash-metric-label">Missed</span>
+            </div>
+            <div className="dash-metric">
+              <span className="dash-metric-val" style={{color:'#f59e0b'}}>{stats.top_college_count || 0}</span>
+              <span className="dash-metric-label">IIT/NIT/BITS</span>
+            </div>
+            <div className="dash-metric">
+              <span className="dash-metric-val" style={{color:'#8b5cf6'}}>{stats.internship_count || 0}</span>
+              <span className="dash-metric-label">Internships</span>
+            </div>
+            <div className="dash-metric">
+              <span className="dash-metric-val">{stats.unique_tags || 0}</span>
+              <span className="dash-metric-label">Unique Tags</span>
             </div>
           </div>
 
+          {/* Mode split */}
           <div className="modal-section">
-            <h3>What it does</h3>
-            <ul className="modal-list">
-              <li>🔍 Scrapes <strong>Devfolio, Unstop, Devpost & HackerEarth</strong> concurrently every 5 minutes</li>
-              <li>🏛️ Auto-classifies IIT / NIT / IIIT / BITS events and internships</li>
-              <li>📍 Geocodes offline venues and sorts by distance from your location</li>
-              <li>📲 Sends Telegram notifications for top-college & internship opportunities</li>
-            </ul>
+            <h3>Mode Distribution</h3>
+            <div className="dash-bar-row">
+              <span className="dash-bar-label">Online</span>
+              <div className="dash-bar-track">
+                <div className="dash-bar-fill dash-bar--online" style={{width: hackathons.length ? `${(onlineCount/hackathons.length)*100}%` : '0%'}} />
+              </div>
+              <span className="dash-bar-count">{onlineCount}</span>
+            </div>
+            <div className="dash-bar-row">
+              <span className="dash-bar-label">Offline</span>
+              <div className="dash-bar-track">
+                <div className="dash-bar-fill dash-bar--offline" style={{width: hackathons.length ? `${(offlineCount/hackathons.length)*100}%` : '0%'}} />
+              </div>
+              <span className="dash-bar-count">{offlineCount}</span>
+            </div>
           </div>
 
-          <div className="modal-footer-note">
-            <em>AI-assisted but human-architected. Every line of logic was reviewed and owned by Pranav.</em>
-          </div>
-        </div>
-
-        <div className="modal-links">
-          <a href="https://github.com/Pranavdeshmukhhh/hackathon-notifier" target="_blank" rel="noopener noreferrer" className="modal-link-btn">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0 1 12 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0 0 22 12.017C22 6.484 17.522 2 12 2z"/></svg>
-            View Source
-          </a>
+          {/* Sources */}
+          {sourceBreakdown.length > 0 && (
+            <div className="modal-section">
+              <h3>Sources</h3>
+              <div className="dash-source-grid">
+                {sourceBreakdown.map(s => (
+                  <div key={s.name} className="dash-source-item">
+                    <span className={`source-badge source-badge--${s.name.toLowerCase()}`}>{s.name}</span>
+                    <span className="dash-source-count">{s.count} events</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
   );
 }
 
-// ── Pagination controls component ────────────────────────────────────────────
-function Pagination({ currentPage, totalPages, onPageChange }) {
-  if (totalPages <= 1) return null;
-
-  const pages = [];
-  // Always show first, last, and pages around current
-  const delta = 1;
-  for (let i = 1; i <= totalPages; i++) {
-    if (i === 1 || i === totalPages || (i >= currentPage - delta && i <= currentPage + delta)) {
-      pages.push(i);
-    }
-  }
-
-  // Insert ellipsis markers
-  const withEllipsis = [];
-  let prev = null;
-  for (const page of pages) {
-    if (prev !== null && page - prev > 1) {
-      withEllipsis.push('...');
-    }
-    withEllipsis.push(page);
-    prev = page;
-  }
+// ── About Modal ───────────────────────────────────────────────────────────────
+function AboutModal({ onClose }) {
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === 'Escape') onClose(); };
+    document.addEventListener('keydown', onKey);
+    document.body.style.overflow = 'hidden';
+    return () => { document.removeEventListener('keydown', onKey); document.body.style.overflow = ''; };
+  }, [onClose]);
 
   return (
-    <div className="pagination">
-      <button
-        className="pagination-btn"
-        onClick={() => onPageChange(currentPage - 1)}
-        disabled={currentPage === 1}
-        aria-label="Previous page"
-      >
-        ← Prev
-      </button>
-      {withEllipsis.map((item, i) =>
-        item === '...'
-          ? <span key={`ellipsis-${i}`} className="pagination-ellipsis">…</span>
-          : <button
-              key={item}
-              className={`pagination-btn ${currentPage === item ? 'active' : ''}`}
-              onClick={() => onPageChange(item)}
-            >
-              {item}
-            </button>
-      )}
-      <button
-        className="pagination-btn"
-        onClick={() => onPageChange(currentPage + 1)}
-        disabled={currentPage === totalPages}
-        aria-label="Next page"
-      >
-        Next →
-      </button>
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="modal-window" onClick={e => e.stopPropagation()} role="dialog" aria-modal="true" aria-label="About the maker">
+        <button className="modal-close" onClick={onClose} aria-label="Close">✕</button>
+
+        <div className="modal-header">
+          <div className="modal-avatar">PD</div>
+          <div>
+            <h2 className="modal-name">Pranav Deshmukh</h2>
+            <p className="modal-role">B.Tech 2nd Year · Systems Thinker · Builder</p>
+          </div>
+        </div>
+
+        <div className="modal-body">
+          <p className="modal-bio">
+            <strong>"The people who are crazy enough to think they can change the world are the ones who do."</strong>
+            <br /><br />
+            I'm <strong>Pranav Deshmukh</strong> — a 2nd-year B.Tech student who decided that manually
+            refreshing four hackathon platforms every morning was an unsolved systems problem. So I solved it.
+            This isn't just a side project. It's a <em>distributed, concurrent, classification-aware
+            intelligence layer</em> over the hackathon landscape — packaged into something
+            a developer actually wants to use.
+          </p>
+
+          <div className="modal-badge-row">
+            <span className="modal-badge modal-badge--green">🏗️ Architect: Pranav Deshmukh</span>
+            <span className="modal-badge modal-badge--purple">⚡ LLM-Accelerated Engineering</span>
+          </div>
+
+          <div className="modal-section">
+            <h3>The Philosophy</h3>
+            <p>
+              The system design — concurrent multi-source scraping via <code>ThreadPoolExecutor</code>,
+              TTL-cached MongoDB reads, Haversine-based geo-ranking, and a Telegram push pipeline —
+              was <strong>architected, debugged, and owned by me</strong>. Large language models acted as
+              a <em>pair programmer</em>, not the engineer. Every decision, every trade-off, every bug hunt:
+              that was me at 2am with a cup of chai.
+            </p>
+          </div>
+
+          <div className="modal-section">
+            <h3>Under the Hood</h3>
+            <div className="modal-tech-grid">
+              <div className="modal-tech-item"><span>⚡</span> FastAPI + Python</div>
+              <div className="modal-tech-item"><span>🌿</span> MongoDB Atlas</div>
+              <div className="modal-tech-item"><span>⚛️</span> React + Vite</div>
+              <div className="modal-tech-item"><span>📲</span> Telegram Bot API</div>
+              <div className="modal-tech-item"><span>☁️</span> Render + Vercel</div>
+              <div className="modal-tech-item"><span>🕷️</span> curl-cffi (CF bypass)</div>
+            </div>
+          </div>
+
+          <div className="modal-section">
+            <h3>What it ships</h3>
+            <ul className="modal-list">
+              <li>🔄 4 scrapers running concurrently — Devfolio, Unstop, Devpost, HackerEarth</li>
+              <li>🏛️ Rule-based classifier for IIT / NIT / IIIT / BITS / internship signals</li>
+              <li>📍 Haversine geo-engine ranks offline events by your GPS coordinates</li>
+              <li>📲 Telegram push bot pings only the opportunities that actually matter</li>
+            </ul>
+          </div>
+
+          <div className="modal-footer-note">
+            <em>🤖 AI-accelerated, not AI-generated. The architecture runs on human ingenuity.</em>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
 
+// ── Pagination ─────────────────────────────────────────────────────────────────
+function Pagination({ currentPage, totalPages, onPageChange }) {
+  if (totalPages <= 1) return null;
+  const pages = [];
+  const delta = 1;
+  for (let i = 1; i <= totalPages; i++) {
+    if (i === 1 || i === totalPages || (i >= currentPage - delta && i <= currentPage + delta)) pages.push(i);
+  }
+  const withEllipsis = [];
+  let prev = null;
+  for (const page of pages) {
+    if (prev !== null && page - prev > 1) withEllipsis.push('...');
+    withEllipsis.push(page);
+    prev = page;
+  }
+  return (
+    <div className="pagination">
+      <button className="pagination-btn" onClick={() => onPageChange(currentPage - 1)} disabled={currentPage === 1} aria-label="Previous page">← Prev</button>
+      {withEllipsis.map((item, i) =>
+        item === '...'
+          ? <span key={`e-${i}`} className="pagination-ellipsis">…</span>
+          : <button key={item} className={`pagination-btn ${currentPage === item ? 'active' : ''}`} onClick={() => onPageChange(item)}>{item}</button>
+      )}
+      <button className="pagination-btn" onClick={() => onPageChange(currentPage + 1)} disabled={currentPage === totalPages} aria-label="Next page">Next →</button>
+    </div>
+  );
+}
+
+// ── Main App ──────────────────────────────────────────────────────────────────
 function App() {
   const [hackathons, setHackathons] = useState([]);
   const [filtered, setFiltered] = useState([]);
@@ -168,62 +259,39 @@ function App() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showColdStartBanner, setShowColdStartBanner] = useState(false);
   const [showAboutModal, setShowAboutModal] = useState(false);
-
-  // ── Tab between Upcoming / Missed ──
-  const [activeTab, setActiveTab] = useState('upcoming'); // 'upcoming' | 'missed'
-  // ── Pagination state ──
+  const [showDashboard, setShowDashboard] = useState(false);
+  const [activeTab, setActiveTab] = useState('upcoming');
   const [upcomingPage, setUpcomingPage] = useState(1);
   const [missedPage, setMissedPage] = useState(1);
 
   const [stats, setStats] = useState({
-    total: 0,
-    unique_tags: 0,
-    last_scraped: '',
-    sources: [],
-    top_college_count: 0,
-    internship_count: 0,
-    college_types: [],
+    total: 0, unique_tags: 0, last_scraped: '', sources: [],
+    top_college_count: 0, internship_count: 0, college_types: [],
   });
 
-  const homeRef = useRef(null);
+  const homeRef      = useRef(null);
   const dashboardRef = useRef(null);
-  const aboutRef = useRef(null);
-  const eventsRef = useRef(null);
+  const aboutRef     = useRef(null);
+  const eventsRef    = useRef(null);
   const abortControllerRef = useRef(null);
-  const coldStartTimerRef = useRef(null);
-  const intervalRef = useRef(null);
+  const coldStartTimerRef  = useRef(null);
+  const intervalRef        = useRef(null);
 
   const fetchHackathons = useCallback(async (lat = null, lng = null) => {
     if (abortControllerRef.current) abortControllerRef.current.abort();
     abortControllerRef.current = new AbortController();
-
-    setLoading(true);
-    setError(null);
-    setShowColdStartBanner(false);
-
+    setLoading(true); setError(null); setShowColdStartBanner(false);
     coldStartTimerRef.current = setTimeout(() => setShowColdStartBanner(true), COLD_START_WARN_MS);
-
     try {
       let url = API_URL;
       if (lat && lng) url += `?lat=${lat}&lng=${lng}`;
-
       const response = await fetch(url, { signal: abortControllerRef.current.signal });
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const result = await response.json();
-
-      if (Array.isArray(result)) {
-        setHackathons(result);
-        setFiltered(result);
-      } else if (result.success) {
-        setHackathons(result.data);
-        setFiltered(result.data);
-        if (result.stats) setStats(result.stats);
-      } else {
-        throw new Error(result.error || 'Unknown error from API');
-      }
-      // Reset pagination on fresh data
-      setUpcomingPage(1);
-      setMissedPage(1);
+      if (Array.isArray(result)) { setHackathons(result); setFiltered(result); }
+      else if (result.success) { setHackathons(result.data); setFiltered(result.data); if (result.stats) setStats(result.stats); }
+      else throw new Error(result.error || 'Unknown error from API');
+      setUpcomingPage(1); setMissedPage(1);
     } catch (e) {
       if (e.name === 'AbortError') return;
       setError('Could not connect to the API. Make sure the backend is running.');
@@ -235,25 +303,24 @@ function App() {
     }
   }, []);
 
-  const handleNearMeClick = () => {
-    if (!navigator.geolocation) { setLocationError("Geolocation is not supported by your browser"); return; }
-    setIsLocating(true);
-    setLocationError(null);
+  // Location prompt — used when "Distance (nearest)" selected without location
+  const requestLocation = useCallback(() => {
+    if (!navigator.geolocation) { setLocationError("Geolocation not supported"); return; }
+    setIsLocating(true); setLocationError(null);
     navigator.geolocation.getCurrentPosition(
-      (position) => {
-        const lat = position.coords.latitude;
-        const lng = position.coords.longitude;
-        setUserLocation({ lat, lng });
-        setIsLocating(false);
+      (pos) => {
+        const lat = pos.coords.latitude, lng = pos.coords.longitude;
+        setUserLocation({ lat, lng }); setIsLocating(false);
         fetchHackathons(lat, lng);
       },
       () => { setLocationError("Unable to retrieve your location"); setIsLocating(false); }
     );
-  };
+  }, [fetchHackathons]);
+
+  const handleNearMeClick = requestLocation;
 
   useEffect(() => {
-    const lat = userLocation?.lat ?? null;
-    const lng = userLocation?.lng ?? null;
+    const lat = userLocation?.lat ?? null, lng = userLocation?.lng ?? null;
     fetchHackathons(lat, lng);
     if (intervalRef.current) clearInterval(intervalRef.current);
     intervalRef.current = setInterval(() => fetchHackathons(lat, lng), 5 * 60 * 1000);
@@ -264,7 +331,6 @@ function App() {
     };
   }, [userLocation?.lat, userLocation?.lng, fetchHackathons]);
 
-  // ── Sorting ──
   const sortHackathons = (list, method) => {
     const sorted = [...list];
     switch (method) {
@@ -277,10 +343,9 @@ function App() {
     return sorted;
   };
 
-  // ── Filtering ──
   const applyFilters = (category, tag, search, sort) => {
     let result = hackathons;
-    if (category === 'Top College')  result = result.filter(h => h.is_top_college === true);
+    if (category === 'Top College') result = result.filter(h => h.is_top_college === true);
     else if (category === 'Internship') result = result.filter(h => h.is_internship === true);
     else if (category === 'Hackathon') result = result.filter(h => h.opportunity_type === 'Hackathon');
     if (tag !== 'All') result = result.filter(h => h.tags && h.tags.includes(tag));
@@ -293,19 +358,25 @@ function App() {
       );
     }
     result = sortHackathons(result, sort);
-    setFiltered(result);
-    // Reset to page 1 whenever filters change
-    setUpcomingPage(1);
-    setMissedPage(1);
+    setFiltered(result); setUpcomingPage(1); setMissedPage(1);
   };
 
-  const handleCategoryChange = (category) => { setActiveCategory(category); setActiveTag('All'); applyFilters(category, 'All', searchQuery, sortBy); };
-  const handleSortChange = (e) => { const v = e.target.value; setSortBy(v); applyFilters(activeCategory, activeTag, searchQuery, v); };
-  const handleSearchChange = (e) => { const q = e.target.value; setSearchQuery(q); applyFilters(activeCategory, activeTag, q, sortBy); };
+  const handleCategoryChange = (cat) => { setActiveCategory(cat); setActiveTag('All'); applyFilters(cat, 'All', searchQuery, sortBy); };
+  const handleSearchChange   = (e)   => { const q = e.target.value; setSearchQuery(q); applyFilters(activeCategory, activeTag, q, sortBy); };
+  const handleSortChange     = (e)   => {
+    const v = e.target.value;
+    if (v === 'distance' && !userLocation) {
+      // Auto-request location when user picks "nearest" without having granted it
+      setSortBy('distance');
+      requestLocation();
+      return;
+    }
+    setSortBy(v);
+    applyFilters(activeCategory, activeTag, searchQuery, v);
+  };
 
   const scrollToSection = (section) => {
-    setActiveSection(section);
-    setMobileMenuOpen(false);
+    setActiveSection(section); setMobileMenuOpen(false);
     const refMap = { home: homeRef, dashboard: dashboardRef, about: aboutRef, events: eventsRef };
     refMap[section]?.current?.scrollIntoView({ behavior: 'smooth' });
   };
@@ -330,29 +401,24 @@ function App() {
     } catch { return '—'; }
   };
 
-  // ── Split + paginate ──
   const upcomingHackathons = filtered.filter(h => !h.is_past);
   const missedHackathons   = filtered.filter(h => h.is_past);
-
   const upcomingTotalPages = Math.max(1, Math.ceil(upcomingHackathons.length / PAGE_SIZE));
   const missedTotalPages   = Math.max(1, Math.ceil(missedHackathons.length / PAGE_SIZE));
-
-  const upcomingPageItems = upcomingHackathons.slice((upcomingPage - 1) * PAGE_SIZE, upcomingPage * PAGE_SIZE);
-  const missedPageItems   = missedHackathons.slice((missedPage - 1) * PAGE_SIZE, missedPage * PAGE_SIZE);
-
-  // Scroll to top of list when page changes
+  const upcomingPageItems  = upcomingHackathons.slice((upcomingPage - 1) * PAGE_SIZE, upcomingPage * PAGE_SIZE);
+  const missedPageItems    = missedHackathons.slice((missedPage - 1) * PAGE_SIZE, missedPage * PAGE_SIZE);
   const handleUpcomingPageChange = (p) => { setUpcomingPage(p); eventsRef.current?.scrollIntoView({ behavior: 'smooth' }); };
   const handleMissedPageChange   = (p) => { setMissedPage(p);   eventsRef.current?.scrollIntoView({ behavior: 'smooth' }); };
 
   return (
     <div className="app-container">
-      {/* ── About Modal ── */}
-      {showAboutModal && <AboutModal onClose={() => setShowAboutModal(false)} />}
+      {showAboutModal    && <AboutModal     onClose={() => setShowAboutModal(false)} />}
+      {showDashboard     && <DashboardPopup stats={stats} hackathons={hackathons} onClose={() => setShowDashboard(false)} />}
 
       {/* ── Navbar ── */}
       <nav className="navbar" id="main-nav">
         <div className="navbar-brand" onClick={() => scrollToSection('home')} style={{ cursor: 'pointer' }}>
-          <div className="brand-icon">H</div>
+          <HLogo size={36} />
           <span>Hackathon Notifier</span>
         </div>
 
@@ -361,12 +427,12 @@ function App() {
         </button>
 
         <div className={`navbar-links ${mobileMenuOpen ? 'mobile-open' : ''}`}>
-          <a href="#about" className={activeSection === 'about' ? 'nav-active' : ''} onClick={(e) => { e.preventDefault(); scrollToSection('about'); }}>Features</a>
-          <a href="#dashboard" className={activeSection === 'dashboard' ? 'nav-active' : ''} onClick={(e) => { e.preventDefault(); scrollToSection('dashboard'); }}>Dashboard</a>
-          <a href="#events" className={activeSection === 'events' ? 'nav-active' : ''} onClick={(e) => { e.preventDefault(); scrollToSection('events'); }}>Hackathons</a>
+          <a href="#about"     className={activeSection === 'about'     ? 'nav-active' : ''} onClick={e => { e.preventDefault(); scrollToSection('about'); }}>Features</a>
+          <a href="#events"    className={activeSection === 'events'    ? 'nav-active' : ''} onClick={e => { e.preventDefault(); scrollToSection('events'); }}>Hackathons</a>
+          <button className="btn-link" onClick={() => setShowDashboard(true)}>📊 Dashboard</button>
           <button className="btn-link" onClick={() => setShowAboutModal(true)}>About</button>
-          <button className={`btn-secondary ${userLocation ? 'active' : ''}`} onClick={handleNearMeClick} disabled={isLocating} title="Sort hackathons by distance from you">
-            {isLocating ? 'Locating...' : '📍 Near Me'}
+          <button className={`btn-secondary ${userLocation ? 'active' : ''}`} onClick={handleNearMeClick} disabled={isLocating} title="Sort by distance from you">
+            {isLocating ? 'Locating…' : '📍 Near Me'}
           </button>
           <button className="btn-primary" id="refresh-btn" onClick={() => fetchHackathons(userLocation?.lat, userLocation?.lng)}>
             Refresh
@@ -393,7 +459,7 @@ function App() {
           </p>
           <div className="hero-cta-buttons">
             <button className="btn-primary" onClick={() => scrollToSection('events')}>Browse Hackathons</button>
-            <button className="btn-secondary" onClick={() => scrollToSection('dashboard')}>View Dashboard</button>
+            <button className="btn-secondary" onClick={() => setShowDashboard(true)}>Open Dashboard</button>
           </div>
         </div>
 
@@ -402,22 +468,10 @@ function App() {
             <span style={{ color: '#10b981' }}>●</span> Live Data Pipeline
           </div>
           <div className="hero-stats-grid">
-            <div className="hero-stat-box">
-              <div className="hero-stat-value">{stats.total || hackathons.length}</div>
-              <div className="hero-stat-label">Total Events</div>
-            </div>
-            <div className="hero-stat-box">
-              <div className="hero-stat-value">{upcomingHackathons.length}</div>
-              <div className="hero-stat-label">Active</div>
-            </div>
-            <div className="hero-stat-box">
-              <div className="hero-stat-value">{stats.top_college_count || 0}</div>
-              <div className="hero-stat-label">Top College</div>
-            </div>
-            <div className="hero-stat-box">
-              <div className="hero-stat-value" style={{ color: '#0f172a' }}>{formatLastScraped(stats.last_scraped)}</div>
-              <div className="hero-stat-label">Last Update</div>
-            </div>
+            <div className="hero-stat-box"><div className="hero-stat-value">{stats.total || hackathons.length}</div><div className="hero-stat-label">Total Events</div></div>
+            <div className="hero-stat-box"><div className="hero-stat-value">{upcomingHackathons.length}</div><div className="hero-stat-label">Active</div></div>
+            <div className="hero-stat-box"><div className="hero-stat-value">{stats.top_college_count || 0}</div><div className="hero-stat-label">Top College</div></div>
+            <div className="hero-stat-box"><div className="hero-stat-value" style={{ fontSize: '0.9rem', color: '#0f172a' }}>{formatLastScraped(stats.last_scraped)}</div><div className="hero-stat-label">Last Update</div></div>
           </div>
         </div>
       </section>
@@ -453,7 +507,7 @@ function App() {
           <div className="about-card">
             <div className="about-card-icon">📍</div>
             <h3>Location-Aware</h3>
-            <p>Uses your location to calculate distance to offline events. Sort by nearest.</p>
+            <p>Uses your GPS to calculate distance to offline events. Sort by nearest.</p>
           </div>
         </div>
       </section>
@@ -465,19 +519,21 @@ function App() {
           <p>Real-time analytics on the hackathon landscape.</p>
         </div>
         <div className="highlight-grid">
-          <div className="highlight-card bg-orange">
+          <div className="highlight-card bg-orange" style={{ cursor: 'pointer' }} onClick={() => setShowDashboard(true)}>
             <h3>See how many Top College events are live right now</h3>
             <div className="highlight-stats">
               <div className="h-stat"><span className="h-stat-val">{stats.top_college_count || 0}</span><span className="h-stat-label">IIT/NIT/BITS</span></div>
               <div className="h-stat"><span className="h-stat-val">{stats.internship_count || 0}</span><span className="h-stat-label">Internships</span></div>
             </div>
+            <div className="highlight-cta">Tap to open full dashboard →</div>
           </div>
-          <div className="highlight-card bg-blue">
+          <div className="highlight-card bg-blue" style={{ cursor: 'pointer' }} onClick={() => setShowDashboard(true)}>
             <h3>Missed Opportunities tracker to keep you accountable</h3>
             <div className="highlight-stats">
               <div className="h-stat"><span className="h-stat-val">{upcomingHackathons.length}</span><span className="h-stat-label">Upcoming</span></div>
               <div className="h-stat"><span className="h-stat-val">{missedHackathons.length}</span><span className="h-stat-label">Missed</span></div>
             </div>
+            <div className="highlight-cta">Tap to open full dashboard →</div>
           </div>
         </div>
       </section>
@@ -487,26 +543,24 @@ function App() {
         <div className="search-sort-bar">
           <div className="search-box">
             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-            <input type="text" placeholder="Search hackathons, locations, tags..." value={searchQuery} onChange={handleSearchChange} id="search-input" />
+            <input type="text" placeholder="Search hackathons, locations, tags…" value={searchQuery} onChange={handleSearchChange} id="search-input" />
           </div>
           <div className="sort-box">
             <label htmlFor="sort-select">Sort by:</label>
             <select id="sort-select" value={sortBy} onChange={handleSortChange}>
               <option value="deadline">Deadline (soonest)</option>
               <option value="newest">Recently Added</option>
-              <option value="name">Name (A-Z)</option>
-              {userLocation && <option value="distance">Distance (nearest)</option>}
+              <option value="name">Name (A–Z)</option>
+              <option value="distance">📍 Nearest {!userLocation && '(grant location)'}</option>
             </select>
           </div>
         </div>
 
-        {/* Category Tabs */}
         {!loading && !error && hackathons.length > 0 && (
           <div className="category-tabs" id="category-tabs">
             {categories.map(cat => (
               <button key={cat.key} className={`category-tab ${activeCategory === cat.key ? 'active' : ''}`} onClick={() => handleCategoryChange(cat.key)}>
-                {cat.label}
-                <span className="tab-count">{cat.count}</span>
+                {cat.label}<span className="tab-count">{cat.count}</span>
               </button>
             ))}
           </div>
@@ -515,12 +569,10 @@ function App() {
 
       {/* ── Hackathon List Section ── */}
       <section className="hack-list-section">
-
         {locationError && <div className="error-box" style={{ marginTop: '2rem' }}><p>⚠️ {locationError}</p></div>}
         {error && (
           <div className="error-box">
-            <h3>Connection Error</h3>
-            <p>{error}</p>
+            <h3>Connection Error</h3><p>{error}</p>
             <button className="btn-primary" onClick={() => fetchHackathons()} style={{ marginTop: '1rem' }}>Retry</button>
           </div>
         )}
@@ -539,27 +591,17 @@ function App() {
           </div>
         )}
 
-        {/* ── Tab switcher (Upcoming / Missed) ── */}
         {!loading && !error && (upcomingHackathons.length > 0 || missedHackathons.length > 0) && (
           <div className="list-tabs">
-            <button
-              className={`list-tab ${activeTab === 'upcoming' ? 'active' : ''}`}
-              onClick={() => setActiveTab('upcoming')}
-            >
-              🚀 Upcoming
-              <span className="tab-count">{upcomingHackathons.length}</span>
+            <button className={`list-tab ${activeTab === 'upcoming' ? 'active' : ''}`} onClick={() => setActiveTab('upcoming')}>
+              🚀 Upcoming<span className="tab-count">{upcomingHackathons.length}</span>
             </button>
-            <button
-              className={`list-tab ${activeTab === 'missed' ? 'active' : ''}`}
-              onClick={() => setActiveTab('missed')}
-            >
-              📁 Missed
-              <span className="tab-count">{missedHackathons.length}</span>
+            <button className={`list-tab ${activeTab === 'missed' ? 'active' : ''}`} onClick={() => setActiveTab('missed')}>
+              📁 Missed<span className="tab-count">{missedHackathons.length}</span>
             </button>
           </div>
         )}
 
-        {/* ── Upcoming page ── */}
         {!loading && activeTab === 'upcoming' && upcomingHackathons.length > 0 && (
           <>
             <div className="section-header">
@@ -567,25 +609,20 @@ function App() {
               <p>Page {upcomingPage} of {upcomingTotalPages} · {upcomingHackathons.length} total</p>
             </div>
             <div className="card-grid">
-              {upcomingPageItems.map((h) => (
-                <HackathonCard key={h._id || h.link} hackathon={h} />
-              ))}
+              {upcomingPageItems.map(h => <HackathonCard key={h._id || h.link} hackathon={h} />)}
             </div>
             <Pagination currentPage={upcomingPage} totalPages={upcomingTotalPages} onPageChange={handleUpcomingPageChange} />
           </>
         )}
 
-        {/* ── Missed page ── */}
         {!loading && activeTab === 'missed' && missedHackathons.length > 0 && (
           <>
             <div className="section-header">
               <h2 style={{ color: '#64748b' }}>Missed Opportunities</h2>
-              <p>Page {missedPage} of {missedTotalPages} · {missedHackathons.length} total — hackathons that have already passed their deadline.</p>
+              <p>Page {missedPage} of {missedTotalPages} · {missedHackathons.length} total</p>
             </div>
             <div className="card-grid">
-              {missedPageItems.map((h) => (
-                <HackathonCard key={h._id || h.link} hackathon={h} />
-              ))}
+              {missedPageItems.map(h => <HackathonCard key={h._id || h.link} hackathon={h} />)}
             </div>
             <Pagination currentPage={missedPage} totalPages={missedTotalPages} onPageChange={handleMissedPageChange} />
           </>
@@ -595,7 +632,7 @@ function App() {
           <div className="empty-state">
             <div className="empty-icon">🎉</div>
             <h3>No missed hackathons!</h3>
-            <p>You haven't missed anything in the current filter. Keep it up!</p>
+            <p>You're on top of it. Keep building.</p>
           </div>
         )}
       </section>
@@ -603,16 +640,14 @@ function App() {
       {/* ── Footer ── */}
       <footer className="app-footer">
         <div className="footer-brand">
-          <div className="brand-icon">H</div>
+          <HLogo size={28} />
           <span>Hackathon Notifier</span>
         </div>
         <p className="footer-tagline">Never miss a submission deadline.</p>
         <div className="footer-links">
-          <a href="https://github.com/Pranavdeshmukhhh/hackathon-notifier" target="_blank" rel="noopener noreferrer">GitHub Open Source</a>
+          <a href="https://github.com/Pranavdeshmukhhh/hackathon-notifier" target="_blank" rel="noopener noreferrer">GitHub</a>
           <span className="footer-sep">·</span>
-          <button className="btn-link footer-about-btn" onClick={() => setShowAboutModal(true)}>
-            Made by Pranav Deshmukh 👋
-          </button>
+          <button className="btn-link footer-about-btn" onClick={() => setShowAboutModal(true)}>Made by Pranav Deshmukh 👋</button>
         </div>
       </footer>
     </div>
