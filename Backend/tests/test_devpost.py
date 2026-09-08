@@ -66,3 +66,33 @@ class TestParseHackathon:
 
     def test_missing_url_returns_none(self):
         assert _parse_hackathon(ITEM_NO_URL) is None
+
+    def test_registrations_count_extracted(self):
+        """registrations_count from the API must be passed through as 'registrations'.
+
+        This feeds the dashboard stats panel. If the field name changes on
+        Devpost's API, this test will catch it before we silently show '0'
+        to users.
+        """
+        result = _parse_hackathon(VALID_ITEM)
+        assert result is not None
+        assert result["registrations"] == 500
+
+    def test_malformed_prize_html_stripped(self):
+        """Devpost returns prize as raw HTML: '$<span>10,000</span>'.
+
+        The _extract_prize helper must strip all tags so we store a
+        clean string like '$10,000', not an HTML fragment.
+        """
+        item = {**VALID_ITEM, "prize_amount": "$<span>740,000</span> in prizes"}
+        result = _parse_hackathon(item)
+        assert result is not None
+        assert "<span>" not in result["prize"]
+        assert "<" not in result["prize"]
+        assert "740,000" in result["prize"]
+
+    def test_online_location_sets_mode(self):
+        """If displayed_location contains 'online', mode must be 'Online' not 'Offline'."""
+        result = _parse_hackathon(VALID_ITEM)
+        assert result is not None
+        assert result["mode"] == "Online"

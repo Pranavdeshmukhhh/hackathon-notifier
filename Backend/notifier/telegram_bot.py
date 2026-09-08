@@ -19,6 +19,14 @@ import requests
 import telebot
 import threading
 from dotenv import load_dotenv
+from tenacity import (
+    retry,
+    stop_after_attempt,
+    wait_exponential,
+    retry_if_exception_type,
+    before_sleep_log,
+    RetryError,
+)
 
 # ── Load credentials ──────────────────────────────────────────────────────────
 _env_path = Path(__file__).resolve().parent.parent / ".env"
@@ -114,14 +122,72 @@ def _format_message(hackathon: dict) -> str:
 
 # ── Core send ─────────────────────────────────────────────────────────────────
 
+class _TelegramRetryable(Exception):
+    """Raised inside _do_send() to signal that tenacity should retry."""
+    pass
+
+
+@retry(
+    stop=stop_after_attempt(3),
+    wait=wait_exponential(multiplier=1, min=2, max=30),
+    retry=retry_if_exception_type(_TelegramRetryable),
+    before_sleep=before_sleep_log(logger, logging.WARNING),
+    reraise=False,
+)
+def _do_send(requester, payload: dict, title: str) -> bool:
+    """Inner HTTP send with tenacity retry on transient failures.
+
+    Separated from send_notification() so that:
+    - Credential checks and formatting happen once (no point retrying those).
+    - The @retry decorator only applies to actual network/HTTP transients.
+    - send_notification() always returns a bool and never raises.
+
+    Retry strategy:
+      - 3 attempts total (2 retries after first failure)
+      - Exponential backoff: 2s → 4s → 8s (capped at 30s)
+      - Only retries on _TelegramRetryable (transient errors)
+      - HTTP 429: respects Telegram's retry_after field before re-raising
+    """
+    resp = requester.post(_API_URL, json=payload, timeout=REQUEST_TIMEOUT)
+
+    if resp.status_code == 200 and resp.json().get("ok"):
+        logger.info("Telegram OK: %s", title)
+        return True
+
+    if resp.status_code == 429:
+        # Telegram rate-limit: honour their retry_after if provided
+        retry_after = resp.json().get("parameters", {}).get("retry_after", 5)
+        logger.warning(
+            "Telegram 429 rate-limited for '%s'. Waiting %ds before retry.",
+            title, retry_after,
+        )
+        time.sleep(retry_after)
+        raise _TelegramRetryable(f"429 rate-limited (retry_after={retry_after}s)")
+
+    if resp.status_code in (500, 502, 503, 504):
+        # Server-side transient — retry
+        raise _TelegramRetryable(f"Telegram server error HTTP {resp.status_code}")
+
+    # 4xx (other than 429) = client error, don't retry
+    logger.error("Telegram error (HTTP %d): %s", resp.status_code, resp.text[:200])
+    return False
+
+
 def send_notification(hackathon: dict, *, session: Optional[requests.Session] = None) -> bool:
     """
     Send a single hackathon notification to the configured Telegram chat.
 
+    Rate-limiting strategy:
+      - _do_send() retries on transient HTTP errors (429, 5xx) up to 3 times
+        with exponential backoff (2s → 4s → 8s).
+      - On 429, the Telegram-supplied retry_after duration is respected first.
+      - send_batch() also spaces messages 1.5s apart to stay inside Telegram's
+        30 msg/sec soft limit. The two mechanisms complement each other:
+        backoff = per-message recovery, delay = overall throughput control.
+
     Args:
         hackathon: Normalised hackathon dict.
         session:   Optional requests.Session for connection reuse.
-                   If None, a one-off request is made.
 
     Returns:
         True on success, False on any failure (never raises).
@@ -140,26 +206,19 @@ def send_notification(hackathon: dict, *, session: Optional[requests.Session] = 
         "parse_mode":               "HTML",
         "disable_web_page_preview": False,
     }
-
     requester = session or requests
-    try:
-        resp = requester.post(_API_URL, json=payload, timeout=REQUEST_TIMEOUT)
-        if resp.status_code == 200 and resp.json().get("ok"):
-            logger.info("Telegram OK: %s", hackathon.get("title", "?"))
-            return True
-        logger.error(
-            "Telegram error (HTTP %d): %s",
-            resp.status_code,
-            resp.text[:200],
-        )
-        return False
+    title = hackathon.get("title", "?")
 
+    try:
+        return _do_send(requester, payload, title) or False
+    except RetryError:
+        logger.error("Telegram: all retry attempts exhausted for '%s'.", title)
     except requests.exceptions.Timeout:
-        logger.error("Telegram timeout for: %s", hackathon.get("title", "?"))
+        logger.error("Telegram timeout for: %s", title)
     except requests.exceptions.ConnectionError:
-        logger.error("Telegram connection error for: %s", hackathon.get("title", "?"))
+        logger.error("Telegram connection error for: %s", title)
     except requests.exceptions.RequestException:
-        logger.exception("Telegram request failed for: %s", hackathon.get("title", "?"))
+        logger.exception("Telegram request failed for: %s", title)
     except Exception:
         logger.exception("Unexpected error sending Telegram notification.")
     return False

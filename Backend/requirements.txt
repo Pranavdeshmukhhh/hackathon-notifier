@@ -10,6 +10,7 @@ slowapi
 cachetools
 tenacity
 pytest
+pytest-cov
 responses
 mongomock
 geopy
