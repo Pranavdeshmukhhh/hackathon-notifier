@@ -94,13 +94,15 @@ def _parse_api_items(items: list) -> list[dict]:
         else:
             location_str = ""
 
-        # Registrations
-        regn_reqs = item.get("regnRequirements", {})
+        # Registrations — try every known Unstop field name (they're inconsistent)
+        regn_reqs = item.get("regnRequirements") or {}
         total_regs = (
             regn_reqs.get("total_teams_registered")
+            or regn_reqs.get("filled_seats")
+            or item.get("registerations")     # Unstop's own typo
             or item.get("registered_count")
             or item.get("total_registrations")
-            or item.get("registerations")  # Unstop typo variant
+            or item.get("participations_count")
             or 0
         )
 

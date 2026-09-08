@@ -62,9 +62,11 @@ function DashboardPopup({ stats, hackathons, onClose }) {
           <HLogo size={40} />
           <div>
             <h2 className="modal-name">Live Dashboard</h2>
-            <p className="modal-role">Real-time stats · Auto-refreshes every 5 min</p>
+            <p className="modal-role">Real-time stats · Auto-refreshes every 1 hr</p>
           </div>
         </div>
+        {/* Close button after header so it sits on top */}
+        <button className="modal-close" onClick={onClose} aria-label="Close">✕</button>
 
         <div className="modal-body">
           {/* Key metrics */}
@@ -145,64 +147,52 @@ function AboutModal({ onClose }) {
 
   return (
     <div className="modal-backdrop" onClick={onClose}>
-      <div className="modal-window" onClick={e => e.stopPropagation()} role="dialog" aria-modal="true" aria-label="About the maker">
-        <button className="modal-close" onClick={onClose} aria-label="Close">✕</button>
+      <div className="modal-window about-modal-compact" onClick={e => e.stopPropagation()} role="dialog" aria-modal="true" aria-label="About the maker">
 
+        {/* Dark header */}
         <div className="modal-header">
           <div className="modal-avatar">PD</div>
           <div>
             <h2 className="modal-name">Pranav Deshmukh</h2>
-            <p className="modal-role">B.Tech 2nd Year · Systems Thinker · Builder</p>
+            <p className="modal-role">B.Tech 2nd Year &nbsp;·&nbsp; Systems Architect &nbsp;·&nbsp; Builder</p>
           </div>
         </div>
+        {/* Close button rendered AFTER header so it sits on top in z-order */}
+        <button className="modal-close" onClick={onClose} aria-label="Close">✕</button>
 
-        <div className="modal-body">
-          <p className="modal-bio">
-            <strong>"The people who are crazy enough to think they can change the world are the ones who do."</strong>
-            <br /><br />
-            I'm <strong>Pranav Deshmukh</strong> — a 2nd-year B.Tech student who decided that manually
-            refreshing four hackathon platforms every morning was an unsolved systems problem. So I solved it.
-            This isn't just a side project. It's a <em>distributed, concurrent, classification-aware
-            intelligence layer</em> over the hackathon landscape — packaged into something
-            a developer actually wants to use.
-          </p>
-
+        <div className="modal-body about-body-compact">
           <div className="modal-badge-row">
             <span className="modal-badge modal-badge--green">🏗️ Architect: Pranav Deshmukh</span>
-            <span className="modal-badge modal-badge--purple">⚡ LLM-Accelerated Engineering</span>
+            <span className="modal-badge modal-badge--purple">⚡ LLM-Accelerated</span>
           </div>
 
-          <div className="modal-section">
-            <h3>The Philosophy</h3>
-            <p>
-              The system design — concurrent multi-source scraping via <code>ThreadPoolExecutor</code>,
-              TTL-cached MongoDB reads, Haversine-based geo-ranking, and a Telegram push pipeline —
-              was <strong>architected, debugged, and owned by me</strong>. Large language models acted as
-              a <em>pair programmer</em>, not the engineer. Every decision, every trade-off, every bug hunt:
-              that was me at 2am with a cup of chai.
-            </p>
-          </div>
+          <p className="modal-bio" style={{fontSize:'0.88rem', marginBottom:'1rem'}}>
+            A 2nd-year B.Tech student who decided manually refreshing four hackathon
+            platforms every morning was an unsolved systems problem — <strong>so I solved it.</strong>{' '}
+            LLMs acted as a <em>pair programmer</em>, not the engineer. Every architecture
+            decision, every trade-off, every 2am debug session: that was me.
+          </p>
 
-          <div className="modal-section">
+          <div className="modal-section" style={{marginBottom:'0.9rem'}}>
             <h3>Under the Hood</h3>
             <div className="modal-tech-grid">
               <div className="modal-tech-item"><span>⚡</span> FastAPI + Python</div>
               <div className="modal-tech-item"><span>🌿</span> MongoDB Atlas</div>
               <div className="modal-tech-item"><span>⚛️</span> React + Vite</div>
-              <div className="modal-tech-item"><span>📲</span> Telegram Bot API</div>
+              <div className="modal-tech-item"><span>📲</span> Telegram Bot</div>
               <div className="modal-tech-item"><span>☁️</span> Render + Vercel</div>
               <div className="modal-tech-item"><span>🕷️</span> curl-cffi (CF bypass)</div>
             </div>
           </div>
 
-          <div className="modal-section">
+          <div className="modal-section" style={{marginBottom:'0.9rem'}}>
             <h3>What it ships</h3>
-            <ul className="modal-list">
-              <li>🔄 4 scrapers running concurrently — Devfolio, Unstop, Devpost, HackerEarth</li>
-              <li>🏛️ Rule-based classifier for IIT / NIT / IIIT / BITS / internship signals</li>
-              <li>📍 Haversine geo-engine ranks offline events by your GPS coordinates</li>
-              <li>📲 Telegram push bot pings only the opportunities that actually matter</li>
-            </ul>
+            <div className="about-chips">
+              <span>4 concurrent scrapers</span>
+              <span>IIT/NIT/BITS classifier</span>
+              <span>Haversine geo-ranking</span>
+              <span>Telegram push alerts</span>
+            </div>
           </div>
 
           <div className="modal-footer-note">
@@ -323,7 +313,7 @@ function App() {
     const lat = userLocation?.lat ?? null, lng = userLocation?.lng ?? null;
     fetchHackathons(lat, lng);
     if (intervalRef.current) clearInterval(intervalRef.current);
-    intervalRef.current = setInterval(() => fetchHackathons(lat, lng), 5 * 60 * 1000);
+    intervalRef.current = setInterval(() => fetchHackathons(lat, lng), 60 * 60 * 1000); // 1 hr
     return () => {
       clearInterval(intervalRef.current);
       if (abortControllerRef.current) abortControllerRef.current.abort();
@@ -645,9 +635,9 @@ function App() {
         </div>
         <p className="footer-tagline">Never miss a submission deadline.</p>
         <div className="footer-links">
-          <a href="https://github.com/Pranavdeshmukhhh/hackathon-notifier" target="_blank" rel="noopener noreferrer">GitHub</a>
-          <span className="footer-sep">·</span>
-          <button className="btn-link footer-about-btn" onClick={() => setShowAboutModal(true)}>Made by Pranav Deshmukh 👋</button>
+          <button className="btn-link footer-about-btn" onClick={() => setShowAboutModal(true)}>
+            Made by Pranav Deshmukh 👋
+          </button>
         </div>
       </footer>
     </div>
