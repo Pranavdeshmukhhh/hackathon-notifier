@@ -32,6 +32,18 @@ const MapPinIcon = () => (
   </svg>
 );
 
+// Clean a location string: remove pure-mode tokens like "Online" / "Offline"
+// Unstop sometimes sends "Online" or "Online, Pune" — show only the city part
+function cleanLocation(raw) {
+  if (!raw) return '';
+  // Remove leading/trailing "Online," or "Offline," tokens (case-insensitive)
+  let cleaned = raw
+    .replace(/^(online|offline)[,\s]*/i, '')
+    .replace(/[,\s]*(online|offline)$/i, '')
+    .trim();
+  return cleaned;
+}
+
 const HackathonCard = ({ hackathon }) => {
   const isPast = hackathon.is_past === true;
   const source = hackathon.source || 'Unknown';
@@ -39,7 +51,13 @@ const HackathonCard = ({ hackathon }) => {
   const collegeType = hackathon.college_type || '';
   const collegeName = hackathon.college_name || '';
   const isInternship = hackathon.is_internship === true;
-  const location = hackathon.location || '';
+  // Clean location: strip mode noise and show a human-readable city/venue
+  const rawLocation = hackathon.location || '';
+  const location = cleanLocation(rawLocation);
+  // Round distance to 1 decimal place
+  const distanceKm = hackathon.distance_km != null
+    ? parseFloat(hackathon.distance_km.toFixed(1))
+    : undefined;
 
   return (
     <div className={`hack-card${isPast ? ' hack-card--past' : ''}`}>
@@ -78,8 +96,8 @@ const HackathonCard = ({ hackathon }) => {
             <MapPinIcon />
             <span>
               {location}
-              {hackathon.distance_km !== undefined && (
-                <span className="distance-label"> • {hackathon.distance_km} km away</span>
+              {distanceKm !== undefined && (
+                <span className="distance-label"> • {distanceKm} km away</span>
               )}
             </span>
           </div>
