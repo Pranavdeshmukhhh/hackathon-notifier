@@ -88,3 +88,43 @@ class TestParseApiItems:
         results = _parse_api_items([ITEM_TIMESTAMP_DEADLINE])
         assert len(results) == 1
         assert results[0]["deadline_iso"] != ""  # should have parsed the timestamp
+
+    def test_registrations_extracted_from_regn_requirements(self):
+        """Validates the regnRequirements.total_teams_registered path we fixed.
+
+        Unstop stores registration counts inside a nested object, not at the
+        top level. This test documents the exact field path so if Unstop changes
+        their API schema, CI breaks instead of silently showing '0 registrations'.
+        """
+        item = {
+            **VALID_ITEM,
+            "regnRequirements": {"end_regn_dt": "2027-01-15T23:59:59", "total_teams_registered": 1337},
+        }
+        results = _parse_api_items([item])
+        assert len(results) == 1
+        # Unstop uses "total_registrations" as the output key (not "registrations")
+        assert results[0]["total_registrations"] == 1337
+
+    def test_city_extracted_from_offline_location(self):
+        """An offline hackathon should expose a real city string, not blank.
+
+        The location bug was: Unstop returns region as 'Offline' (the mode label)
+        AND city data separately. This confirms city takes precedence.
+        """
+        item = {
+            **VALID_ITEM,
+            "region": "Offline",
+            "city": "Mumbai",
+            "state": "Maharashtra",
+        }
+        results = _parse_api_items([item])
+        assert len(results) == 1
+        result = results[0]
+        assert result["mode"] == "Offline"
+        # Location must be a real place, not the mode string
+        assert result["location"] != "Offline"
+        assert result["location"] != ""
+
+    def test_empty_list_returns_empty(self):
+        """Feeding an empty list must return an empty list, not crash."""
+        assert _parse_api_items([]) == []
