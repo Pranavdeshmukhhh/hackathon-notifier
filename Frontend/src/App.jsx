@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import HackathonCard from '../Components/hakathoncard';
 import './index.css';
 
@@ -13,9 +13,13 @@ function App() {
   const [error, setError] = useState(null);
   const [activeCategory, setActiveCategory] = useState('All');
   const [activeTag, setActiveTag] = useState('All');
+  const [sortBy, setSortBy] = useState('deadline');
+  const [searchQuery, setSearchQuery] = useState('');
   const [userLocation, setUserLocation] = useState(null);
   const [isLocating, setIsLocating] = useState(false);
   const [locationError, setLocationError] = useState(null);
+  const [activeSection, setActiveSection] = useState('home');
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [stats, setStats] = useState({
     total: 0,
     unique_tags: 0,
@@ -25,6 +29,11 @@ function App() {
     internship_count: 0,
     college_types: [],
   });
+
+  // Refs for scroll-to-section
+  const homeRef = useRef(null);
+  const dashboardRef = useRef(null);
+  const aboutRef = useRef(null);
 
   const fetchHackathons = async (lat = null, lng = null) => {
     setLoading(true);
@@ -37,13 +46,11 @@ function App() {
       const response = await fetch(url);
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const result = await response.json();
-      
+
       if (Array.isArray(result)) {
-        // Fallback for older backend versions that return an array directly
         setHackathons(result);
         setFiltered(result);
       } else if (result.success) {
-        // New backend version that returns {success, count, data, stats}
         setHackathons(result.data);
         setFiltered(result.data);
         if (result.stats) {
@@ -53,7 +60,7 @@ function App() {
         throw new Error(result.error || 'Unknown error from API');
       }
     } catch (e) {
-      setError('Could not connect to the API. Make sure the backend is running on port 8000.');
+      setError('Could not connect to the API. Make sure the backend is running.');
       console.error(e);
     } finally {
       setLoading(false);
@@ -67,7 +74,7 @@ function App() {
     }
     setIsLocating(true);
     setLocationError(null);
-    
+
     navigator.geolocation.getCurrentPosition(
       (position) => {
         const lat = position.coords.latitude;
@@ -76,7 +83,7 @@ function App() {
         setIsLocating(false);
         fetchHackathons(lat, lng);
       },
-      (err) => {
+      () => {
         setLocationError("Unable to retrieve your location");
         setIsLocating(false);
       }
@@ -85,17 +92,40 @@ function App() {
 
   useEffect(() => {
     fetchHackathons(userLocation?.lat, userLocation?.lng);
-
-    // Auto-refresh every 5 minutes (300000 ms)
     const intervalId = setInterval(() => {
       fetchHackathons(userLocation?.lat, userLocation?.lng);
     }, 5 * 60 * 1000);
-
     return () => clearInterval(intervalId);
   }, []);
 
-  // ── Category + tag filtering ──────────────────────────────────────────────
-  const applyFilters = (category, tag) => {
+  // ── Sorting ──
+  const sortHackathons = (list, method) => {
+    const sorted = [...list];
+    switch (method) {
+      case 'deadline':
+        sorted.sort((a, b) => {
+          const da = a.deadline_iso || '9999';
+          const db = b.deadline_iso || '9999';
+          return da.localeCompare(db);
+        });
+        break;
+      case 'distance':
+        sorted.sort((a, b) => (a.distance_km ?? 999999) - (b.distance_km ?? 999999));
+        break;
+      case 'name':
+        sorted.sort((a, b) => (a.title || '').localeCompare(b.title || ''));
+        break;
+      case 'newest':
+        sorted.sort((a, b) => (b.scraped_at || '').localeCompare(a.scraped_at || ''));
+        break;
+      default:
+        break;
+    }
+    return sorted;
+  };
+
+  // ── Category + tag + search filtering ──
+  const applyFilters = (category, tag, search, sort) => {
     let result = hackathons;
 
     // Category filter
@@ -106,25 +136,56 @@ function App() {
     } else if (category === 'Hackathon') {
       result = result.filter(h => h.opportunity_type === 'Hackathon');
     }
-    // 'All' = no category filter
 
     // Tag filter
     if (tag !== 'All') {
       result = result.filter(h => h.tags && h.tags.includes(tag));
     }
 
+    // Search filter
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      result = result.filter(h =>
+        (h.title || '').toLowerCase().includes(q) ||
+        (h.location || '').toLowerCase().includes(q) ||
+        (h.tags || []).some(t => t.toLowerCase().includes(q))
+      );
+    }
+
+    // Sort
+    result = sortHackathons(result, sort);
+
     setFiltered(result);
   };
 
   const handleCategoryChange = (category) => {
     setActiveCategory(category);
-    setActiveTag('All'); // reset tag filter when category changes
-    applyFilters(category, 'All');
+    setActiveTag('All');
+    applyFilters(category, 'All', searchQuery, sortBy);
   };
 
   const handleTagChange = (tag) => {
     setActiveTag(tag);
-    applyFilters(activeCategory, tag);
+    applyFilters(activeCategory, tag, searchQuery, sortBy);
+  };
+
+  const handleSortChange = (e) => {
+    const newSort = e.target.value;
+    setSortBy(newSort);
+    applyFilters(activeCategory, activeTag, searchQuery, newSort);
+  };
+
+  const handleSearchChange = (e) => {
+    const q = e.target.value;
+    setSearchQuery(q);
+    applyFilters(activeCategory, activeTag, q, sortBy);
+  };
+
+  const scrollToSection = (section) => {
+    setActiveSection(section);
+    setMobileMenuOpen(false);
+    const refMap = { home: homeRef, dashboard: dashboardRef, about: aboutRef };
+    refMap[section]?.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
   // Category definitions with counts
@@ -137,7 +198,6 @@ function App() {
 
   // Build unique tag set for filter chips
   const allTags = ['All', ...new Set(filtered.flatMap(h => h.tags || []))];
-  // Only show first 10 tags in filter bar for usability
   const visibleTags = allTags.slice(0, 11);
 
   // Format last scraped timestamp
@@ -158,47 +218,78 @@ function App() {
     }
   };
 
-  // Split filtered results into upcoming and past
+  // Split filtered results
   const upcomingHackathons = filtered.filter(h => !h.is_past);
-  const pastHackathons = filtered.filter(h => h.is_past);
+  const missedHackathons = filtered.filter(h => h.is_past);
+
+  // Dashboard stats
+  const onlineCount = hackathons.filter(h => (h.mode || '').toLowerCase() === 'online').length;
+  const offlineCount = hackathons.filter(h => (h.mode || '').toLowerCase() === 'offline').length;
+  const hybridCount = hackathons.filter(h => {
+    const m = (h.mode || '').toLowerCase();
+    return m !== 'online' && m !== 'offline' && m !== 'unknown' && m !== '';
+  }).length;
+
+  // Source breakdown
+  const sourceBreakdown = {};
+  hackathons.forEach(h => {
+    const src = h.source || 'Unknown';
+    sourceBreakdown[src] = (sourceBreakdown[src] || 0) + 1;
+  });
 
   return (
     <div className="app-container">
       {/* ── Navbar ── */}
       <nav className="navbar" id="main-nav">
-        <div className="navbar-brand">
+        <div className="navbar-brand" onClick={() => scrollToSection('home')} style={{ cursor: 'pointer' }}>
           <div className="brand-icon">H</div>
           <span>Hackathon Notifier</span>
         </div>
-        <div className="navbar-links">
-          <button 
-            className={`btn-secondary ${userLocation ? 'active' : ''}`} 
+
+        <button className="mobile-menu-btn" onClick={() => setMobileMenuOpen(!mobileMenuOpen)} aria-label="Toggle menu">
+          <span className={`hamburger ${mobileMenuOpen ? 'open' : ''}`}></span>
+        </button>
+
+        <div className={`navbar-links ${mobileMenuOpen ? 'mobile-open' : ''}`}>
+          <a href="#home" className={activeSection === 'home' ? 'nav-active' : ''} onClick={(e) => { e.preventDefault(); scrollToSection('home'); }}>Home</a>
+          <a href="#dashboard" className={activeSection === 'dashboard' ? 'nav-active' : ''} onClick={(e) => { e.preventDefault(); scrollToSection('dashboard'); }}>Dashboard</a>
+          <a href="#about" className={activeSection === 'about' ? 'nav-active' : ''} onClick={(e) => { e.preventDefault(); scrollToSection('about'); }}>About</a>
+          <button
+            className={`btn-secondary ${userLocation ? 'active' : ''}`}
             onClick={handleNearMeClick}
             disabled={isLocating}
-            title="Sort hackathons by distance"
+            title="Sort hackathons by distance from you"
           >
-            {isLocating ? 'Locating...' : '📍 Near Me'}
+            {isLocating ? '⏳ Locating...' : '📍 Near Me'}
           </button>
-          <a href="#">Dashboard</a>
-          <a href="#">About</a>
           <button className="btn-primary" id="refresh-btn" onClick={() => fetchHackathons(userLocation?.lat, userLocation?.lng)}>
-            Refresh
+            ↻ Refresh
           </button>
         </div>
       </nav>
 
-      {/* ── Hero ── */}
-      <section className="hero" id="hero-section">
-        <h1>Discover Live<br />Hackathons</h1>
-        <p>
-          Automatically scraped and delivered to your Telegram.
-          Never miss a hackathon again.
-        </p>
+      {/* ── Hero Section ── */}
+      <section className="hero" id="hero-section" ref={homeRef}>
+        <div className="hero-content">
+          <h1>Discover Live<br />Hackathons</h1>
+          <p>
+            Automatically scraped from Devfolio, Unstop, Devpost & HackerEarth.
+            Sorted, classified and delivered to your Telegram — never miss a hackathon again.
+          </p>
+        </div>
 
         <div className="stats-bar">
           <div className="stat-item">
             <span className="stat-value">{stats.total || hackathons.length}</span>
             <span className="stat-label">Total Found</span>
+          </div>
+          <div className="stat-item">
+            <span className="stat-value">{upcomingHackathons.length}</span>
+            <span className="stat-label">Upcoming</span>
+          </div>
+          <div className="stat-item">
+            <span className="stat-value">{missedHackathons.length}</span>
+            <span className="stat-label">Missed</span>
           </div>
           <div className="stat-item">
             <span className="stat-value">{stats.top_college_count || 0}</span>
@@ -212,14 +303,33 @@ function App() {
             <span className="stat-value">{formatLastScraped(stats.last_scraped)}</span>
             <span className="stat-label">Last Scraped</span>
           </div>
-          {stats.sources && stats.sources.length > 0 && (
-            <div className="stat-item">
-              <span className="stat-value">{stats.sources.join(', ')}</span>
-              <span className="stat-label">Sources</span>
-            </div>
-          )}
         </div>
       </section>
+
+      {/* ── Search + Sort Bar ── */}
+      {!loading && !error && hackathons.length > 0 && (
+        <div className="search-sort-bar">
+          <div className="search-box">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input
+              type="text"
+              placeholder="Search hackathons, locations, tags..."
+              value={searchQuery}
+              onChange={handleSearchChange}
+              id="search-input"
+            />
+          </div>
+          <div className="sort-box">
+            <label htmlFor="sort-select">Sort by:</label>
+            <select id="sort-select" value={sortBy} onChange={handleSortChange}>
+              <option value="deadline">Deadline (soonest)</option>
+              <option value="newest">Recently Added</option>
+              <option value="name">Name (A-Z)</option>
+              {userLocation && <option value="distance">Distance (nearest)</option>}
+            </select>
+          </div>
+        </div>
+      )}
 
       {/* ── Category Tabs ── */}
       {!loading && !error && hackathons.length > 0 && (
@@ -252,25 +362,28 @@ function App() {
         </div>
       )}
 
-      {/* ── Error State ── */}
+      {/* ── Error States ── */}
       {locationError && (
-        <div className="error-box" style={{marginBottom: '1rem', backgroundColor: '#fff3cd', color: '#856404'}}>
-          <p>{locationError}</p>
+        <div className="error-box error-box--warning">
+          <p>⚠️ {locationError}</p>
         </div>
       )}
-
       {error && (
         <div className="error-box" id="error-box">
           <h3>Connection Error</h3>
           <p>{error}</p>
+          <button className="btn-primary" onClick={() => fetchHackathons()} style={{ marginTop: '1rem' }}>
+            Retry
+          </button>
         </div>
       )}
 
       {/* ── Empty State ── */}
       {!loading && !error && filtered.length === 0 && (
         <div className="empty-state" id="empty-state">
+          <div className="empty-icon">🔍</div>
           <h3>No hackathons found</h3>
-          <p>Run the backend scraper to populate the database, or try a different filter.</p>
+          <p>Try adjusting your filters or search query, or wait for the next scrape cycle.</p>
         </div>
       )}
 
@@ -287,8 +400,11 @@ function App() {
       {!loading && upcomingHackathons.length > 0 && (
         <>
           <div className="section-header" id="upcoming-section">
-            <h2>Upcoming Hackathons</h2>
-            <span className="section-count">{upcomingHackathons.length}</span>
+            <div className="section-header-left">
+              <span className="section-icon">🚀</span>
+              <h2>Upcoming Hackathons</h2>
+              <span className="section-count">{upcomingHackathons.length}</span>
+            </div>
           </div>
           <div className="card-grid">
             {upcomingHackathons.map((h) => (
@@ -298,20 +414,179 @@ function App() {
         </>
       )}
 
-      {/* ── Past Hackathons ── */}
-      {!loading && pastHackathons.length > 0 && (
+      {/* ── Missed Opportunities ── */}
+      {!loading && missedHackathons.length > 0 && (
         <>
-          <div className="section-header section-header--past" id="past-section">
-            <h2>Past / Expired</h2>
-            <span className="section-count">{pastHackathons.length}</span>
+          <div className="section-header section-header--missed" id="missed-section">
+            <div className="section-header-left">
+              <span className="section-icon">⏰</span>
+              <h2>Missed Opportunities</h2>
+              <span className="section-count">{missedHackathons.length}</span>
+            </div>
           </div>
           <div className="card-grid">
-            {pastHackathons.map((h) => (
+            {missedHackathons.map((h) => (
               <HackathonCard key={h._id || h.link} hackathon={h} />
             ))}
           </div>
         </>
       )}
+
+      {/* ── Dashboard Section ── */}
+      <section className="dashboard-section" id="dashboard-section" ref={dashboardRef}>
+        <div className="section-header">
+          <div className="section-header-left">
+            <span className="section-icon">📊</span>
+            <h2>Dashboard</h2>
+          </div>
+        </div>
+
+        <div className="dashboard-grid">
+          {/* Overview Card */}
+          <div className="dashboard-card dashboard-card--overview">
+            <h3>Overview</h3>
+            <div className="dashboard-stat-grid">
+              <div className="dash-stat">
+                <span className="dash-stat-value">{stats.total || hackathons.length}</span>
+                <span className="dash-stat-label">Total Hackathons</span>
+              </div>
+              <div className="dash-stat">
+                <span className="dash-stat-value dash-stat-value--green">{upcomingHackathons.length}</span>
+                <span className="dash-stat-label">Upcoming</span>
+              </div>
+              <div className="dash-stat">
+                <span className="dash-stat-value dash-stat-value--red">{missedHackathons.length}</span>
+                <span className="dash-stat-label">Missed</span>
+              </div>
+              <div className="dash-stat">
+                <span className="dash-stat-value dash-stat-value--amber">{formatLastScraped(stats.last_scraped)}</span>
+                <span className="dash-stat-label">Last Updated</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Source Breakdown */}
+          <div className="dashboard-card">
+            <h3>Sources</h3>
+            <div className="source-list">
+              {Object.entries(sourceBreakdown).sort((a, b) => b[1] - a[1]).map(([src, count]) => (
+                <div key={src} className="source-row">
+                  <span className={`source-dot source-dot--${src.toLowerCase()}`}></span>
+                  <span className="source-name">{src}</span>
+                  <span className="source-count">{count}</span>
+                  <div className="source-bar">
+                    <div className="source-bar-fill" style={{ width: `${(count / (stats.total || hackathons.length || 1)) * 100}%` }}></div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Mode Breakdown */}
+          <div className="dashboard-card">
+            <h3>Event Modes</h3>
+            <div className="mode-pills">
+              <div className="mode-pill mode-pill--online">
+                <span className="mode-pill-icon">🌐</span>
+                <span className="mode-pill-label">Online</span>
+                <span className="mode-pill-value">{onlineCount}</span>
+              </div>
+              <div className="mode-pill mode-pill--offline">
+                <span className="mode-pill-icon">📍</span>
+                <span className="mode-pill-label">Offline</span>
+                <span className="mode-pill-value">{offlineCount}</span>
+              </div>
+              <div className="mode-pill mode-pill--hybrid">
+                <span className="mode-pill-icon">🔄</span>
+                <span className="mode-pill-label">Hybrid / Other</span>
+                <span className="mode-pill-value">{hybridCount}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Classification */}
+          <div className="dashboard-card">
+            <h3>Classification</h3>
+            <div className="mode-pills">
+              <div className="mode-pill mode-pill--college">
+                <span className="mode-pill-icon">🏛</span>
+                <span className="mode-pill-label">Top College</span>
+                <span className="mode-pill-value">{stats.top_college_count || 0}</span>
+              </div>
+              <div className="mode-pill mode-pill--internship">
+                <span className="mode-pill-icon">💼</span>
+                <span className="mode-pill-label">Internship</span>
+                <span className="mode-pill-value">{stats.internship_count || 0}</span>
+              </div>
+              {stats.college_types && stats.college_types.length > 0 && (
+                <div className="college-type-chips">
+                  {stats.college_types.map(ct => (
+                    <span key={ct} className={`college-chip college-chip--${ct.toLowerCase()}`}>{ct}</span>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── About Section ── */}
+      <section className="about-section" id="about-section" ref={aboutRef}>
+        <div className="about-content">
+          <div className="about-header">
+            <span className="section-icon">ℹ️</span>
+            <h2>About Hackathon Notifier</h2>
+          </div>
+          <div className="about-grid">
+            <div className="about-card">
+              <div className="about-card-icon">🔍</div>
+              <h3>Auto-Discovery</h3>
+              <p>Scrapes hackathons from <strong>Devfolio, Unstop, Devpost & HackerEarth</strong> every 5 minutes. No manual entry needed.</p>
+            </div>
+            <div className="about-card">
+              <div className="about-card-icon">🏛</div>
+              <h3>Smart Classification</h3>
+              <p>Automatically identifies <strong>IIT, NIT, IIIT, BITS</strong> college events and internship opportunities using keyword analysis.</p>
+            </div>
+            <div className="about-card">
+              <div className="about-card-icon">📍</div>
+              <h3>Location-Aware</h3>
+              <p>Uses your location to calculate <strong>distance in km</strong> to offline events. Sort by nearest to find events close to you.</p>
+            </div>
+            <div className="about-card">
+              <div className="about-card-icon">📬</div>
+              <h3>Telegram Alerts</h3>
+              <p>Get instant <strong>Telegram notifications</strong> for new top-college and internship hackathons the moment they're discovered.</p>
+            </div>
+            <div className="about-card">
+              <div className="about-card-icon">⚡</div>
+              <h3>Real-Time</h3>
+              <p>Dashboard auto-refreshes every <strong>5 minutes</strong>. Backend scrapes run continuously to keep you ahead of the game.</p>
+            </div>
+            <div className="about-card">
+              <div className="about-card-icon">🧠</div>
+              <h3>Open Source</h3>
+              <p>Built with <strong>React, FastAPI, MongoDB & Python</strong>. Fork it, hack it, make it yours.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── Footer ── */}
+      <footer className="app-footer">
+        <div className="footer-content">
+          <div className="footer-brand">
+            <div className="brand-icon">H</div>
+            <span>Hackathon Notifier</span>
+          </div>
+          <p className="footer-tagline">Never miss a hackathon again.</p>
+          <div className="footer-links">
+            <a href="https://github.com/Pranavdeshmukhhh/hackathon-notifier" target="_blank" rel="noopener noreferrer">GitHub</a>
+            <span className="footer-divider">•</span>
+            <span className="footer-stats">Tracking {stats.total || hackathons.length} hackathons from {Object.keys(sourceBreakdown).length} sources</span>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }
