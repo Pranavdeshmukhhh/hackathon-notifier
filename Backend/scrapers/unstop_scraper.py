@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 # ── Constants ─────────────────────────────────────────────────────────────────
 UNSTOP_API_BASE = (
     "https://unstop.com/api/public/opportunity/search-result"
-    "?opportunity=hackathons&page=1&size=100&status=open"
+    "?opportunity=hackathons&size=100&status=open"
 )
 
 _SEARCH_QUERIES = [
@@ -105,7 +105,8 @@ def _parse_api_items(items: list) -> list[dict]:
 
         if deadline_iso and deadline_iso < now_iso:
             status = "Ended"
-            continue  # Do not include expired hackathons in the output
+            # We no longer skip expired hackathons, so the total count matches user expectations.
+            # UI handles displaying them correctly.
 
         prizes = item.get("prizes", [])
         prize_str = ""
@@ -137,14 +138,19 @@ def _parse_api_items(items: list) -> list[dict]:
     before_sleep=before_sleep_log(logger, logging.WARNING),
     reraise=True,
 )
-def _fetch_query(session, url: str) -> list[dict]:
-    """Fetch a single Unstop API query with exponential-backoff retries."""
+def _fetch_query(session, url: str) -> tuple[list[dict], int, int]:
+    """Fetch a single Unstop API query. Returns (parsed_items, current_page, last_page)."""
     resp = session.get(url, timeout=REQUEST_TIMEOUT)
     if resp.status_code != 200:
         raise RuntimeError(f"Unstop API returned status {resp.status_code}")
     data = resp.json()
-    items = data.get("data", {}).get("data", [])
-    return _parse_api_items(items)
+    
+    pagination_data = data.get("data", {})
+    current_page = pagination_data.get("current_page", 1)
+    last_page = pagination_data.get("last_page", 1)
+    
+    items = pagination_data.get("data", [])
+    return items, _parse_api_items(items), current_page, last_page
 
 
 def _fetch_via_api() -> list[dict]:
@@ -152,15 +158,23 @@ def _fetch_via_api() -> list[dict]:
     all_items = {}
 
     for query in _SEARCH_QUERIES:
-        url = f"{UNSTOP_API_BASE}{query}"
-        try:
-            parsed = _fetch_query(session, url)
-            for p in parsed:
-                all_items[p["link"]] = p
-        except Exception as e:
-            logger.warning("Unstop API query '%s' failed after retries: %s", query, e)
+        for page in range(1, 21):  # up to 20 pages (2000 items) per query
+            url = f"{UNSTOP_API_BASE}&page={page}{query}"
+            try:
+                raw_items, parsed, current_page, last_page = _fetch_query(session, url)
+                for p in parsed:
+                    all_items[p["link"]] = p
+                
+                logger.info("Unstop: Query '%s' fetched page %d/%d (total unique so far: %d)", query, current_page, last_page, len(all_items))
+                
+                if current_page >= last_page or not raw_items:
+                    break
+                    
+            except Exception as e:
+                logger.warning("Unstop API query '%s' page %d failed after retries: %s", query, page, e)
+                break
 
-        time.sleep(random.uniform(1.5, 3.0))  # Be nice to the API
+            time.sleep(random.uniform(1.5, 3.0))  # Be nice to the API
 
     return list(all_items.values())
 
