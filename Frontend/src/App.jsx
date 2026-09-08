@@ -37,14 +37,20 @@ function App() {
       const response = await fetch(url);
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const result = await response.json();
-      if (result.success) {
+      
+      if (Array.isArray(result)) {
+        // Fallback for older backend versions that return an array directly
+        setHackathons(result);
+        setFiltered(result);
+      } else if (result.success) {
+        // New backend version that returns {success, count, data, stats}
         setHackathons(result.data);
         setFiltered(result.data);
         if (result.stats) {
           setStats(result.stats);
         }
       } else {
-        throw new Error(result.error || 'Unknown error');
+        throw new Error(result.error || 'Unknown error from API');
       }
     } catch (e) {
       setError('Could not connect to the API. Make sure the backend is running on port 8000.');
