@@ -2,9 +2,9 @@ import React, { useState, useEffect, useRef } from 'react';
 import HackathonCard from '../Components/hakathoncard';
 import './index.css';
 
-const API_URL = import.meta.env.VITE_API_URL
-  ? `${import.meta.env.VITE_API_URL}/api/hackathons`
-  : 'http://localhost:8000/api/hackathons';
+let API_URL = import.meta.env.VITE_API_URL || (import.meta.env.PROD ? 'https://hackathon-notifier.onrender.com' : 'http://localhost:8000');
+if (API_URL.endsWith('/')) API_URL = API_URL.slice(0, -1);
+if (!API_URL.endsWith('/api/hackathons')) API_URL += '/api/hackathons';
 
 function App() {
   const [hackathons, setHackathons] = useState([]);
