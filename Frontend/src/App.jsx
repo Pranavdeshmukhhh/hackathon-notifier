@@ -34,6 +34,7 @@ function App() {
   const homeRef = useRef(null);
   const dashboardRef = useRef(null);
   const aboutRef = useRef(null);
+  const eventsRef = useRef(null);
 
   const fetchHackathons = async (lat = null, lng = null) => {
     setLoading(true);
@@ -164,11 +165,6 @@ function App() {
     applyFilters(category, 'All', searchQuery, sortBy);
   };
 
-  const handleTagChange = (tag) => {
-    setActiveTag(tag);
-    applyFilters(activeCategory, tag, searchQuery, sortBy);
-  };
-
   const handleSortChange = (e) => {
     const newSort = e.target.value;
     setSortBy(newSort);
@@ -184,21 +180,17 @@ function App() {
   const scrollToSection = (section) => {
     setActiveSection(section);
     setMobileMenuOpen(false);
-    const refMap = { home: homeRef, dashboard: dashboardRef, about: aboutRef };
+    const refMap = { home: homeRef, dashboard: dashboardRef, about: aboutRef, events: eventsRef };
     refMap[section]?.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
   // Category definitions with counts
   const categories = [
-    { key: 'All', label: 'All', emoji: '📋', count: hackathons.length },
-    { key: 'Top College', label: 'Top College', emoji: '🏛', count: stats.top_college_count || 0 },
-    { key: 'Internship', label: 'Internship', emoji: '💼', count: stats.internship_count || 0 },
-    { key: 'Hackathon', label: 'Hackathon', emoji: '🏆', count: hackathons.filter(h => h.opportunity_type === 'Hackathon').length },
+    { key: 'All', label: 'All', count: hackathons.length },
+    { key: 'Top College', label: 'Top College', count: stats.top_college_count || 0 },
+    { key: 'Internship', label: 'Internship', count: stats.internship_count || 0 },
+    { key: 'Hackathon', label: 'Hackathons', count: hackathons.filter(h => h.opportunity_type === 'Hackathon').length },
   ];
-
-  // Build unique tag set for filter chips
-  const allTags = ['All', ...new Set(filtered.flatMap(h => h.tags || []))];
-  const visibleTags = allTags.slice(0, 11);
 
   // Format last scraped timestamp
   const formatLastScraped = (isoStr) => {
@@ -222,14 +214,6 @@ function App() {
   const upcomingHackathons = filtered.filter(h => !h.is_past);
   const missedHackathons = filtered.filter(h => h.is_past);
 
-  // Dashboard stats
-  const onlineCount = hackathons.filter(h => (h.mode || '').toLowerCase() === 'online').length;
-  const offlineCount = hackathons.filter(h => (h.mode || '').toLowerCase() === 'offline').length;
-  const hybridCount = hackathons.filter(h => {
-    const m = (h.mode || '').toLowerCase();
-    return m !== 'online' && m !== 'offline' && m !== 'unknown' && m !== '';
-  }).length;
-
   // Source breakdown
   const sourceBreakdown = {};
   hackathons.forEach(h => {
@@ -251,19 +235,20 @@ function App() {
         </button>
 
         <div className={`navbar-links ${mobileMenuOpen ? 'mobile-open' : ''}`}>
-          <a href="#home" className={activeSection === 'home' ? 'nav-active' : ''} onClick={(e) => { e.preventDefault(); scrollToSection('home'); }}>Home</a>
+          <a href="#about" className={activeSection === 'about' ? 'nav-active' : ''} onClick={(e) => { e.preventDefault(); scrollToSection('about'); }}>Features</a>
           <a href="#dashboard" className={activeSection === 'dashboard' ? 'nav-active' : ''} onClick={(e) => { e.preventDefault(); scrollToSection('dashboard'); }}>Dashboard</a>
-          <a href="#about" className={activeSection === 'about' ? 'nav-active' : ''} onClick={(e) => { e.preventDefault(); scrollToSection('about'); }}>About</a>
+          <a href="#events" className={activeSection === 'events' ? 'nav-active' : ''} onClick={(e) => { e.preventDefault(); scrollToSection('events'); }}>Hackathons</a>
+          
           <button
             className={`btn-secondary ${userLocation ? 'active' : ''}`}
             onClick={handleNearMeClick}
             disabled={isLocating}
             title="Sort hackathons by distance from you"
           >
-            {isLocating ? '⏳ Locating...' : '📍 Near Me'}
+            {isLocating ? 'Locating...' : '📍 Near Me'}
           </button>
           <button className="btn-primary" id="refresh-btn" onClick={() => fetchHackathons(userLocation?.lat, userLocation?.lng)}>
-            ↻ Refresh
+            Refresh Data
           </button>
         </div>
       </nav>
@@ -271,43 +256,117 @@ function App() {
       {/* ── Hero Section ── */}
       <section className="hero" id="hero-section" ref={homeRef}>
         <div className="hero-content">
-          <h1>Discover Live<br />Hackathons</h1>
+          <h1>Never miss a<br />hackathon again.</h1>
           <p>
-            Automatically scraped from Devfolio, Unstop, Devpost & HackerEarth.
-            Sorted, classified and delivered to your Telegram — never miss a hackathon again.
+            The knowledge infrastructure for ambitious developers. 
+            Automatically scraping Devfolio, Unstop, Devpost & HackerEarth 
+            to classify and deliver opportunities straight to you.
           </p>
+          <div style={{ display: 'flex', gap: '1rem' }}>
+            <button className="btn-primary" onClick={() => scrollToSection('events')}>Browse Hackathons</button>
+            <button className="btn-secondary" onClick={() => scrollToSection('dashboard')}>View Dashboard</button>
+          </div>
         </div>
 
-        <div className="stats-bar">
-          <div className="stat-item">
-            <span className="stat-value">{stats.total || hackathons.length}</span>
-            <span className="stat-label">Total Found</span>
+        <div className="hero-stats-panel">
+          <div className="hero-stats-header">
+            <span style={{ color: '#10b981' }}>●</span> Live Data Pipeline
           </div>
-          <div className="stat-item">
-            <span className="stat-value">{upcomingHackathons.length}</span>
-            <span className="stat-label">Upcoming</span>
+          <div className="hero-stats-grid">
+            <div className="hero-stat-box">
+              <div className="hero-stat-value">{stats.total || hackathons.length}</div>
+              <div className="hero-stat-label">Total Events</div>
+            </div>
+            <div className="hero-stat-box">
+              <div className="hero-stat-value">{upcomingHackathons.length}</div>
+              <div className="hero-stat-label">Active</div>
+            </div>
+            <div className="hero-stat-box">
+              <div className="hero-stat-value">{stats.top_college_count || 0}</div>
+              <div className="hero-stat-label">Top College</div>
+            </div>
+            <div className="hero-stat-box">
+              <div className="hero-stat-value" style={{ color: '#0f172a' }}>{formatLastScraped(stats.last_scraped)}</div>
+              <div className="hero-stat-label">Last Update</div>
+            </div>
           </div>
-          <div className="stat-item">
-            <span className="stat-value">{missedHackathons.length}</span>
-            <span className="stat-label">Missed</span>
+        </div>
+      </section>
+
+      {/* ── Logo Strip ── */}
+      <div className="logo-strip">
+        <p>Tracking the world's most ambitious building platforms</p>
+        <div className="logo-grid">
+          <div className="logo-item">Devfolio</div>
+          <div className="logo-item">Unstop</div>
+          <div className="logo-item">Devpost</div>
+          <div className="logo-item">HackerEarth</div>
+        </div>
+      </div>
+
+      {/* ── About / Features Bento Box ── */}
+      <section className="about-section" id="about-section" ref={aboutRef}>
+        <div className="section-header" style={{ textAlign: 'center', borderBottom: 'none' }}>
+          <h2>One platform for your entire opportunity stack.</h2>
+          <p>Agents that keep scraping 24/7 so you don't have to.</p>
+        </div>
+        <div className="about-grid">
+          <div className="about-card">
+            <div className="about-card-icon">🔍</div>
+            <h3>Auto-Discovery</h3>
+            <p>Scrapes multiple platforms every 5 minutes. No manual entry needed.</p>
           </div>
-          <div className="stat-item">
-            <span className="stat-value">{stats.top_college_count || 0}</span>
-            <span className="stat-label">Top College</span>
+          <div className="about-card">
+            <div className="about-card-icon">🏛</div>
+            <h3>Smart Classification</h3>
+            <p>Automatically identifies IIT, NIT, IIIT, BITS events and internships.</p>
           </div>
-          <div className="stat-item">
-            <span className="stat-value">{stats.internship_count || 0}</span>
-            <span className="stat-label">Internships</span>
+          <div className="about-card">
+            <div className="about-card-icon">📍</div>
+            <h3>Location-Aware</h3>
+            <p>Uses your location to calculate distance to offline events. Sort by nearest.</p>
           </div>
-          <div className="stat-item">
-            <span className="stat-value">{formatLastScraped(stats.last_scraped)}</span>
-            <span className="stat-label">Last Scraped</span>
+        </div>
+      </section>
+
+      {/* ── Dashboard Highlights ── */}
+      <section className="dashboard-section" id="dashboard-section" ref={dashboardRef}>
+        <div className="section-header">
+          <h2>Powering developers of all sizes.</h2>
+          <p>Real-time analytics on the hackathon landscape.</p>
+        </div>
+        <div className="highlight-grid">
+          <div className="highlight-card bg-orange">
+            <h3>See how many Top College events are live right now</h3>
+            <div className="highlight-stats">
+              <div className="h-stat">
+                <span className="h-stat-val">{stats.top_college_count || 0}</span>
+                <span className="h-stat-label">IIT/NIT/BITS</span>
+              </div>
+              <div className="h-stat">
+                <span className="h-stat-val">{stats.internship_count || 0}</span>
+                <span className="h-stat-label">Internships</span>
+              </div>
+            </div>
+          </div>
+          <div className="highlight-card bg-blue">
+            <h3>Missed Opportunities tracker to keep you accountable</h3>
+            <div className="highlight-stats">
+              <div className="h-stat">
+                <span className="h-stat-val">{upcomingHackathons.length}</span>
+                <span className="h-stat-label">Upcoming</span>
+              </div>
+              <div className="h-stat">
+                <span className="h-stat-val">{missedHackathons.length}</span>
+                <span className="h-stat-label">Missed</span>
+              </div>
+            </div>
           </div>
         </div>
       </section>
 
       {/* ── Search + Sort Bar ── */}
-      {!loading && !error && hackathons.length > 0 && (
+      <div className="search-sort-container" ref={eventsRef}>
         <div className="search-sort-bar">
           <div className="search-box">
             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
@@ -329,262 +388,100 @@ function App() {
             </select>
           </div>
         </div>
-      )}
 
-      {/* ── Category Tabs ── */}
-      {!loading && !error && hackathons.length > 0 && (
-        <div className="category-tabs" id="category-tabs">
-          {categories.map(cat => (
-            <button
-              key={cat.key}
-              className={`category-tab ${activeCategory === cat.key ? 'active' : ''}`}
-              onClick={() => handleCategoryChange(cat.key)}
-            >
-              {cat.emoji} {cat.label}
-              <span className="tab-count">{cat.count}</span>
-            </button>
-          ))}
-        </div>
-      )}
-
-      {/* ── Tag Filter Chips ── */}
-      {!loading && !error && filtered.length > 0 && visibleTags.length > 1 && (
-        <div className="filter-bar" id="filter-bar">
-          {visibleTags.map(tag => (
-            <button
-              key={tag}
-              className={`filter-chip ${activeTag === tag ? 'active' : ''}`}
-              onClick={() => handleTagChange(tag)}
-            >
-              {tag}
-            </button>
-          ))}
-        </div>
-      )}
-
-      {/* ── Error States ── */}
-      {locationError && (
-        <div className="error-box error-box--warning">
-          <p>⚠️ {locationError}</p>
-        </div>
-      )}
-      {error && (
-        <div className="error-box" id="error-box">
-          <h3>Connection Error</h3>
-          <p>{error}</p>
-          <button className="btn-primary" onClick={() => fetchHackathons()} style={{ marginTop: '1rem' }}>
-            Retry
-          </button>
-        </div>
-      )}
-
-      {/* ── Empty State ── */}
-      {!loading && !error && filtered.length === 0 && (
-        <div className="empty-state" id="empty-state">
-          <div className="empty-icon">🔍</div>
-          <h3>No hackathons found</h3>
-          <p>Try adjusting your filters or search query, or wait for the next scrape cycle.</p>
-        </div>
-      )}
-
-      {/* ── Loading State ── */}
-      {loading && (
-        <div className="card-grid">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="skeleton" />
-          ))}
-        </div>
-      )}
-
-      {/* ── Upcoming Hackathons ── */}
-      {!loading && upcomingHackathons.length > 0 && (
-        <>
-          <div className="section-header" id="upcoming-section">
-            <div className="section-header-left">
-              <span className="section-icon">🚀</span>
-              <h2>Upcoming Hackathons</h2>
-              <span className="section-count">{upcomingHackathons.length}</span>
-            </div>
-          </div>
-          <div className="card-grid">
-            {upcomingHackathons.map((h) => (
-              <HackathonCard key={h._id || h.link} hackathon={h} />
+        {/* ── Category Tabs ── */}
+        {!loading && !error && hackathons.length > 0 && (
+          <div className="category-tabs" id="category-tabs">
+            {categories.map(cat => (
+              <button
+                key={cat.key}
+                className={`category-tab ${activeCategory === cat.key ? 'active' : ''}`}
+                onClick={() => handleCategoryChange(cat.key)}
+              >
+                {cat.label}
+                <span className="tab-count">{cat.count}</span>
+              </button>
             ))}
           </div>
-        </>
-      )}
+        )}
+      </div>
 
-      {/* ── Missed Opportunities ── */}
-      {!loading && missedHackathons.length > 0 && (
-        <>
-          <div className="section-header section-header--missed" id="missed-section">
-            <div className="section-header-left">
-              <span className="section-icon">⏰</span>
-              <h2>Missed Opportunities</h2>
-              <span className="section-count">{missedHackathons.length}</span>
-            </div>
+      {/* ── Hackathon List Section ── */}
+      <section className="hack-list-section">
+        
+        {/* Error States */}
+        {locationError && (
+          <div className="error-box" style={{ marginTop: '2rem' }}>
+            <p>⚠️ {locationError}</p>
           </div>
+        )}
+        {error && (
+          <div className="error-box">
+            <h3>Connection Error</h3>
+            <p>{error}</p>
+            <button className="btn-primary" onClick={() => fetchHackathons()} style={{ marginTop: '1rem' }}>
+              Retry
+            </button>
+          </div>
+        )}
+
+        {/* Empty State */}
+        {!loading && !error && filtered.length === 0 && (
+          <div className="empty-state">
+            <div className="empty-icon">🔍</div>
+            <h3>No hackathons found</h3>
+            <p>Try adjusting your filters or wait for the next scrape cycle.</p>
+          </div>
+        )}
+
+        {/* Loading State */}
+        {loading && (
           <div className="card-grid">
-            {missedHackathons.map((h) => (
-              <HackathonCard key={h._id || h.link} hackathon={h} />
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="skeleton" />
             ))}
           </div>
-        </>
-      )}
+        )}
 
-      {/* ── Dashboard Section ── */}
-      <section className="dashboard-section" id="dashboard-section" ref={dashboardRef}>
-        <div className="section-header">
-          <div className="section-header-left">
-            <span className="section-icon">📊</span>
-            <h2>Dashboard</h2>
-          </div>
-        </div>
-
-        <div className="dashboard-grid">
-          {/* Overview Card */}
-          <div className="dashboard-card dashboard-card--overview">
-            <h3>Overview</h3>
-            <div className="dashboard-stat-grid">
-              <div className="dash-stat">
-                <span className="dash-stat-value">{stats.total || hackathons.length}</span>
-                <span className="dash-stat-label">Total Hackathons</span>
-              </div>
-              <div className="dash-stat">
-                <span className="dash-stat-value dash-stat-value--green">{upcomingHackathons.length}</span>
-                <span className="dash-stat-label">Upcoming</span>
-              </div>
-              <div className="dash-stat">
-                <span className="dash-stat-value dash-stat-value--red">{missedHackathons.length}</span>
-                <span className="dash-stat-label">Missed</span>
-              </div>
-              <div className="dash-stat">
-                <span className="dash-stat-value dash-stat-value--amber">{formatLastScraped(stats.last_scraped)}</span>
-                <span className="dash-stat-label">Last Updated</span>
-              </div>
+        {/* Upcoming */}
+        {!loading && upcomingHackathons.length > 0 && (
+          <>
+            <div className="section-header">
+              <h2>Upcoming Events</h2>
             </div>
-          </div>
-
-          {/* Source Breakdown */}
-          <div className="dashboard-card">
-            <h3>Sources</h3>
-            <div className="source-list">
-              {Object.entries(sourceBreakdown).sort((a, b) => b[1] - a[1]).map(([src, count]) => (
-                <div key={src} className="source-row">
-                  <span className={`source-dot source-dot--${src.toLowerCase()}`}></span>
-                  <span className="source-name">{src}</span>
-                  <span className="source-count">{count}</span>
-                  <div className="source-bar">
-                    <div className="source-bar-fill" style={{ width: `${(count / (stats.total || hackathons.length || 1)) * 100}%` }}></div>
-                  </div>
-                </div>
+            <div className="card-grid">
+              {upcomingHackathons.map((h) => (
+                <HackathonCard key={h._id || h.link} hackathon={h} />
               ))}
             </div>
-          </div>
+          </>
+        )}
 
-          {/* Mode Breakdown */}
-          <div className="dashboard-card">
-            <h3>Event Modes</h3>
-            <div className="mode-pills">
-              <div className="mode-pill mode-pill--online">
-                <span className="mode-pill-icon">🌐</span>
-                <span className="mode-pill-label">Online</span>
-                <span className="mode-pill-value">{onlineCount}</span>
-              </div>
-              <div className="mode-pill mode-pill--offline">
-                <span className="mode-pill-icon">📍</span>
-                <span className="mode-pill-label">Offline</span>
-                <span className="mode-pill-value">{offlineCount}</span>
-              </div>
-              <div className="mode-pill mode-pill--hybrid">
-                <span className="mode-pill-icon">🔄</span>
-                <span className="mode-pill-label">Hybrid / Other</span>
-                <span className="mode-pill-value">{hybridCount}</span>
-              </div>
+        {/* Missed */}
+        {!loading && missedHackathons.length > 0 && (
+          <>
+            <div className="section-header">
+              <h2 style={{ color: '#64748b' }}>Missed Opportunities</h2>
+              <p>Hackathons that have already passed their deadline.</p>
             </div>
-          </div>
-
-          {/* Classification */}
-          <div className="dashboard-card">
-            <h3>Classification</h3>
-            <div className="mode-pills">
-              <div className="mode-pill mode-pill--college">
-                <span className="mode-pill-icon">🏛</span>
-                <span className="mode-pill-label">Top College</span>
-                <span className="mode-pill-value">{stats.top_college_count || 0}</span>
-              </div>
-              <div className="mode-pill mode-pill--internship">
-                <span className="mode-pill-icon">💼</span>
-                <span className="mode-pill-label">Internship</span>
-                <span className="mode-pill-value">{stats.internship_count || 0}</span>
-              </div>
-              {stats.college_types && stats.college_types.length > 0 && (
-                <div className="college-type-chips">
-                  {stats.college_types.map(ct => (
-                    <span key={ct} className={`college-chip college-chip--${ct.toLowerCase()}`}>{ct}</span>
-                  ))}
-                </div>
-              )}
+            <div className="card-grid">
+              {missedHackathons.map((h) => (
+                <HackathonCard key={h._id || h.link} hackathon={h} />
+              ))}
             </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ── About Section ── */}
-      <section className="about-section" id="about-section" ref={aboutRef}>
-        <div className="about-content">
-          <div className="about-header">
-            <span className="section-icon">ℹ️</span>
-            <h2>About Hackathon Notifier</h2>
-          </div>
-          <div className="about-grid">
-            <div className="about-card">
-              <div className="about-card-icon">🔍</div>
-              <h3>Auto-Discovery</h3>
-              <p>Scrapes hackathons from <strong>Devfolio, Unstop, Devpost & HackerEarth</strong> every 5 minutes. No manual entry needed.</p>
-            </div>
-            <div className="about-card">
-              <div className="about-card-icon">🏛</div>
-              <h3>Smart Classification</h3>
-              <p>Automatically identifies <strong>IIT, NIT, IIIT, BITS</strong> college events and internship opportunities using keyword analysis.</p>
-            </div>
-            <div className="about-card">
-              <div className="about-card-icon">📍</div>
-              <h3>Location-Aware</h3>
-              <p>Uses your location to calculate <strong>distance in km</strong> to offline events. Sort by nearest to find events close to you.</p>
-            </div>
-            <div className="about-card">
-              <div className="about-card-icon">📬</div>
-              <h3>Telegram Alerts</h3>
-              <p>Get instant <strong>Telegram notifications</strong> for new top-college and internship hackathons the moment they're discovered.</p>
-            </div>
-            <div className="about-card">
-              <div className="about-card-icon">⚡</div>
-              <h3>Real-Time</h3>
-              <p>Dashboard auto-refreshes every <strong>5 minutes</strong>. Backend scrapes run continuously to keep you ahead of the game.</p>
-            </div>
-            <div className="about-card">
-              <div className="about-card-icon">🧠</div>
-              <h3>Open Source</h3>
-              <p>Built with <strong>React, FastAPI, MongoDB & Python</strong>. Fork it, hack it, make it yours.</p>
-            </div>
-          </div>
-        </div>
+          </>
+        )}
       </section>
 
       {/* ── Footer ── */}
       <footer className="app-footer">
-        <div className="footer-content">
-          <div className="footer-brand">
-            <div className="brand-icon">H</div>
-            <span>Hackathon Notifier</span>
-          </div>
-          <p className="footer-tagline">Never miss a hackathon again.</p>
-          <div className="footer-links">
-            <a href="https://github.com/Pranavdeshmukhhh/hackathon-notifier" target="_blank" rel="noopener noreferrer">GitHub</a>
-            <span className="footer-divider">•</span>
-            <span className="footer-stats">Tracking {stats.total || hackathons.length} hackathons from {Object.keys(sourceBreakdown).length} sources</span>
-          </div>
+        <div className="footer-brand">
+          <div className="brand-icon">H</div>
+          <span>Hackathon Notifier</span>
+        </div>
+        <p className="footer-tagline">Never miss a submission deadline.</p>
+        <div className="footer-links">
+          <a href="https://github.com/Pranavdeshmukhhh/hackathon-notifier" target="_blank" rel="noopener noreferrer">GitHub Open Source</a>
         </div>
       </footer>
     </div>
