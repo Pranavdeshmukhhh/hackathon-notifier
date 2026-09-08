@@ -11,7 +11,7 @@ No authentication required. No Cloudflare blocking.
 import logging
 import re
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 import requests
@@ -111,7 +111,7 @@ def _parse_hackathon(item: dict) -> Optional[dict]:
     # Status
     open_state = item.get("open_state", "")
     time_left = item.get("time_left_to_submission", "")
-    now_iso = datetime.utcnow().strftime("%Y-%m-%d")
+    now_iso = datetime.now(timezone.utc).strftime("%Y-%m-%d")
 
     if open_state == "ended" or (deadline_iso and deadline_iso < now_iso):
         status = "Ended"
@@ -139,7 +139,7 @@ def _parse_hackathon(item: dict) -> Optional[dict]:
         "registrations": item.get("registrations_count", 0),
         "desc":         f"{time_left}. Organized by {org}." if org else time_left,
         "tagline":      "",
-        "scraped_at":   datetime.utcnow().isoformat() + "Z",
+        "scraped_at":   datetime.now(timezone.utc).replace(tzinfo=None).isoformat() + "Z",
     }
 
 

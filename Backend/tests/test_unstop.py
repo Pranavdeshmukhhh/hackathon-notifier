@@ -71,15 +71,18 @@ class TestParseApiItems:
         results = _parse_api_items([ITEM_MISSING_LINK])
         assert len(results) == 0
 
-    def test_expired_item_skipped(self):
+    def test_expired_item_kept_as_ended(self):
         results = _parse_api_items([EXPIRED_ITEM])
-        assert len(results) == 0
+        assert len(results) == 1
+        assert results[0]["status"] == "Ended"
 
     def test_valid_among_invalid(self):
-        """Only valid items survive when mixed with invalid/expired ones."""
+        """Valid and expired items survive when mixed with invalid ones."""
         results = _parse_api_items([VALID_ITEM, ITEM_MISSING_TITLE, EXPIRED_ITEM])
-        assert len(results) == 1
-        assert results[0]["title"] == "HackCelestial 3.0"
+        assert len(results) == 2
+        titles = [r["title"] for r in results]
+        assert "HackCelestial 3.0" in titles
+        assert "Old Hackathon" in titles
 
     def test_timestamp_deadline(self):
         results = _parse_api_items([ITEM_TIMESTAMP_DEADLINE])

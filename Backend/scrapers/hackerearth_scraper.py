@@ -10,7 +10,7 @@ No authentication required. No Cloudflare blocking.
 
 import logging
 import re
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 import requests
@@ -75,7 +75,7 @@ def _parse_event(item: dict) -> Optional[dict]:
 
     # Status
     status_raw = item.get("status", "").upper()
-    now_iso = datetime.utcnow().strftime("%Y-%m-%d")
+    now_iso = datetime.now(timezone.utc).strftime("%Y-%m-%d")
 
     if status_raw == "ENDED" or (deadline_iso and deadline_iso < now_iso):
         status = "Ended"
@@ -116,7 +116,7 @@ def _parse_event(item: dict) -> Optional[dict]:
         "desc":         desc,
         "tagline":      "",
         "prize":        "",
-        "scraped_at":   datetime.utcnow().isoformat() + "Z",
+        "scraped_at":   datetime.now(timezone.utc).replace(tzinfo=None).isoformat() + "Z",
     }
 
 

@@ -147,13 +147,14 @@ def _fetch_query(session, url: str) -> tuple[list[dict], int, int]:
     if resp.status_code != 200:
         raise RuntimeError(f"Unstop API returned status {resp.status_code}")
     data = resp.json()
-    
+
     pagination_data = data.get("data", {})
     current_page = pagination_data.get("current_page", 1)
     last_page = pagination_data.get("last_page", 1)
-    
-    items = pagination_data.get("data", [])
-    return items, _parse_api_items(items), current_page, last_page
+
+    raw_items = pagination_data.get("data", [])
+    parsed = _parse_api_items(raw_items)
+    return parsed, current_page, last_page
 
 
 def _fetch_via_api() -> list[dict]:
@@ -164,15 +165,18 @@ def _fetch_via_api() -> list[dict]:
         for page in range(1, 51):  # up to 50 pages (5000 items) per query
             url = f"{UNSTOP_API_BASE}&page={page}{query}"
             try:
-                raw_items, parsed, current_page, last_page = _fetch_query(session, url)
+                parsed, current_page, last_page = _fetch_query(session, url)
                 for p in parsed:
                     all_items[p["link"]] = p
-                
-                logger.info("Unstop: Query '%s' fetched page %d/%d (total unique so far: %d)", query, current_page, last_page, len(all_items))
-                
-                if current_page >= last_page or not raw_items:
+
+                logger.info(
+                    "Unstop: Query '%s' fetched page %d/%d (total unique so far: %d)",
+                    query, current_page, last_page, len(all_items),
+                )
+
+                if current_page >= last_page or not parsed:
                     break
-                    
+
             except Exception as e:
                 logger.warning("Unstop API query '%s' page %d failed after retries: %s", query, page, e)
                 break
