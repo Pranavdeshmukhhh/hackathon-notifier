@@ -106,7 +106,7 @@ def get_hackathons(request: Request):
     logger.info("Cache MISS — querying MongoDB")
     try:
         collection = get_collection()
-        cursor = collection.find({}).limit(200)
+        cursor = collection.find({})
         docs = []
         for doc in cursor:
             doc["_id"] = str(doc["_id"])
