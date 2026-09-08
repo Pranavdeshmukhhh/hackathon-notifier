@@ -264,7 +264,7 @@ def send_batch(hackathon_list: list[dict]) -> dict:
 
 def start_polling():
     """
-    Start listening for Telegram commands (/start, /refresh) in a blocking loop.
+    Start listening for Telegram commands in a blocking loop.
     Typically meant to be run in a background thread.
     """
     if not TELEGRAM_BOT_TOKEN:
@@ -273,38 +273,122 @@ def start_polling():
 
     bot = telebot.TeleBot(TELEGRAM_BOT_TOKEN)
 
-    def trigger_pipeline(chat_id: int):
-        import main
-        try:
-            sent_count = main.run_pipeline()
-            if sent_count > 0:
-                bot.send_message(
-                    chat_id, 
-                    f"✅ Done! Found and sent {sent_count} new notification-worthy hackathons."
-                )
-            else:
-                bot.send_message(
-                    chat_id, 
-                    "✅ Done! All up-to-date, no new hackathons were found."
-                )
-        except Exception as e:
-            logger.exception("Error running pipeline from listener.")
-            bot.send_message(chat_id, f"❌ An error occurred during refresh: {e}")
+    def get_data(lat=None, lng=None):
+        """Helper to fetch data using api module logic (bypasses HTTP layer)"""
+        import api
+        return api.get_hackathons(request=None, lat=lat, lng=lng)
 
-    @bot.message_handler(commands=['start', 'refresh'])
+    @bot.message_handler(commands=['start', 'help'])
     def handle_start(message):
-        logger.info("Received /%s command from %s", message.text.lstrip('/'), message.from_user.username)
+        logger.info("Received /%s from %s", message.text.lstrip('/'), message.from_user.username)
+        text = (
+            "👋 *Welcome to Hackathon Notifier!*\n\n"
+            "I can help you find upcoming hackathons and internships instantly.\n\n"
+            "Here are my commands:\n"
+            "🤖 /latest - View the 5 most recently added upcoming hackathons\n"
+            "📍 /nearest - Find offline hackathons near you\n"
+            "📊 /stats - View platform statistics\n"
+        )
+        bot.reply_to(message, text, parse_mode="Markdown")
+
+    @bot.message_handler(commands=['latest'])
+    def handle_latest(message):
+        logger.info("Received /latest from %s", message.from_user.username)
+        res = get_data()
+        docs = res.get("data", [])
+        
+        # Filter only upcoming hackathons (is_past == False)
+        upcoming = [d for d in docs if not d.get("is_past")]
+        
+        if not upcoming:
+            bot.reply_to(message, "No upcoming hackathons found right now!")
+            return
+            
+        # Get the first 5 upcoming hackathons
+        top5 = upcoming[:5]
+        
+        reply = "🔥 *Latest 5 Upcoming Hackathons:*\n\n"
+        for hack in top5:
+            reply += _format_message(hack) + "\n"
+            
+        bot.reply_to(message, reply, parse_mode="HTML", disable_web_page_preview=True)
+
+    @bot.message_handler(commands=['stats'])
+    def handle_stats(message):
+        logger.info("Received /stats from %s", message.from_user.username)
+        res = get_data()
+        stats = res.get("stats", {})
+        
+        if not stats:
+            bot.reply_to(message, "Statistics are currently unavailable.")
+            return
+            
+        text = (
+            "📊 *Platform Statistics*\n\n"
+            f"🎯 *Total Opportunities*: {stats.get('total', 0)}\n"
+            f"🎓 *Top College Events*: {stats.get('top_college_count', 0)}\n"
+            f"💼 *Internships*: {stats.get('internship_count', 0)}\n"
+            f"🏷️ *Unique Tags*: {stats.get('unique_tags', 0)}\n"
+        )
+        bot.reply_to(message, text, parse_mode="Markdown")
+
+    @bot.message_handler(commands=['nearest'])
+    def handle_nearest(message):
+        logger.info("Received /nearest from %s", message.from_user.username)
+        
+        keyboard = telebot.types.ReplyKeyboardMarkup(row_width=1, resize_keyboard=True, one_time_keyboard=True)
+        button_geo = telebot.types.KeyboardButton(text="📍 Share Location", request_location=True)
+        keyboard.add(button_geo)
+        
         bot.reply_to(
             message, 
-            "🔄 Refreshing hackathons...\n\nScraping Devfolio and Unstop. This might take a moment!"
+            "Please share your location to find the nearest offline hackathons. (Works best on mobile)", 
+            reply_markup=keyboard
         )
-        threading.Thread(target=trigger_pipeline, args=(message.chat.id,)).start()
+
+    @bot.message_handler(content_types=['location'])
+    def handle_location(message):
+        logger.info("Received location from %s", message.from_user.username)
+        lat = message.location.latitude
+        lng = message.location.longitude
+        
+        res = get_data(lat=lat, lng=lng)
+        docs = res.get("data", [])
+        
+        # Filter for upcoming, offline/hybrid events with coordinates
+        offline_upcoming = [
+            d for d in docs 
+            if not d.get("is_past") 
+            and "distance_km" in d 
+            and d.get("mode", "").lower() in ["offline", "hybrid"]
+        ]
+        
+        # Remove the keyboard
+        remove_kb = telebot.types.ReplyKeyboardRemove()
+        
+        if not offline_upcoming:
+            bot.reply_to(message, "Sorry, I couldn't find any upcoming offline hackathons near you.", reply_markup=remove_kb)
+            return
+            
+        # Get the top 5 nearest
+        nearest5 = offline_upcoming[:5]
+        
+        reply = "📍 *Nearest Upcoming Hackathons:*\n\n"
+        for hack in nearest5:
+            dist = hack.get("distance_km")
+            # add a custom field temporarily for formatting
+            reply += f"🛣️ Distance: {dist} km\n"
+            reply += _format_message(hack) + "\n"
+            
+        bot.reply_to(message, reply, parse_mode="HTML", disable_web_page_preview=True, reply_markup=remove_kb)
 
     logger.info("Starting Telegram bot polling...")
     try:
         bot.infinity_polling()
     except Exception as e:
         logger.exception("Polling stopped due to error: %s", e)
+
+
 
 
 # ── Self-test ─────────────────────────────────────────────────────────────────
