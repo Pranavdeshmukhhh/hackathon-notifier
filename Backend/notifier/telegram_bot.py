@@ -351,35 +351,65 @@ def start_polling():
         logger.info("Received location from %s", message.from_user.username)
         lat = message.location.latitude
         lng = message.location.longitude
-        
+
+        bot.send_message(message.chat.id, "📡 Finding hackathons near you...")
+
         res = get_data(lat=lat, lng=lng)
         docs = res.get("data", [])
-        
-        # Filter for upcoming, offline/hybrid events with coordinates
+
+        # Filter for upcoming, offline/hybrid events that have a calculated distance
         offline_upcoming = [
-            d for d in docs 
-            if not d.get("is_past") 
-            and "distance_km" in d 
+            d for d in docs
+            if not d.get("is_past")
+            and "distance_km" in d
             and d.get("mode", "").lower() in ["offline", "hybrid"]
         ]
-        
+
+        # Sort by distance ascending (closest first)
+        offline_upcoming.sort(key=lambda d: d.get("distance_km", 999999))
+
         # Remove the keyboard
         remove_kb = telebot.types.ReplyKeyboardRemove()
-        
+
         if not offline_upcoming:
-            bot.reply_to(message, "Sorry, I couldn't find any upcoming offline hackathons near you.", reply_markup=remove_kb)
+            bot.reply_to(
+                message,
+                "Sorry, I couldn't find any upcoming offline hackathons near you.\n"
+                "This usually means offline events don't have geocoded locations yet — "
+                "they will appear after the next scrape cycle.",
+                reply_markup=remove_kb
+            )
             return
-            
+
         # Get the top 5 nearest
         nearest5 = offline_upcoming[:5]
-        
-        reply = "📍 *Nearest Upcoming Hackathons:*\n\n"
+
+        lines = ["<b>📍 Nearest Upcoming Hackathons:</b>\n"]
         for hack in nearest5:
             dist = hack.get("distance_km")
-            # add a custom field temporarily for formatting
-            reply += f"🛣️ Distance: {dist} km\n"
-            reply += _format_message(hack) + "\n"
-            
+            title = _escape_html(hack.get("title", "Unknown"))
+            deadline = _escape_html(hack.get("deadline", "TBA"))
+            location = _escape_html(hack.get("location", ""))
+            link = hack.get("link", "")
+            regs = hack.get("total_registrations") or hack.get("registrations")
+            min_team = hack.get("min_team_size")
+            max_team = hack.get("max_team_size")
+
+            block = f"🛣️ <b>{dist} km away</b>\n"
+            block += f"📌 <b><a href='{link}'>{title}</a></b>\n" if link else f"📌 <b>{title}</b>\n"
+            block += f"📅 Deadline: {deadline}\n"
+            if location:
+                block += f"📍 {location}\n"
+            if regs:
+                block += f"👥 {regs:,} registered\n" if isinstance(regs, int) else f"👥 {regs} registered\n"
+            if min_team or max_team:
+                if min_team and max_team and min_team != max_team:
+                    block += f"👤 Team: {min_team}–{max_team}\n"
+                else:
+                    block += f"👤 Team: {min_team or max_team}\n"
+            lines.append(block)
+
+        reply = "\n".join(lines)
         bot.reply_to(message, reply, parse_mode="HTML", disable_web_page_preview=True, reply_markup=remove_kb)
 
     logger.info("Starting Telegram bot polling...")

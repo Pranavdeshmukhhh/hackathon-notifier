@@ -67,8 +67,10 @@ const HackathonCard = ({ hackathon }) => {
   const isInternship  = hackathon.is_internship === true;
   const location      = cleanLocation(hackathon.location || '');
   const distanceKm    = hackathon.distance_km != null ? parseFloat(hackathon.distance_km.toFixed(1)) : undefined;
-  const registrations = formatRegistrations(hackathon.registrations || hackathon.total_registrations);
+  const registrations = formatRegistrations(hackathon.total_registrations || hackathon.registrations);
   const prize         = hackathon.prize || '';
+  const minTeam       = hackathon.min_team_size;
+  const maxTeam       = hackathon.max_team_size;
 
   return (
     <div className={`hack-card${isPast ? ' hack-card--past' : ''}`}>
@@ -119,6 +121,18 @@ const HackathonCard = ({ hackathon }) => {
             <div className="hack-card-meta-item hack-card-meta-regs">
               <UsersIcon />
               <span>{registrations} registered</span>
+            </div>
+          )}
+          {(minTeam || maxTeam) && (
+            <div className="hack-card-meta-item" style={{ color: '#64748b' }}>
+              <UsersIcon />
+              <span>
+                Team:{' '}
+                {minTeam && maxTeam && minTeam !== maxTeam
+                  ? `${minTeam}–${maxTeam}`
+                  : minTeam || maxTeam
+                }
+              </span>
             </div>
           )}
           {prize && (

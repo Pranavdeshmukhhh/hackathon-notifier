@@ -5,6 +5,7 @@ import random
 from datetime import datetime
 from curl_cffi import requests
 from tenacity import retry, stop_after_attempt, wait_exponential, before_sleep_log
+from scrapers.geocoder import geocode
 
 logger = logging.getLogger(__name__)
 
@@ -103,8 +104,13 @@ def _parse_api_items(items: list) -> list[dict]:
             or item.get("registered_count")
             or item.get("total_registrations")
             or item.get("participations_count")
+            or item.get("no_of_registrations")
             or 0
         )
+
+        # Team size constraints
+        min_team = regn_reqs.get("min_no") or regn_reqs.get("min_team_size") or item.get("min_team_size")
+        max_team = regn_reqs.get("max_no") or regn_reqs.get("max_team_size") or item.get("max_team_size")
 
         # Deadline
         raw_deadline = item.get("regnRequirements", {}).get("end_regn_dt") or item.get("end_date") or ""
@@ -144,7 +150,15 @@ def _parse_api_items(items: list) -> list[dict]:
             
         org = item.get("organisation", {}).get("name", "")
 
-        results.append({
+        # Geocode location to lat/lng for distance sorting
+        lat, lng = None, None
+        if location_str and mode != "Online":
+            lat, lng = geocode(location_str)
+            if lat is None and org:
+                # Fallback: try organisation name + city
+                lat, lng = geocode(org)
+
+        doc = {
             "title":               title,
             "deadline":            deadline,
             "deadline_iso":        deadline_iso,
@@ -158,7 +172,21 @@ def _parse_api_items(items: list) -> list[dict]:
             "organization":        org,
             "total_registrations": int(total_regs) if total_regs else 0,
             "scraped_at":          datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
-        })
+        }
+        if lat is not None:
+            doc["lat"] = lat
+            doc["lng"] = lng
+        if min_team is not None:
+            try:
+                doc["min_team_size"] = int(min_team)
+            except (TypeError, ValueError):
+                pass
+        if max_team is not None:
+            try:
+                doc["max_team_size"] = int(max_team)
+            except (TypeError, ValueError):
+                pass
+        results.append(doc)
 
     return results
 
