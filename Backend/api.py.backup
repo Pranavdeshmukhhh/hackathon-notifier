@@ -122,150 +122,85 @@ def read_root():
     return {"message": "Hackathon API is running"}
 
 @app.get("/api/hackathons")
-def get_hackathons(
-    request: Request, 
-    lat: float = None, 
-    lng: float = None,
-    page: int = 1,
-    limit: int = 12,
-    category: str = "All",
-    search: str = "",
-    sort: str = "deadline",
-    tab: str = "upcoming"
-):
+def get_hackathons(request: Request, lat: float = None, lng: float = None):
     # --- cache hit → skip Mongo entirely ---
     cache_key = f"{_CACHE_KEY}_{lat}_{lng}" if lat and lng else _CACHE_KEY
     cached = _cache.get(cache_key)
-    
-    if cached is None:
-        logger.info("Cache MISS — querying MongoDB")
-        try:
-            collection = get_collection()
-            cursor = collection.find({})
-            docs = []
-            for doc in cursor:
-                doc["_id"] = str(doc["_id"])
-                # Calculate distance if we have coords
-                if lat is not None and lng is not None and "lat" in doc and "lng" in doc:
-                    try:
-                        d_lat = math.radians(doc["lat"] - lat)
-                        d_lng = math.radians(doc["lng"] - lng)
-                        a = math.sin(d_lat/2) * math.sin(d_lat/2) + \
-                            math.cos(math.radians(lat)) * math.cos(math.radians(doc["lat"])) * \
-                            math.sin(d_lng/2) * math.sin(d_lng/2)
-                        c = 2 * math.atan2(math.sqrt(a), math.sqrt(1-a))
-                        distance_km = 6371 * c
-                        doc["distance_km"] = round(distance_km, 1)
-                    except Exception:
-                        pass
-                docs.append(doc)
+    if cached is not None:
+        logger.debug("Cache HIT")
+        return cached
 
-            sorted_docs = _sort_hackathons(docs)
-            
-            # If lat/lng is provided, sort upcoming offline events by distance default in cache
-            if lat is not None and lng is not None:
-                sorted_docs.sort(key=lambda x: (x.get("is_past", False), x.get("distance_km", 999999)))
+    logger.info("Cache MISS — querying MongoDB")
+    try:
+        collection = get_collection()
+        cursor = collection.find({})
+        docs = []
+        for doc in cursor:
+            doc["_id"] = str(doc["_id"])
+            # Calculate distance if we have coords
+            if lat is not None and lng is not None and "lat" in doc and "lng" in doc:
+                try:
+                    d_lat = math.radians(doc["lat"] - lat)
+                    d_lng = math.radians(doc["lng"] - lng)
+                    a = math.sin(d_lat/2) * math.sin(d_lat/2) + \
+                        math.cos(math.radians(lat)) * math.cos(math.radians(doc["lat"])) * \
+                        math.sin(d_lng/2) * math.sin(d_lng/2)
+                    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1-a))
+                    distance_km = 6371 * c
+                    doc["distance_km"] = round(distance_km, 1)
+                except Exception:
+                    pass
+            docs.append(doc)
 
-            # Collect stats
-            all_tags = set()
-            sources = set()
-            college_types = set()
-            latest_scrape = ""
-            top_college_count = 0
-            internship_count = 0
-
-            for doc in sorted_docs:
-                for t in doc.get("tags", []):
-                    all_tags.add(t)
-                sources.add(doc.get("source", "Unknown"))
-                sa = doc.get("scraped_at", "")
-                if sa > latest_scrape:
-                    latest_scrape = sa
-
-                # Classification stats
-                if doc.get("is_top_college"):
-                    top_college_count += 1
-                    ct = doc.get("college_type")
-                    if ct:
-                        college_types.add(ct)
-                if doc.get("is_internship"):
-                    internship_count += 1
-
-            stats = {
-                "total": len(sorted_docs),
-                "unique_tags": len(all_tags),
-                "sources": list(sources),
-                "last_scraped": latest_scrape,
-                "top_college_count": top_college_count,
-                "internship_count": internship_count,
-                "college_types": sorted(college_types),
-                "online_count": sum(1 for d in sorted_docs if "online" in d.get("mode", "").lower()),
-                "offline_count": sum(1 for d in sorted_docs if "offline" in d.get("mode", "").lower()),
-                "unique_sources_count": sum(1 for d in sorted_docs if d.get("source") == "Unique Sources"),
-                "hackathon_count": sum(1 for d in sorted_docs if d.get("opportunity_type") == "Hackathon")
-            }
-
-            cached = {"docs": sorted_docs, "stats": stats}
-            _cache[cache_key] = cached
-        except Exception as e:
-            logger.error("Error fetching hackathons", exc_info=True)
-            return {"success": False, "error": "Internal server error", "data": [], "stats": {}}
-
-    # Apply filters dynamically in Python
-    filtered = cached["docs"]
-    
-    if category == 'Top College':
-        filtered = [d for d in filtered if d.get('is_top_college')]
-    elif category == 'Internship':
-        filtered = [d for d in filtered if d.get('is_internship')]
-    elif category == 'Hackathon':
-        filtered = [d for d in filtered if d.get('opportunity_type') == 'Hackathon']
-    elif category == 'Online':
-        filtered = [d for d in filtered if 'online' in d.get('mode', '').lower()]
-    elif category == 'Offline':
-        filtered = [d for d in filtered if 'offline' in d.get('mode', '').lower()]
-    elif category == 'Unique Sources':
-        filtered = [d for d in filtered if d.get('source') == 'Unique Sources']
-
-    if search:
-        q = search.lower()
-        filtered = [d for d in filtered if (
-            q in d.get('title', '').lower() or
-            q in d.get('location', '').lower() or
-            any(q in tag.lower() for tag in d.get('tags', []))
-        )]
+        sorted_docs = _sort_hackathons(docs)
         
-    # Sorting
-    if sort == 'deadline':
-        filtered = sorted(filtered, key=lambda d: d.get('deadline_iso', '9999'))
-    elif sort == 'distance':
-        filtered = sorted(filtered, key=lambda d: d.get('distance_km', 999999))
-    elif sort == 'name':
-        filtered = sorted(filtered, key=lambda d: d.get('title', '').lower())
-    elif sort == 'newest':
-        filtered = sorted(filtered, key=lambda d: d.get('scraped_at', ''), reverse=True)
+        # If lat/lng is provided, sort upcoming offline events by distance
+        if lat is not None and lng is not None:
+            sorted_docs.sort(key=lambda x: (x.get("is_past", False), x.get("distance_km", 999999)))
 
-    # Split into Upcoming / Missed
-    upcoming = [d for d in filtered if not d.get('is_past', False)]
-    missed = [d for d in filtered if d.get('is_past', False)]
-    
-    target_list = upcoming if tab == 'upcoming' else missed
-    
-    # Paginate
-    start_idx = (page - 1) * limit
-    end_idx = start_idx + limit
-    page_data = target_list[start_idx:end_idx]
+        # Collect stats
+        all_tags = set()
+        sources = set()
+        college_types = set()
+        latest_scrape = ""
+        top_college_count = 0
+        internship_count = 0
 
-    payload = {
-        "success": True, 
-        "count": len(page_data), 
-        "data": page_data, 
-        "upcoming_total": len(upcoming),
-        "missed_total": len(missed),
-        "stats": cached["stats"]
-    }
+        for doc in sorted_docs:
+            for tag in doc.get("tags", []):
+                all_tags.add(tag)
+            sources.add(doc.get("source", "Unknown"))
+            sa = doc.get("scraped_at", "")
+            if sa > latest_scrape:
+                latest_scrape = sa
 
-    return payload
+            # Classification stats
+            if doc.get("is_top_college"):
+                top_college_count += 1
+                ct = doc.get("college_type")
+                if ct:
+                    college_types.add(ct)
+            if doc.get("is_internship"):
+                internship_count += 1
+
+        stats = {
+            "total": len(sorted_docs),
+            "unique_tags": len(all_tags),
+            "sources": list(sources),
+            "last_scraped": latest_scrape,
+            "top_college_count": top_college_count,
+            "internship_count": internship_count,
+            "college_types": sorted(college_types),
+        }
+
+        payload = {"success": True, "count": len(sorted_docs), "data": sorted_docs, "stats": stats}
+
+        # --- populate cache ---
+        _cache[cache_key] = payload
+        return payload
+    except Exception as e:
+        logger.error("Error fetching hackathons", exc_info=True)
+        return {"success": False, "error": "Internal server error", "data": [], "stats": {}}
 
 
 @app.get("/health")

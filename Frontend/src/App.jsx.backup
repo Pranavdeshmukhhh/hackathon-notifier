@@ -34,13 +34,24 @@ function HLogo({ size = 36 }) {
 }
 
 // ── Dashboard Stats Popup ─────────────────────────────────────────────────────
-function DashboardPopup({ stats, upcomingTotal, missedTotal, onClose }) {
+function DashboardPopup({ stats, hackathons, onClose }) {
+  const upcomingCount = hackathons.filter(h => !h.is_past).length;
+  const missedCount   = hackathons.filter(h => h.is_past).length;
+  const onlineCount   = hackathons.filter(h => (h.mode || '').toLowerCase() === 'online').length;
+  const offlineCount  = hackathons.filter(h => (h.mode || '').toLowerCase() === 'offline').length;
+
   useEffect(() => {
     const onKey = (e) => { if (e.key === 'Escape') onClose(); };
     document.addEventListener('keydown', onKey);
     document.body.style.overflow = 'hidden';
     return () => { document.removeEventListener('keydown', onKey); document.body.style.overflow = ''; };
   }, [onClose]);
+
+  const sources = stats.sources || [];
+  const sourceBreakdown = sources.map(src => ({
+    name: src,
+    count: hackathons.filter(h => (h.source || '').toLowerCase() === src.toLowerCase()).length,
+  }));
 
   return (
     <div className="modal-backdrop" onClick={onClose}>
@@ -54,20 +65,22 @@ function DashboardPopup({ stats, upcomingTotal, missedTotal, onClose }) {
             <p className="modal-role">Real-time stats · Auto-refreshes every 1 hr</p>
           </div>
         </div>
+        {/* Close button after header so it sits on top */}
         <button className="modal-close" onClick={onClose} aria-label="Close">✕</button>
 
         <div className="modal-body">
+          {/* Key metrics */}
           <div className="dash-metric-grid">
             <div className="dash-metric">
-              <span className="dash-metric-val">{stats.total || 0}</span>
+              <span className="dash-metric-val">{stats.total || hackathons.length}</span>
               <span className="dash-metric-label">Total Events</span>
             </div>
             <div className="dash-metric">
-              <span className="dash-metric-val" style={{color:'#10b981'}}>{upcomingTotal || 0}</span>
+              <span className="dash-metric-val" style={{color:'#10b981'}}>{upcomingCount}</span>
               <span className="dash-metric-label">Upcoming</span>
             </div>
             <div className="dash-metric">
-              <span className="dash-metric-val" style={{color:'#64748b'}}>{missedTotal || 0}</span>
+              <span className="dash-metric-val" style={{color:'#64748b'}}>{missedCount}</span>
               <span className="dash-metric-label">Missed</span>
             </div>
             <div className="dash-metric">
@@ -84,32 +97,39 @@ function DashboardPopup({ stats, upcomingTotal, missedTotal, onClose }) {
             </div>
           </div>
 
+          {/* Mode split */}
           <div className="modal-section">
             <h3>Mode Distribution</h3>
             <div className="dash-bar-row">
               <span className="dash-bar-label">Online</span>
               <div className="dash-bar-track">
-                <div className="dash-bar-fill dash-bar--online" style={{width: stats.total ? `${((stats.online_count||0)/stats.total)*100}%` : '0%'}} />
+                <div className="dash-bar-fill dash-bar--online" style={{width: hackathons.length ? `${(onlineCount/hackathons.length)*100}%` : '0%'}} />
               </div>
-              <span className="dash-bar-count">{stats.online_count || 0}</span>
+              <span className="dash-bar-count">{onlineCount}</span>
             </div>
             <div className="dash-bar-row">
               <span className="dash-bar-label">Offline</span>
               <div className="dash-bar-track">
-                <div className="dash-bar-fill dash-bar--offline" style={{width: stats.total ? `${((stats.offline_count||0)/stats.total)*100}%` : '0%'}} />
+                <div className="dash-bar-fill dash-bar--offline" style={{width: hackathons.length ? `${(offlineCount/hackathons.length)*100}%` : '0%'}} />
               </div>
-              <span className="dash-bar-count">{stats.offline_count || 0}</span>
+              <span className="dash-bar-count">{offlineCount}</span>
             </div>
           </div>
-          
-          <div className="modal-section">
-            <h3>Sources</h3>
-            <div className="dash-source-grid" style={{display: 'flex', gap: '8px', flexWrap: 'wrap'}}>
-              {(stats.sources || []).map(s => (
-                <span key={s} className={`source-badge source-badge--${s.toLowerCase()}`}>{s}</span>
-              ))}
+
+          {/* Sources */}
+          {sourceBreakdown.length > 0 && (
+            <div className="modal-section">
+              <h3>Sources</h3>
+              <div className="dash-source-grid">
+                {sourceBreakdown.map(s => (
+                  <div key={s.name} className="dash-source-item">
+                    <span className={`source-badge source-badge--${s.name.toLowerCase()}`}>{s.name}</span>
+                    <span className="dash-source-count">{s.count} events</span>
+                  </div>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
         </div>
       </div>
     </div>
@@ -215,13 +235,13 @@ function Pagination({ currentPage, totalPages, onPageChange }) {
 // ── Main App ──────────────────────────────────────────────────────────────────
 function App() {
   const [hackathons, setHackathons] = useState([]);
+  const [filtered, setFiltered] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [activeCategory, setActiveCategory] = useState('All');
   const [activeTag, setActiveTag] = useState('All');
   const [sortBy, setSortBy] = useState('deadline');
   const [searchQuery, setSearchQuery] = useState('');
-  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [userLocation, setUserLocation] = useState(null);
   const [isLocating, setIsLocating] = useState(false);
   const [locationError, setLocationError] = useState(null);
@@ -231,17 +251,13 @@ function App() {
   const [showAboutModal, setShowAboutModal] = useState(false);
   const [showDashboard, setShowDashboard] = useState(false);
   const [activeTab, setActiveTab] = useState('upcoming');
-  const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [totalItems, setTotalItems] = useState(0);
+  const [upcomingPage, setUpcomingPage] = useState(1);
+  const [missedPage, setMissedPage] = useState(1);
 
   const [stats, setStats] = useState({
     total: 0, unique_tags: 0, last_scraped: '', sources: [],
     top_college_count: 0, internship_count: 0, college_types: [],
-    online_count: 0, offline_count: 0, unique_sources_count: 0, hackathon_count: 0
   });
-  const [upcomingTotal, setUpcomingTotal] = useState(0);
-  const [missedTotal, setMissedTotal] = useState(0);
 
   const homeRef      = useRef(null);
   const dashboardRef = useRef(null);
@@ -251,48 +267,21 @@ function App() {
   const coldStartTimerRef  = useRef(null);
   const intervalRef        = useRef(null);
 
-  useEffect(() => {
-    const handler = setTimeout(() => {
-      setDebouncedSearch(searchQuery);
-      setCurrentPage(1);
-    }, 400);
-    return () => clearTimeout(handler);
-  }, [searchQuery]);
-
-  const fetchHackathons = useCallback(async (isAutoRefresh = false) => {
+  const fetchHackathons = useCallback(async (lat = null, lng = null) => {
     if (abortControllerRef.current) abortControllerRef.current.abort();
     abortControllerRef.current = new AbortController();
-    
-    if (!isAutoRefresh) {
-      setLoading(true);
-      setError(null);
-      setShowColdStartBanner(false);
-      coldStartTimerRef.current = setTimeout(() => setShowColdStartBanner(true), COLD_START_WARN_MS);
-    }
-    
+    setLoading(true); setError(null); setShowColdStartBanner(false);
+    coldStartTimerRef.current = setTimeout(() => setShowColdStartBanner(true), COLD_START_WARN_MS);
     try {
-      const lat = userLocation?.lat || '';
-      const lng = userLocation?.lng || '';
-      
-      let url = `${API_URL}?page=${currentPage}&limit=${PAGE_SIZE}&category=${encodeURIComponent(activeCategory)}&sort=${sortBy}&tab=${activeTab}`;
-      if (debouncedSearch) url += `&search=${encodeURIComponent(debouncedSearch)}`;
-      if (lat && lng) url += `&lat=${lat}&lng=${lng}`;
-
+      let url = API_URL;
+      if (lat && lng) url += `?lat=${lat}&lng=${lng}`;
       const response = await fetch(url, { signal: abortControllerRef.current.signal });
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const result = await response.json();
-      
-      if (result.success) { 
-        setHackathons(result.data); 
-        if (result.stats) setStats(result.stats);
-        setUpcomingTotal(result.upcoming_total || 0);
-        setMissedTotal(result.missed_total || 0);
-        
-        const countForTab = activeTab === 'upcoming' ? result.upcoming_total : result.missed_total;
-        setTotalItems(countForTab);
-        setTotalPages(Math.max(1, Math.ceil(countForTab / PAGE_SIZE)));
-      }
+      if (Array.isArray(result)) { setHackathons(result); setFiltered(result); }
+      else if (result.success) { setHackathons(result.data); setFiltered(result.data); if (result.stats) setStats(result.stats); }
       else throw new Error(result.error || 'Unknown error from API');
+      setUpcomingPage(1); setMissedPage(1);
     } catch (e) {
       if (e.name === 'AbortError') return;
       setError('Could not connect to the API. Make sure the backend is running.');
@@ -302,82 +291,31 @@ function App() {
       setShowColdStartBanner(false);
       setLoading(false);
     }
-  }, [activeCategory, sortBy, debouncedSearch, activeTab, currentPage, userLocation]);
+  }, []);
 
+  // Location prompt — used when "Distance (nearest)" selected without location
   const requestLocation = useCallback(() => {
     if (!navigator.geolocation) { setLocationError("Geolocation not supported"); return; }
     setIsLocating(true); setLocationError(null);
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         const lat = pos.coords.latitude, lng = pos.coords.longitude;
-        setUserLocation({ lat, lng }); 
-        setIsLocating(false);
+        setUserLocation({ lat, lng }); setIsLocating(false);
         setSortBy('distance');
-        setCurrentPage(1);
+        fetchHackathons(lat, lng);
       },
       () => { setLocationError("Unable to retrieve your location"); setIsLocating(false); }
     );
-  }, []);
+  }, [fetchHackathons]);
 
   const handleNearMeClick = requestLocation;
 
   useEffect(() => {
-    fetchHackathons();
+    const lat = userLocation?.lat ?? null, lng = userLocation?.lng ?? null;
+    fetchHackathons(lat, lng);
     if (intervalRef.current) clearInterval(intervalRef.current);
-    intervalRef.current = setInterval(() => fetchHackathons(true), 60 * 60 * 1000);
+    intervalRef.current = setInterval(() => fetchHackathons(lat, lng), 60 * 60 * 1000); // 1 hr
     return () => {
-      clearInterval(intervalRef.current);
-      if (abortControllerRef.current) abortControllerRef.current.abort();
-      clearTimeout(coldStartTimerRef.current);
-    };
-  }, [fetchHackathons]);
-
-  const handleCategoryChange = (cat) => { setActiveCategory(cat); setActiveTag('All'); setCurrentPage(1); };
-  const handleSearchChange   = (e)   => { setSearchQuery(e.target.value); };
-  const handleSortChange     = (e)   => {
-    const v = e.target.value;
-    if (v === 'distance' && !userLocation) {
-      setSortBy('distance');
-      requestLocation();
-      return;
-    }
-    setSortBy(v);
-    setCurrentPage(1);
-  };
-  const handleTabChange = (tab) => { setActiveTab(tab); setCurrentPage(1); eventsRef.current?.scrollIntoView({ behavior: 'smooth' }); };
-  const handlePageChange = (p) => { setCurrentPage(p); eventsRef.current?.scrollIntoView({ behavior: 'smooth' }); };
-
-  const scrollToSection = (section) => {
-    setActiveSection(section); setMobileMenuOpen(false);
-    const refMap = { home: homeRef, dashboard: dashboardRef, about: aboutRef, events: eventsRef };
-    refMap[section]?.current?.scrollIntoView({ behavior: 'smooth' });
-  };
-
-  const categories = [
-    { key: 'All',            label: 'All',            count: stats.total },
-    { key: 'Online',         label: '🌐 Online',       count: stats.online_count || 0 },
-    { key: 'Offline',        label: '📍 Offline',      count: stats.offline_count || 0 },
-    { key: 'Top College',    label: '🏛 Top College',  count: stats.top_college_count || 0 },
-    { key: 'Internship',     label: '💼 Internship',   count: stats.internship_count || 0 },
-    { key: 'Hackathon',      label: 'Hackathons',      count: stats.hackathon_count || 0 },
-    { key: 'Unique Sources', label: '⭐ Curated',      count: stats.unique_sources_count || 0 },
-  ];
-
-  const formatLastScraped = (isoStr) => {
-    if (!isoStr) return '—';
-    try {
-      const d = new Date(isoStr);
-      const diffMins = Math.floor((Date.now() - d) / 60000);
-      if (diffMins < 1)  return 'Just now';
-      if (diffMins < 60) return `${diffMins}m ago`;
-      const diffHrs = Math.floor(diffMins / 60);
-      if (diffHrs < 24)  return `${diffHrs}h ago`;
-      return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
-    } catch { return '—'; }
-  };
-
-  return (
-) => {
       clearInterval(intervalRef.current);
       if (abortControllerRef.current) abortControllerRef.current.abort();
       clearTimeout(coldStartTimerRef.current);
@@ -476,7 +414,7 @@ function App() {
   return (
     <div className="app-container">
       {showAboutModal    && <AboutModal     onClose={() => setShowAboutModal(false)} />}
-      {showDashboard     && <DashboardPopup stats={stats} upcomingTotal={upcomingTotal} missedTotal={missedTotal} onClose={() => setShowDashboard(false)} />}
+      {showDashboard     && <DashboardPopup stats={stats} hackathons={hackathons} onClose={() => setShowDashboard(false)} />}
 
       {/* ── Navbar ── */}
       <nav className="navbar" id="main-nav">
@@ -497,7 +435,7 @@ function App() {
           <button className={`btn-secondary ${userLocation ? 'active' : ''}`} onClick={handleNearMeClick} disabled={isLocating} title="Sort by distance from you">
             {isLocating ? 'Locating…' : '📍 Near Me'}
           </button>
-          <button className="btn-primary" id="refresh-btn" onClick={() => fetchHackathons()}>
+          <button className="btn-primary" id="refresh-btn" onClick={() => fetchHackathons(userLocation?.lat, userLocation?.lng)}>
             Refresh
           </button>
         </div>
@@ -531,8 +469,8 @@ function App() {
             <span style={{ color: '#10b981' }}>●</span> Live Data Pipeline
           </div>
           <div className="hero-stats-grid">
-            <div className="hero-stat-box"><div className="hero-stat-value">{stats.total}</div><div className="hero-stat-label">Total Events</div></div>
-            <div className="hero-stat-box"><div className="hero-stat-value">{upcomingTotal}</div><div className="hero-stat-label">Active</div></div>
+            <div className="hero-stat-box"><div className="hero-stat-value">{stats.total || hackathons.length}</div><div className="hero-stat-label">Total Events</div></div>
+            <div className="hero-stat-box"><div className="hero-stat-value">{upcomingHackathons.length}</div><div className="hero-stat-label">Active</div></div>
             <div className="hero-stat-box"><div className="hero-stat-value">{stats.top_college_count || 0}</div><div className="hero-stat-label">Top College</div></div>
             <div className="hero-stat-box"><div className="hero-stat-value" style={{ fontSize: '0.9rem', color: '#0f172a' }}>{formatLastScraped(stats.last_scraped)}</div><div className="hero-stat-label">Last Update</div></div>
           </div>
@@ -593,8 +531,8 @@ function App() {
           <div className="highlight-card bg-blue" style={{ cursor: 'pointer' }} onClick={() => setShowDashboard(true)}>
             <h3>Missed Opportunities tracker to keep you accountable</h3>
             <div className="highlight-stats">
-              <div className="h-stat"><span className="h-stat-val">{upcomingTotal}</span><span className="h-stat-label">Upcoming</span></div>
-              <div className="h-stat"><span className="h-stat-val">{missedTotal}</span><span className="h-stat-label">Missed</span></div>
+              <div className="h-stat"><span className="h-stat-val">{upcomingHackathons.length}</span><span className="h-stat-label">Upcoming</span></div>
+              <div className="h-stat"><span className="h-stat-val">{missedHackathons.length}</span><span className="h-stat-label">Missed</span></div>
             </div>
             <div className="highlight-cta">Tap to open full dashboard →</div>
           </div>
@@ -619,7 +557,7 @@ function App() {
           </div>
         </div>
 
-        {!loading && !error && stats.total > 0 && (
+        {!loading && !error && hackathons.length > 0 && (
           <div className="category-tabs" id="category-tabs">
             {categories.map(cat => (
               <button key={cat.key} className={`category-tab ${activeCategory === cat.key ? 'active' : ''}`} onClick={() => handleCategoryChange(cat.key)}>
@@ -640,7 +578,7 @@ function App() {
           </div>
         )}
 
-        {!loading && !error && totalItems === 0 && (
+        {!loading && !error && filtered.length === 0 && (
           <div className="empty-state">
             <div className="empty-icon">🔍</div>
             <h3>No hackathons found</h3>
@@ -654,44 +592,44 @@ function App() {
           </div>
         )}
 
-        {!loading && !error && (upcomingTotal > 0 || missedTotal > 0) && (
+        {!loading && !error && (upcomingHackathons.length > 0 || missedHackathons.length > 0) && (
           <div className="list-tabs">
-            <button className={`list-tab ${activeTab === 'upcoming' ? 'active' : ''}`} onClick={() => handleTabChange('upcoming')}>
-              🚀 Upcoming<span className="tab-count">{upcomingTotal}</span>
+            <button className={`list-tab ${activeTab === 'upcoming' ? 'active' : ''}`} onClick={() => setActiveTab('upcoming')}>
+              🚀 Upcoming<span className="tab-count">{upcomingHackathons.length}</span>
             </button>
-            <button className={`list-tab ${activeTab === 'missed' ? 'active' : ''}`} onClick={() => handleTabChange('missed')}>
-              📁 Missed<span className="tab-count">{missedTotal}</span>
+            <button className={`list-tab ${activeTab === 'missed' ? 'active' : ''}`} onClick={() => setActiveTab('missed')}>
+              📁 Missed<span className="tab-count">{missedHackathons.length}</span>
             </button>
           </div>
         )}
 
-        {!loading && activeTab === 'upcoming' && upcomingTotal > 0 && (
+        {!loading && activeTab === 'upcoming' && upcomingHackathons.length > 0 && (
           <>
             <div className="section-header">
               <h2>Upcoming Events</h2>
-              <p>Page {upcomingPage} of {upcomingTotalPages} · {upcomingTotal} total</p>
+              <p>Page {upcomingPage} of {upcomingTotalPages} · {upcomingHackathons.length} total</p>
             </div>
             <div className="card-grid">
-              {hackathons.map(h => <HackathonCard key={h._id || h.link} hackathon={h} />)}
+              {upcomingPageItems.map(h => <HackathonCard key={h._id || h.link} hackathon={h} />)}
             </div>
-            <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={handlePageChange} />
+            <Pagination currentPage={upcomingPage} totalPages={upcomingTotalPages} onPageChange={handleUpcomingPageChange} />
           </>
         )}
 
-        {!loading && activeTab === 'missed' && missedTotal > 0 && (
+        {!loading && activeTab === 'missed' && missedHackathons.length > 0 && (
           <>
             <div className="section-header">
               <h2 style={{ color: '#64748b' }}>Missed Opportunities</h2>
-              <p>Page {missedPage} of {missedTotalPages} · {missedTotal} total</p>
+              <p>Page {missedPage} of {missedTotalPages} · {missedHackathons.length} total</p>
             </div>
             <div className="card-grid">
-              {hackathons.map(h => <HackathonCard key={h._id || h.link} hackathon={h} />)}
+              {missedPageItems.map(h => <HackathonCard key={h._id || h.link} hackathon={h} />)}
             </div>
-            <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={handlePageChange} />
+            <Pagination currentPage={missedPage} totalPages={missedTotalPages} onPageChange={handleMissedPageChange} />
           </>
         )}
 
-        {!loading && activeTab === 'missed' && missedTotal === 0 && !error && (
+        {!loading && activeTab === 'missed' && missedHackathons.length === 0 && !error && (
           <div className="empty-state">
             <div className="empty-icon">🎉</div>
             <h3>No missed hackathons!</h3>
