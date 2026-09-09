@@ -301,6 +301,7 @@ function App() {
       (pos) => {
         const lat = pos.coords.latitude, lng = pos.coords.longitude;
         setUserLocation({ lat, lng }); setIsLocating(false);
+        setSortBy('distance');
         fetchHackathons(lat, lng);
       },
       () => { setLocationError("Unable to retrieve your location"); setIsLocating(false); }
