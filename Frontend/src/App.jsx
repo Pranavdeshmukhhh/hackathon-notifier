@@ -9,18 +9,39 @@ if (!API_URL.endsWith('/api/hackathons')) API_URL += '/api/hackathons';
 const COLD_START_WARN_MS = 5_000;
 const PAGE_SIZE = 12;
 
+// ── Logo — lightning bolt inside a rounded square ────────────────────────────
 function HLogo({ size = 36 }) {
   return (
-    <svg className="brand-h-svg" width={size} height={size} viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-      <rect width="36" height="36" rx="10" fill="#0f172a" />
-      <rect x="8" y="8" width="5" height="20" rx="2.5" fill="white" />
-      <rect x="23" y="8" width="5" height="20" rx="2.5" fill="white" />
-      <rect x="8" y="15.5" width="20" height="5" rx="2.5" fill="#10b981" />
-      <circle className="brand-h-dot" cx="18" cy="18" r="1.5" fill="white" />
+    <svg
+      className="brand-h-svg"
+      width={size}
+      height={size}
+      viewBox="0 0 40 40"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      aria-hidden="true"
+    >
+      {/* Background */}
+      <rect width="40" height="40" rx="11" fill="url(#logo-grad)" />
+      {/* Lightning bolt */}
+      <path
+        d="M23 7L13 22h8l-4 11 14-17h-9l6-9z"
+        fill="white"
+        stroke="rgba(255,255,255,0.3)"
+        strokeWidth="0.5"
+        strokeLinejoin="round"
+      />
+      <defs>
+        <linearGradient id="logo-grad" x1="0" y1="0" x2="40" y2="40" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor="#6366f1" />
+          <stop offset="100%" stopColor="#0ea5e9" />
+        </linearGradient>
+      </defs>
     </svg>
   );
 }
 
+// ── Dashboard Stats Popup ─────────────────────────────────────────────────────
 function DashboardPopup({ stats, upcomingTotal, missedTotal, onClose }) {
   useEffect(() => {
     const onKey = (e) => { if (e.key === 'Escape') onClose(); };
@@ -43,7 +64,7 @@ function DashboardPopup({ stats, upcomingTotal, missedTotal, onClose }) {
           <div className="dash-metric-grid">
             <div className="dash-metric"><span className="dash-metric-val">{stats.total || 0}</span><span className="dash-metric-label">Total Events</span></div>
             <div className="dash-metric"><span className="dash-metric-val" style={{color:'#10b981'}}>{upcomingTotal || 0}</span><span className="dash-metric-label">Upcoming</span></div>
-            <div className="dash-metric"><span className="dash-metric-val" style={{color:'#64748b'}}>{missedTotal || 0}</span><span className="dash-metric-label">Missed</span></div>
+            <div className="dash-metric"><span className="dash-metric-val" style={{color:'var(--text-muted)'}}>{missedTotal || 0}</span><span className="dash-metric-label">Missed</span></div>
             <div className="dash-metric"><span className="dash-metric-val" style={{color:'#f59e0b'}}>{stats.top_college_count || 0}</span><span className="dash-metric-label">IIT/NIT/BITS</span></div>
             <div className="dash-metric"><span className="dash-metric-val" style={{color:'#8b5cf6'}}>{stats.internship_count || 0}</span><span className="dash-metric-label">Internships</span></div>
             <div className="dash-metric"><span className="dash-metric-val">{stats.unique_tags || 0}</span><span className="dash-metric-label">Unique Tags</span></div>
@@ -73,6 +94,7 @@ function DashboardPopup({ stats, upcomingTotal, missedTotal, onClose }) {
   );
 }
 
+// ── About Modal ───────────────────────────────────────────────────────────────
 function AboutModal({ onClose }) {
   useEffect(() => {
     const onKey = (e) => { if (e.key === 'Escape') onClose(); };
@@ -126,6 +148,7 @@ function AboutModal({ onClose }) {
   );
 }
 
+// ── Pagination ─────────────────────────────────────────────────────────────────
 function Pagination({ currentPage, totalPages, onPageChange }) {
   if (totalPages <= 1) return null;
   const pages = [];
@@ -152,6 +175,7 @@ function Pagination({ currentPage, totalPages, onPageChange }) {
   );
 }
 
+// ── Main App ──────────────────────────────────────────────────────────────────
 function App() {
   const [hackathons, setHackathons]           = useState([]);
   const [loading, setLoading]                 = useState(true);
@@ -330,12 +354,12 @@ function App() {
           </div>
         </div>
         <div className="hero-stats-panel">
-          <div className="hero-stats-header"><span style={{ color: '#10b981' }}>●</span> Live Data Pipeline</div>
+          <div className="hero-stats-header"><span style={{ color: '#6366f1' }}>●</span> Live Data Pipeline</div>
           <div className="hero-stats-grid">
             <div className="hero-stat-box"><div className="hero-stat-value">{stats.total}</div><div className="hero-stat-label">Total Events</div></div>
             <div className="hero-stat-box"><div className="hero-stat-value">{upcomingTotal}</div><div className="hero-stat-label">Active</div></div>
             <div className="hero-stat-box"><div className="hero-stat-value">{stats.top_college_count || 0}</div><div className="hero-stat-label">Top College</div></div>
-            <div className="hero-stat-box"><div className="hero-stat-value" style={{ fontSize: '0.9rem', color: '#0f172a' }}>{formatLastScraped(stats.last_scraped)}</div><div className="hero-stat-label">Last Update</div></div>
+            <div className="hero-stat-box"><div className="hero-stat-value" style={{ fontSize: '0.9rem' }}>{formatLastScraped(stats.last_scraped)}</div><div className="hero-stat-label">Last Update</div></div>
           </div>
         </div>
       </section>
@@ -448,7 +472,7 @@ function App() {
         {!loading && !error && activeTab === 'missed' && missedTotal > 0 && (
           <>
             <div className="section-header">
-              <h2 style={{ color: '#64748b' }}>Missed Opportunities</h2>
+              <h2 style={{ color: 'var(--text-muted)' }}>Missed Opportunities</h2>
               <p>Page {currentPage} of {totalPages} · {missedTotal} total</p>
             </div>
             <div className="card-grid">{hackathons.map(h => <HackathonCard key={h._id || h.link} hackathon={h} />)}</div>
