@@ -17,6 +17,8 @@ from typing import Optional
 import requests
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type, before_sleep_log
 
+from .geocoder import geocode
+
 logger = logging.getLogger(__name__)
 
 # ── Constants ─────────────────────────────────────────────────────────────────
@@ -99,6 +101,8 @@ def _parse_hackathon(item: dict) -> Optional[dict]:
     loc_data = item.get("displayed_location", {})
     location = loc_data.get("location", "") if isinstance(loc_data, dict) else ""
     mode = "Online" if "online" in location.lower() else "Offline"
+    
+    lat, lng = geocode(location) if location else (None, None)
 
     # Tags/themes
     themes = item.get("themes", [])
@@ -134,6 +138,8 @@ def _parse_hackathon(item: dict) -> Optional[dict]:
         "link":         url,
         "source":       "Devpost",
         "location":     location,
+        "lat":          lat,
+        "lng":          lng,
         "prize":        prize,
         "organization": org,
         "registrations": item.get("registrations_count", 0),
