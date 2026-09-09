@@ -22,6 +22,8 @@ import requests
 from bs4 import BeautifulSoup
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type, before_sleep_log
 
+from .geocoder import geocode
+
 logger = logging.getLogger(__name__)
 
 # ── Constants ─────────────────────────────────────────────────────────────────
@@ -268,6 +270,13 @@ def scrape_devfolio() -> list[dict]:
         if slug:
             detail = _fetch_detail(slug)
             hackathon["location"] = detail["location"]
+            
+            if hackathon["location"]:
+                lat, lng = geocode(hackathon["location"])
+                if lat is not None and lng is not None:
+                    hackathon["lat"] = lat
+                    hackathon["lng"] = lng
+            
             hackathon["desc"] = detail["desc"]
             hackathon["tagline"] = detail["tagline"]
             hackathon["prize"] = detail["prize"]
