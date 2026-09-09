@@ -339,6 +339,9 @@ function App() {
     if (category === 'Top College') result = result.filter(h => h.is_top_college === true);
     else if (category === 'Internship') result = result.filter(h => h.is_internship === true);
     else if (category === 'Hackathon') result = result.filter(h => h.opportunity_type === 'Hackathon');
+    else if (category === 'Online') result = result.filter(h => (h.mode || '').toLowerCase().includes('online'));
+    else if (category === 'Offline') result = result.filter(h => (h.mode || '').toLowerCase().includes('offline'));
+    else if (category === 'Unique Sources') result = result.filter(h => h.source === 'Unique Sources');
     if (tag !== 'All') result = result.filter(h => h.tags && h.tags.includes(tag));
     if (search.trim()) {
       const q = search.toLowerCase();
@@ -372,11 +375,18 @@ function App() {
     refMap[section]?.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
+  const onlineCount       = hackathons.filter(h => (h.mode || '').toLowerCase().includes('online')).length;
+  const offlineCount      = hackathons.filter(h => (h.mode || '').toLowerCase().includes('offline')).length;
+  const uniqueSourceCount = hackathons.filter(h => h.source === 'Unique Sources').length;
+
   const categories = [
-    { key: 'All',        label: 'All',        count: hackathons.length },
-    { key: 'Top College', label: 'Top College', count: stats.top_college_count || 0 },
-    { key: 'Internship', label: 'Internship',  count: stats.internship_count || 0 },
-    { key: 'Hackathon',  label: 'Hackathons',  count: hackathons.filter(h => h.opportunity_type === 'Hackathon').length },
+    { key: 'All',            label: 'All',            count: hackathons.length },
+    { key: 'Online',         label: '🌐 Online',       count: onlineCount },
+    { key: 'Offline',        label: '📍 Offline',      count: offlineCount },
+    { key: 'Top College',    label: '🏛 Top College',  count: stats.top_college_count || 0 },
+    { key: 'Internship',     label: '💼 Internship',   count: stats.internship_count || 0 },
+    { key: 'Hackathon',      label: 'Hackathons',      count: hackathons.filter(h => h.opportunity_type === 'Hackathon').length },
+    { key: 'Unique Sources', label: '⭐ Curated',      count: uniqueSourceCount },
   ];
 
   const formatLastScraped = (isoStr) => {
