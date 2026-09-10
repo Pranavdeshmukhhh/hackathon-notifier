@@ -3,7 +3,7 @@ main.py — Hackathon Notification Bot orchestrator.
 
 Pipeline:
   1. Connect to MongoDB
-  2. Scrape Devfolio + Unstop + Devpost + HackerEarth CONCURRENTLY
+  2. Scrape Devfolio + Unstop + Devpost + HackerEarth + Devnovate CONCURRENTLY
   3. Classify ALL results with college/internship metadata
   4. Dedup against DB, insert new entries
   5. Filter for notification-worthy items (top college / internship)
@@ -36,6 +36,7 @@ from scrapers.devfolio_scraper import scrape_devfolio
 from scrapers.unstop_scraper import scrape_unstop
 from scrapers.devpost_scraper import scrape_devpost
 from scrapers.hackerearth_scraper import scrape_hackerearth
+from scrapers.devnovate_scraper import scrape_devnovate
 
 # ── Logging — configured ONCE here, all other modules use getLogger(__name__) ─
 logging.basicConfig(
@@ -67,11 +68,12 @@ def _run_scrapers() -> dict:
         "Unstop":       scrape_unstop,
         "Devpost":      scrape_devpost,
         "HackerEarth":  scrape_hackerearth,
+        "Devnovate":    scrape_devnovate,
     }
     combined: list[dict] = []
     counts: dict[str, int] = {}
 
-    with ThreadPoolExecutor(max_workers=4, thread_name_prefix="scraper") as pool:
+    with ThreadPoolExecutor(max_workers=5, thread_name_prefix="scraper") as pool:
         futures = {pool.submit(fn): name for name, fn in scrapers.items()}
         for future in as_completed(futures):
             name = futures[future]
