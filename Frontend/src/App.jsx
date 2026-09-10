@@ -21,10 +21,10 @@ function HLogo({ size = 36 }) {
       xmlns="http://www.w3.org/2000/svg"
       aria-hidden="true"
     >
-      <rect width="40" height="40" rx="11" fill="var(--text-primary)" />
+      <rect width="40" height="40" rx="11" fill="url(#logo-grad)" />
       <path
         d="M23 7L13 22h8l-4 11 14-17h-9l6-9z"
-        fill="var(--bg-main)"
+        fill="white"
         stroke="rgba(255,255,255,0.3)"
         strokeWidth="0.5"
         strokeLinejoin="round"
@@ -327,12 +327,12 @@ function App() {
         <div className={`navbar-links ${mobileMenuOpen ? 'mobile-open' : ''}`}>
           <a href="#about"  className={activeSection === 'about'  ? 'nav-active' : ''} onClick={e => { e.preventDefault(); scrollToSection('about'); }}>Features</a>
           <a href="#events" className={activeSection === 'events' ? 'nav-active' : ''} onClick={e => { e.preventDefault(); scrollToSection('events'); }}>Events</a>
-          <button className="btn-link" onClick={() => setShowDashboard(true)}>📊 Dashboard</button>
-          <button className="btn-link" onClick={() => setShowAboutModal(true)}>About</button>
-          <button className={`btn-secondary ${userLocation ? 'active' : ''}`} onClick={requestLocation} disabled={isLocating}>
+          <button className="btn-link" onClick={() => { setShowDashboard(true); setMobileMenuOpen(false); }}>📊 Dashboard</button>
+          <button className="btn-link" onClick={() => { setShowAboutModal(true); setMobileMenuOpen(false); }}>About</button>
+          <button className={`btn-secondary ${userLocation ? 'active' : ''}`} onClick={() => { requestLocation(); setMobileMenuOpen(false); }} disabled={isLocating}>
             {isLocating ? 'Locating…' : '📍 Near Me'}
           </button>
-          <button className="btn-primary" id="refresh-btn" onClick={() => fetchHackathons()}>Refresh</button>
+          <button className="btn-primary" id="refresh-btn" onClick={() => { fetchHackathons(); setMobileMenuOpen(false); }}>Refresh</button>
         </div>
       </nav>
 
@@ -352,7 +352,7 @@ function App() {
           </div>
           <h1>
             Never miss a<br />
-            <span className="">hackathon</span> again.
+            <span className="gradient-text">hackathon</span> again.
           </h1>
           <p>
             Automatically scraping Devfolio, Unstop, Devpost, HackerEarth &amp; Devnovate
