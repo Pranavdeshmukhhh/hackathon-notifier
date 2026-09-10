@@ -21,20 +21,14 @@ function HLogo({ size = 36 }) {
       xmlns="http://www.w3.org/2000/svg"
       aria-hidden="true"
     >
-      <rect width="40" height="40" rx="11" fill="url(#logo-grad)" />
+      <rect width="40" height="40" rx="11" fill="var(--text-primary)" />
       <path
         d="M23 7L13 22h8l-4 11 14-17h-9l6-9z"
-        fill="white"
-        stroke="rgba(255,255,255,0.3)"
+        fill="var(--bg-main)"
+        stroke="var(--bg-main)"
         strokeWidth="0.5"
         strokeLinejoin="round"
       />
-      <defs>
-        <linearGradient id="logo-grad" x1="0" y1="0" x2="40" y2="40" gradientUnits="userSpaceOnUse">
-          <stop offset="0%" stopColor="#8b5cf6" />
-          <stop offset="100%" stopColor="#06b6d4" />
-        </linearGradient>
-      </defs>
     </svg>
   );
 }
