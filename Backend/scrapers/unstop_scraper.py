@@ -27,11 +27,15 @@ REQUEST_TIMEOUT = 15
 
 _HEADERS = {
     "User-Agent": (
-        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
-        "AppleWebKit/605.1.15 (KHTML, like Gecko) "
-        "Version/16.1 Safari/605.1.15"
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) "
+        "Chrome/107.0.0.0 Safari/537.36"
     ),
-    "Accept": "application/json",
+    "Accept":          "application/json, text/plain, */*",
+    "Accept-Language": "en-US,en;q=0.9",
+    "sec-ch-ua":       '"Chromium";v="107", "Google Chrome";v="107", "Not=A?Brand";v="24"',
+    "sec-ch-ua-mobile": "?0",
+    "sec-ch-ua-platform": '"Windows"',
 }
 
 _session = None
@@ -39,7 +43,7 @@ _session = None
 def _get_session() -> requests.Session:
     global _session
     if _session is None:
-        _session = requests.Session(impersonate="safari15_3")
+        _session = requests.Session(impersonate="chrome107")
         _session.headers.update(_HEADERS)
     return _session
 
