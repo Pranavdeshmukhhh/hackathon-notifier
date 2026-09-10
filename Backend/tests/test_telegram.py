@@ -228,3 +228,25 @@ class TestSendBatch:
         from notifier.telegram_bot import send_notification
         result = send_notification(FULL_HACK)
         assert result is False
+
+
+# ── New Feature Tests: _format_card & _is_closing_soon ────────────────────────
+
+class TestCardAndUrgency:
+    def test_format_card_includes_title_and_prize(self):
+        from notifier.telegram_bot import _format_card
+        hack = {**FULL_HACK, "prize": "$10,000", "distance_km": 12.5}
+        card = _format_card(hack, idx=1, show_distance=True)
+        assert "#1" in card
+        assert "IIT Bombay TechFest" in card
+        assert "$10,000" in card
+        assert "12.5 km away" in card
+
+    def test_is_closing_soon_detected(self):
+        from notifier.telegram_bot import _is_closing_soon
+        from datetime import datetime, timedelta, timezone
+        tomorrow = (datetime.now(timezone.utc) + timedelta(days=1)).strftime("%d/%m/%Y")
+        far_date = (datetime.now(timezone.utc) + timedelta(days=60)).strftime("%d/%m/%Y")
+        assert _is_closing_soon(tomorrow) is True
+        assert _is_closing_soon(far_date) is False
+
