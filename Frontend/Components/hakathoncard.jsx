@@ -41,6 +41,33 @@ const UsersIcon = () => (
   </svg>
 );
 
+const TrophyIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6" />
+    <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18" />
+    <path d="M4 22h16" />
+    <path d="M10 14.66V17c0 .55-.45 1-1 1H8c-.55 0-1 .45-1 1v1c0 .55.45 1 1 1h8c.55 0 1-.45 1-1v-1c0-.55-.45-1-1-1h-1c-.55 0-1-.45-1-1v-2.34" />
+    <path d="M6 4h12v5a6 6 0 0 1-12 0V4z" />
+  </svg>
+);
+
+const BuildingIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="4" y="2" width="16" height="20" rx="2" ry="2" />
+    <path d="M9 22v-4h6v4" />
+    <path d="M8 6h.01" /><path d="M16 6h.01" /><path d="M12 6h.01" />
+    <path d="M8 10h.01" /><path d="M16 10h.01" /><path d="M12 10h.01" />
+    <path d="M8 14h.01" /><path d="M16 14h.01" /><path d="M12 14h.01" />
+  </svg>
+);
+
+const BriefcaseIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="2" y="7" width="20" height="14" rx="2" ry="2" />
+    <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
+  </svg>
+);
+
 // Strip "Online"/"Offline" mode tokens from a location string
 function cleanLocation(raw) {
   if (!raw) return '';
@@ -100,10 +127,14 @@ const HackathonCard = ({ hackathon }) => {
           )}
           {isTopCollege && (
             <span className={`college-badge college-badge--${collegeType.toLowerCase()}`} title={collegeName}>
-              🏛 {collegeType}
+              <BuildingIcon /> {collegeType}
             </span>
           )}
-          {isInternship && <span className="internship-badge">💼 Internship</span>}
+          {isInternship && (
+            <span className="internship-badge">
+              <BriefcaseIcon /> Internship
+            </span>
+          )}
         </div>
 
         {/* Title */}
@@ -112,7 +143,7 @@ const HackathonCard = ({ hackathon }) => {
         {/* Prize — prominent display */}
         {prize && (
           <div className="hack-card-prize">
-            🏆 {prize}
+            <TrophyIcon /> <span>{prize}</span>
           </div>
         )}
 
