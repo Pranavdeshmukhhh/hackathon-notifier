@@ -1,41 +1,33 @@
 """
-devnovate_scraper.py — Scraper for devnovate.co/events
+devnovate_scraper.py — Scraper for devnovate.co
 
-Fetches hackathon/event listings from Devnovate's public events page
-and normalises them into the same schema as other scrapers.
+Uses Devnovate's real JSON REST API:
+    GET https://devnovate.co/api/v1/events
 
-Schema output per item:
-    title, deadline, deadline_iso, status, mode, tags, link,
-    source="Devnovate", location, prize, organization,
-    total_registrations, scraped_at
+Returns a list of normalised hackathon dicts matching the shared project schema.
 """
 
 import logging
-import time
-import random
 from datetime import datetime, timezone
-from urllib.parse import urljoin
 
 from curl_cffi import requests
-from bs4 import BeautifulSoup
 from tenacity import retry, stop_after_attempt, wait_exponential, before_sleep_log
 
 logger = logging.getLogger(__name__)
 
 # ── Constants ─────────────────────────────────────────────────────────────────
-DEVNOVATE_BASE    = "https://devnovate.co"
-DEVNOVATE_EVENTS  = "https://devnovate.co/events"
-REQUEST_TIMEOUT   = 20
+DEVNOVATE_API    = "https://devnovate.co/api/v1/events"
+REQUEST_TIMEOUT  = 20
 
 _HEADERS = {
+    "Accept":          "application/json, text/plain, */*",
+    "Origin":          "https://devnovate.co",
+    "Referer":         "https://devnovate.co/events",
     "User-Agent": (
-        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
         "AppleWebKit/537.36 (KHTML, like Gecko) "
-        "Chrome/122.0.0.0 Safari/537.36"
+        "Chrome/107.0.0.0 Safari/537.36"
     ),
-    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-    "Accept-Language": "en-US,en;q=0.9",
-    "Referer": "https://devnovate.co/",
 }
 
 _session = None
@@ -44,225 +36,148 @@ _session = None
 def _get_session() -> requests.Session:
     global _session
     if _session is None:
-        _session = requests.Session(impersonate="chrome110")
+        _session = requests.Session(impersonate="chrome107")
         _session.headers.update(_HEADERS)
     return _session
 
 
-# ── Date parsing ──────────────────────────────────────────────────────────────
+# ── Date helpers ──────────────────────────────────────────────────────────────
 
 def _parse_date(raw: str) -> tuple[str, str]:
     """
-    Try several date formats. Returns (human_readable, iso_date).
-    Falls back to ('TBA', '') if parsing fails.
+    Parse a date string in various formats.
+    Returns (human_label, iso_date).  Fallback: ('TBA', '').
     """
     if not raw:
         return "TBA", ""
-
     raw = raw.strip()
-    formats = [
-        "%B %d, %Y",       # January 15, 2025
-        "%b %d, %Y",       # Jan 15, 2025
-        "%d %B %Y",        # 15 January 2025
-        "%d %b %Y",        # 15 Jan 2025
-        "%Y-%m-%d",        # 2025-01-15
-        "%d/%m/%Y",        # 15/01/2025
-        "%m/%d/%Y",        # 01/15/2025
-        "%B %d %Y",        # January 15 2025
-        "%b %d %Y",        # Jan 15 2025
-    ]
 
-    for fmt in formats:
+    # ISO-like with time: "2026-10-02T04:44"
+    for fmt in (
+        "%Y-%m-%dT%H:%M:%S",
+        "%Y-%m-%dT%H:%M",
+        "%Y-%m-%d",
+        "%d-%m-%Y",
+        "%d/%m/%Y",
+    ):
         try:
-            dt = datetime.strptime(raw, fmt)
+            dt = datetime.strptime(raw[:len(fmt.replace("%", "XX"))], fmt)
             return dt.strftime("%d %b %Y"), dt.strftime("%Y-%m-%d")
         except ValueError:
             continue
 
-    # Try extracting numbers from "Ends: 15 Jan 2025" style strings
-    import re
-    m = re.search(r"(\d{1,2})\s+([A-Za-z]+)\s+(\d{4})", raw)
-    if m:
+    # Fallback: try with just the date portion
+    try:
+        dt = datetime.strptime(raw[:10], "%Y-%m-%d")
+        return dt.strftime("%d %b %Y"), dt.strftime("%Y-%m-%d")
+    except ValueError:
+        pass
+    try:
+        dt = datetime.strptime(raw[:10], "%d-%m-%Y")
+        return dt.strftime("%d %b %Y"), dt.strftime("%Y-%m-%d")
+    except ValueError:
+        pass
+
+    return raw[:20], ""
+
+
+# ── Item normalisation ────────────────────────────────────────────────────────
+
+def _normalise(item: dict) -> dict | None:
+    """Convert one raw Devnovate API item to the project's hackathon schema."""
+    now_iso = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+
+    title = (item.get("name") or "").strip()
+    if not title:
+        return None
+
+    # Build canonical URL from eventName slug
+    slug = item.get("eventName") or item.get("hackathon") or ""
+    link = f"https://devnovate.co/events/{slug}" if slug else "https://devnovate.co/events"
+
+    # Deadline: prefer registrationDeadline, fall back to endDate
+    raw_dl = item.get("registrationDeadline") or item.get("endDate") or ""
+    deadline, deadline_iso = _parse_date(raw_dl)
+
+    # Status
+    open_status = (item.get("openStatus") or item.get("registrationStatus") or "").upper()
+    if open_status in ("CLOSED", "ENDED"):
+        status = "Ended"
+    elif deadline_iso and deadline_iso < now_iso:
+        status = "Ended"
+    else:
+        status = "Open"
+
+    # Mode
+    raw_mode = (item.get("status") or "").upper()
+    if raw_mode == "ONLINE":
+        mode = "Online"
+    elif raw_mode in ("OFFLINE", "IN-PERSON"):
+        mode = "Offline"
+    elif raw_mode == "HYBRID":
+        mode = "Hybrid"
+    else:
+        mode = "Unknown"
+
+    # Location
+    location = (item.get("location") or "").strip()
+    if not location and mode == "Online":
+        location = "Online"
+
+    # Prize
+    prize = (item.get("prizePool") or "").strip()
+
+    # Tags from theme array
+    tags = [t.strip() for t in (item.get("theme") or []) if isinstance(t, str) and t.strip()]
+
+    # Additional tag: skillLevel
+    skill_level = (item.get("skillLevel") or "").strip()
+    if skill_level and skill_level not in ("All Levels",):
+        tags.append(skill_level)
+
+    # Team size  e.g. "2-6" or "1-4"
+    team_raw = (item.get("teamSize") or "").strip()
+    min_team = max_team = None
+    if "-" in team_raw:
+        parts = team_raw.split("-", 1)
         try:
-            dt = datetime.strptime(f"{m.group(1)} {m.group(2)} {m.group(3)}", "%d %b %Y")
-            return dt.strftime("%d %b %Y"), dt.strftime("%Y-%m-%d")
+            min_team = int(parts[0])
+            max_team = int(parts[1])
         except ValueError:
             pass
+    elif team_raw.isdigit():
+        min_team = max_team = int(team_raw)
 
-    return raw[:20], ""  # return raw text capped at 20 chars
+    # Registrations
+    total_regs = item.get("numberOfRegistrations") or 0
 
+    # Organisation
+    org = (item.get("organizationName") or "").strip()
 
-# ── HTML Parsing ──────────────────────────────────────────────────────────────
+    doc = {
+        "title":               title,
+        "deadline":            deadline,
+        "deadline_iso":        deadline_iso,
+        "status":              status,
+        "mode":                mode,
+        "tags":                tags[:8],
+        "link":                link,
+        "source":              "Devnovate",
+        "location":            location,
+        "prize":               prize,
+        "organization":        org,
+        "total_registrations": int(total_regs) if total_regs else 0,
+        "scraped_at":          datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+    }
+    if min_team is not None:
+        doc["min_team_size"] = min_team
+    if max_team is not None:
+        doc["max_team_size"] = max_team
 
-def _parse_event_cards(html: str) -> list[dict]:
-    """
-    Parse the raw HTML of devnovate.co/events and extract event data.
-    Handles different card structures Devnovate may use.
-    """
-    soup = BeautifulSoup(html, "html.parser")
-    now_iso = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-    results = []
-
-    # --- Strategy 1: Look for <a> cards with event-like structure ---
-    # Devnovate uses React, so cards are rendered as divs/articles inside anchor tags
-    candidate_selectors = [
-        "a[href*='/events/']",
-        "a[href*='/hackathon']",
-        "div[class*='event'] a",
-        "div[class*='card'] a",
-        "article a",
-    ]
-
-    event_links = []
-    for sel in candidate_selectors:
-        found = soup.select(sel)
-        if found:
-            event_links.extend(found)
-            break
-
-    # If we found anchor-based cards, parse each one
-    for anchor in event_links:
-        href = anchor.get("href", "")
-        if not href:
-            continue
-        link = href if href.startswith("http") else urljoin(DEVNOVATE_BASE, href)
-
-        # Skip non-event links
-        if "/events" not in link and "/hackathon" not in link:
-            continue
-
-        # Extract text content from card
-        text_blocks = [t.strip() for t in anchor.stripped_strings if t.strip()]
-        if not text_blocks:
-            continue
-
-        title = text_blocks[0] if text_blocks else ""
-        if not title or len(title) < 3:
-            continue
-
-        # Look for date pattern in card text
-        import re
-        deadline = "TBA"
-        deadline_iso = ""
-        for block in text_blocks[1:]:
-            if re.search(r"\d{4}", block) or re.search(r"[A-Za-z]+ \d+", block):
-                deadline, deadline_iso = _parse_date(block)
-                if deadline != "TBA":
-                    break
-
-        # Mode detection
-        card_text = " ".join(text_blocks).lower()
-        if "online" in card_text:
-            mode = "Online"
-        elif "offline" in card_text or "in-person" in card_text or "hybrid" in card_text:
-            mode = "Offline"
-        else:
-            mode = "Unknown"
-
-        # Prize detection
-        prize = ""
-        prize_match = re.search(r"[₹$€£]\s*[\d,]+(?:[kKlL])?|[\d,]+\+?\s*(?:USD|INR|prize|reward)", " ".join(text_blocks), re.IGNORECASE)
-        if prize_match:
-            prize = prize_match.group(0).strip()
-
-        # Tags — look for small tag-like spans inside the card
-        tags = []
-        for tag_el in anchor.select("span[class*='tag'], span[class*='chip'], span[class*='badge'], div[class*='tag']"):
-            tag_text = tag_el.get_text(strip=True)
-            if tag_text and len(tag_text) < 30 and tag_text.lower() not in ("online", "offline", "open", "closed"):
-                tags.append(tag_text)
-
-        # Location
-        location = ""
-        for block in text_blocks:
-            if re.search(r"mumbai|delhi|bangalore|bengaluru|chennai|hyderabad|pune|kolkata|india|iit|nit|bits", block, re.IGNORECASE):
-                location = block
-                break
-        if mode == "Online":
-            location = "Online"
-
-        # Status
-        status = "Open"
-        if deadline_iso and deadline_iso < now_iso:
-            status = "Ended"
-
-        doc = {
-            "title":               title,
-            "deadline":            deadline,
-            "deadline_iso":        deadline_iso,
-            "status":              status,
-            "mode":                mode,
-            "tags":                tags[:8],
-            "link":                link,
-            "source":              "Devnovate",
-            "location":            location,
-            "prize":               prize,
-            "organization":        "",
-            "total_registrations": 0,
-            "scraped_at":          datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
-        }
-        results.append(doc)
-
-    # --- Strategy 2: JSON-LD / script tags for structured data ---
-    if not results:
-        import json
-        for script in soup.find_all("script", type="application/ld+json"):
-            try:
-                data = json.loads(script.string or "")
-                items = data if isinstance(data, list) else [data]
-                for item in items:
-                    if item.get("@type") not in ("Event", "Hackathon"):
-                        continue
-                    title = item.get("name", "")
-                    link  = item.get("url", "")
-                    if not title or not link:
-                        continue
-                    raw_date = item.get("endDate") or item.get("startDate") or ""
-                    deadline, deadline_iso = _parse_date(raw_date[:10] if raw_date else "")
-                    location_obj = item.get("location", {})
-                    location = ""
-                    if isinstance(location_obj, dict):
-                        loc_name = location_obj.get("name", "")
-                        address = location_obj.get("address", {})
-                        if isinstance(address, dict):
-                            location = address.get("addressLocality", "") or loc_name
-                        else:
-                            location = loc_name or str(address)
-                    mode = "Online" if "online" in str(location_obj).lower() else "Unknown"
-                    status = "Open"
-                    if deadline_iso and deadline_iso < now_iso:
-                        status = "Ended"
-                    results.append({
-                        "title":               title,
-                        "deadline":            deadline,
-                        "deadline_iso":        deadline_iso,
-                        "status":              status,
-                        "mode":                mode,
-                        "tags":                [],
-                        "link":                link,
-                        "source":              "Devnovate",
-                        "location":            location,
-                        "prize":               "",
-                        "organization":        item.get("organizer", {}).get("name", "") if isinstance(item.get("organizer"), dict) else "",
-                        "total_registrations": 0,
-                        "scraped_at":          datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
-                    })
-            except (json.JSONDecodeError, AttributeError):
-                continue
-
-    # Deduplicate by link
-    seen = set()
-    unique = []
-    for doc in results:
-        lnk = doc.get("link", "")
-        if lnk and lnk not in seen:
-            seen.add(lnk)
-            unique.append(doc)
-
-    return unique
+    return doc
 
 
-# ── HTTP fetch with retry ─────────────────────────────────────────────────────
+# ── HTTP fetch ────────────────────────────────────────────────────────────────
 
 @retry(
     stop=stop_after_attempt(3),
@@ -270,50 +185,12 @@ def _parse_event_cards(html: str) -> list[dict]:
     before_sleep=before_sleep_log(logger, logging.WARNING),
     reraise=True,
 )
-def _fetch_page(url: str) -> str:
-    """Fetch a page and return its HTML body."""
+def _fetch_events() -> list:
     session = _get_session()
-    resp = session.get(url, timeout=REQUEST_TIMEOUT)
+    resp = session.get(DEVNOVATE_API, timeout=REQUEST_TIMEOUT)
     if resp.status_code != 200:
-        raise RuntimeError(f"Devnovate returned HTTP {resp.status_code} for {url}")
-    return resp.text
-
-
-def _fetch_all_events() -> list[dict]:
-    """Fetch and parse the devnovate events page (with optional pagination)."""
-    all_items: dict[str, dict] = {}
-
-    try:
-        html = _fetch_page(DEVNOVATE_EVENTS)
-        items = _parse_event_cards(html)
-        for item in items:
-            all_items[item["link"]] = item
-        logger.info("Devnovate: page 1 — %d events parsed.", len(items))
-    except Exception as e:
-        logger.warning("Devnovate: failed to fetch main page: %s", e)
-        return []
-
-    # Try paginated pages (page=2, 3, ...) until we get an empty response
-    page = 2
-    max_pages = 10
-    while page <= max_pages:
-        url = f"{DEVNOVATE_EVENTS}?page={page}"
-        try:
-            time.sleep(random.uniform(1.5, 3.0))
-            html = _fetch_page(url)
-            items = _parse_event_cards(html)
-            if not items:
-                logger.info("Devnovate: no more events on page %d — stopping.", page)
-                break
-            for item in items:
-                all_items[item["link"]] = item
-            logger.info("Devnovate: page %d — %d new events.", page, len(items))
-            page += 1
-        except Exception as e:
-            logger.warning("Devnovate: page %d fetch failed: %s", page, e)
-            break
-
-    return list(all_items.values())
+        raise RuntimeError(f"Devnovate API returned HTTP {resp.status_code}")
+    return resp.json()
 
 
 # ── Public API ────────────────────────────────────────────────────────────────
@@ -324,15 +201,30 @@ def scrape_devnovate() -> list[dict]:
     Follows the same schema as other scrapers in this project.
     """
     logger.info("Devnovate scraper started.")
-    results = _fetch_all_events()
 
-    if results:
-        logger.info("Devnovate scraper complete: %d event(s) found.", len(results))
-        print(f"[DEBUG] scrape_devnovate() total: {len(results)} event(s).")
-    else:
-        logger.warning("Devnovate scraper returned 0 results — page structure may have changed.")
-        print("[DEBUG] scrape_devnovate() total: 0 events.")
+    try:
+        raw_items = _fetch_events()
+    except Exception as e:
+        logger.error("Devnovate: API fetch failed: %s", e)
+        print("[DEBUG] scrape_devnovate() total: 0 events (fetch error).")
+        return []
 
+    if not isinstance(raw_items, list):
+        logger.warning("Devnovate: unexpected API response type: %s", type(raw_items))
+        print("[DEBUG] scrape_devnovate() total: 0 events (bad response).")
+        return []
+
+    results = []
+    for item in raw_items:
+        try:
+            doc = _normalise(item)
+            if doc:
+                results.append(doc)
+        except Exception as e:
+            logger.warning("Devnovate: failed to normalise item '%s': %s", item.get("name", "?"), e)
+
+    logger.info("Devnovate scraper complete: %d event(s) found.", len(results))
+    print(f"[DEBUG] scrape_devnovate() total: {len(results)} event(s).")
     return results
 
 
@@ -350,6 +242,7 @@ if __name__ == "__main__":
         print(f"\n{len(results)} Devnovate events found:\n")
         for h in results[:20]:
             print(f"  * {h['title']}")
-            print(f"    {h['deadline']} | {h['mode']} | {h['link']}\n")
+            print(f"    {h['deadline']} | {h['mode']} | prize: {h['prize'] or 'N/A'}")
+            print(f"    {h['link']}\n")
     else:
         print("No Devnovate events found.")
