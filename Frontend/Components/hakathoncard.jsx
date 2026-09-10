@@ -98,6 +98,14 @@ function getBannerClass(source) {
   return map[s] || 'unknown';
 }
 
+// Safely validate URL protocol (must start with http:// or https://)
+function getSafeUrl(url) {
+  if (typeof url === 'string' && /^https?:\/\//i.test(url.trim())) {
+    return url.trim();
+  }
+  return '#';
+}
+
 const HackathonCard = ({ hackathon }) => {
   const isPast        = hackathon.is_past === true;
   const source        = hackathon.source || 'Unknown';
@@ -112,6 +120,7 @@ const HackathonCard = ({ hackathon }) => {
   const minTeam       = hackathon.min_team_size;
   const maxTeam       = hackathon.max_team_size;
   const bannerClass   = getBannerClass(source);
+  const safeLink      = getSafeUrl(hackathon.link);
 
   return (
     <div className={`hack-card${isPast ? ' hack-card--past' : ''}`}>
@@ -202,7 +211,12 @@ const HackathonCard = ({ hackathon }) => {
 
         {/* Footer CTA */}
         <div className="hack-card-footer">
-          <a href={hackathon.link} target="_blank" rel="noopener noreferrer" className="view-details-btn">
+          <a
+            href={safeLink}
+            target={safeLink !== '#' ? "_blank" : undefined}
+            rel={safeLink !== '#' ? "noopener noreferrer" : undefined}
+            className="view-details-btn"
+          >
             Register Now <ExternalLinkIcon />
           </a>
         </div>

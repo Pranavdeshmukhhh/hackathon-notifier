@@ -6,7 +6,8 @@ import statistics
 from collections import deque
 from datetime import datetime, timezone
 import math
-from fastapi import FastAPI, Request
+from typing import Optional
+from fastapi import FastAPI, Request, Query
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from slowapi import Limiter, _rate_limit_exceeded_handler
@@ -25,9 +26,27 @@ logger = logging.getLogger(__name__)
 # Import the existing db module
 from db.mongo_client import get_collection
 
-# Rate limiter – 30 requests/min per IP
-limiter = Limiter(key_func=get_remote_address)
-app = FastAPI(title="Hackathon Notifier API")
+# Proxy-aware client IP extractor for SlowAPI (respects Cloudflare & reverse proxies)
+def get_client_ip(request: Request) -> str:
+    """Extract real client IP safely respecting Cloudflare and reverse proxy headers."""
+    cf_ip = request.headers.get("CF-Connecting-IP")
+    if cf_ip:
+        return cf_ip.strip()
+    forwarded = request.headers.get("X-Forwarded-For")
+    if forwarded:
+        return forwarded.split(",")[0].strip()
+    return get_remote_address(request)
+
+# Rate limiter – 30 requests/min per real client IP
+limiter = Limiter(key_func=get_client_ip)
+
+_is_prod = os.getenv("ENVIRONMENT", "").lower() == "production" or os.getenv("RENDER", "").lower() == "true"
+app = FastAPI(
+    title="Hackathon Notifier API",
+    docs_url=None if _is_prod else "/docs",
+    redoc_url=None if _is_prod else "/redoc",
+    openapi_url=None if _is_prod else "/openapi.json",
+)
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
@@ -71,6 +90,15 @@ async def timing_middleware(request: Request, call_next):
     elapsed_ms = (time.perf_counter() - start) * 1000
     _latencies.append(elapsed_ms)
     response.headers["X-Response-Time-Ms"] = f"{elapsed_ms:.2f}"
+    return response
+
+@app.middleware("http")
+async def security_headers_middleware(request: Request, call_next):
+    response = await call_next(request)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    response.headers["X-XSS-Protection"] = "1; mode=block"
     return response
 
 # CORS – restrict to actual frontend origin; no credentials needed
@@ -124,14 +152,14 @@ def read_root():
 @app.get("/api/hackathons")
 def get_hackathons(
     request: Request, 
-    lat: float = None, 
-    lng: float = None,
-    page: int = 1,
-    limit: int = 12,
-    category: str = "All",
-    search: str = "",
-    sort: str = "deadline",
-    tab: str = "upcoming"
+    lat: Optional[float] = Query(default=None, ge=-90.0, le=90.0), 
+    lng: Optional[float] = Query(default=None, ge=-180.0, le=180.0),
+    page: int = Query(default=1, ge=1),
+    limit: int = Query(default=12, ge=1, le=100),
+    category: str = Query(default="All"),
+    search: str = Query(default=""),
+    sort: str = Query(default="deadline"),
+    tab: str = Query(default="upcoming")
 ):
     # --- cache hit → skip Mongo entirely ---
     cache_key = f"{_CACHE_KEY}_{lat}_{lng}" if lat and lng else _CACHE_KEY
@@ -316,19 +344,21 @@ def refresh_cache(request: Request):
     """Invalidate the in-memory cache, forcing the next GET /api/hackathons
     to re-query MongoDB.
 
-    Intended use:
-      After a scrape job runs (e.g. scrape_job.py triggered by Render cron),
-      call this endpoint so the frontend immediately sees fresh data instead
-      of waiting for the TTL to expire naturally.
-
-    Example (from scrape_job.py or a shell script):
-      curl -X POST https://your-backend.onrender.com/api/refresh
-
-    Rate-limited: 5 calls per minute per IP to prevent cache-stampede abuse.
-
-    Returns:
-      {"success": true, "cleared": <number of cache entries removed>}
+    Secured: If ADMIN_SECRET is set in environment, requires X-Admin-Secret or
+    Authorization: Bearer <secret>.
+    Rate-limited: 5 calls per minute per client IP to prevent cache-stampede abuse.
     """
+    admin_secret = os.getenv("ADMIN_SECRET", "").strip()
+    if admin_secret:
+        auth_header = request.headers.get("X-Admin-Secret") or request.headers.get("Authorization", "")
+        if auth_header.startswith("Bearer "):
+            auth_header = auth_header[7:].strip()
+        if auth_header != admin_secret:
+            return JSONResponse(
+                status_code=401,
+                content={"success": False, "error": "Unauthorized: invalid or missing admin token"}
+            )
+
     n = len(_cache)
     _cache.clear()
     logger.info("Cache manually cleared via POST /api/refresh (%d entries removed).", n)
