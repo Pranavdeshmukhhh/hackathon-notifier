@@ -65,6 +65,12 @@ def _run_scheduler():
         try:
             logger.info("⏰ Scheduled scrape starting...")
             main_module.run_pipeline()
+            try:
+                from api import _cache
+                _cache.clear()
+                logger.info("⏰ Cache cleared in-memory after scheduled scrape.")
+            except Exception as e:
+                logger.warning("Could not clear cache after scrape: %s", e)
             logger.info("⏰ Scheduled scrape complete.")
         except Exception:
             logger.exception(
