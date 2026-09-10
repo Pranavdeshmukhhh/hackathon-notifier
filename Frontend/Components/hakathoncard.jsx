@@ -121,6 +121,7 @@ const HackathonCard = ({ hackathon }) => {
   const maxTeam       = hackathon.max_team_size;
   const bannerClass   = getBannerClass(source);
   const safeLink      = getSafeUrl(hackathon.link);
+  const sourceClass   = (source || 'unknown').toLowerCase().replace(/\s+/g, '-');
 
   return (
     <div className={`hack-card${isPast ? ' hack-card--past' : ''}`}>
@@ -130,7 +131,7 @@ const HackathonCard = ({ hackathon }) => {
       <div className="hack-card-body">
         {/* Badges row */}
         <div className="hack-card-top-row">
-          <span className={`source-badge source-badge--${source.toLowerCase()}`}>{source}</span>
+          <span className={`source-badge source-badge--${sourceClass}`}>{source}</span>
           {hackathon.status && (
             <span className={`status-badge status-badge--${hackathon.status.toLowerCase()}`}>{hackathon.status}</span>
           )}
