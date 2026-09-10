@@ -87,11 +87,7 @@ const TelegramIcon = () => (
   </svg>
 );
 
-const GithubIcon = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-    <path fillRule="evenodd" clipRule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" />
-  </svg>
-);
+
 
 // ── Technical Architecture Modal ───────────────────────────────────────────
 function TechSpecModal({ onClose }) {
@@ -115,7 +111,7 @@ function TechSpecModal({ onClose }) {
         <button className="modal-close" onClick={onClose} aria-label="Close">✕</button>
         <div className="modal-body about-body-compact">
           <div className="modal-badge-row">
-            <span className="modal-badge modal-badge--green">Developer: Pranav Deshmukh</span>
+            <span className="modal-badge modal-badge--green">Radar: 24/7 Active Ingestion</span>
             <span className="modal-badge modal-badge--purple">100% Automated Pipeline</span>
           </div>
           <p className="modal-bio" style={{ fontSize: '0.88rem', marginBottom: '1rem' }}>
@@ -144,7 +140,7 @@ function TechSpecModal({ onClose }) {
             </div>
           </div>
           <div className="modal-footer-note">
-            <em>Engineered by Pranav Deshmukh · Open source for the developer community.</em>
+            <em>Hackathon Notifier · Autonomous opportunity intelligence for the developer community. Free forever.</em>
           </div>
         </div>
       </div>
@@ -169,7 +165,7 @@ function Pagination({ currentPage, totalPages, onPageChange }) {
   return (
     <div className="pagination">
       <button className="pagination-btn" onClick={() => onPageChange(currentPage - 1)} disabled={currentPage === 1}>
-        ← Prev
+        Previous
       </button>
       {withEllipsis.map((item, i) =>
         item === '...'
@@ -177,11 +173,51 @@ function Pagination({ currentPage, totalPages, onPageChange }) {
           : <button key={item} className={`pagination-btn ${currentPage === item ? 'active' : ''}`} onClick={() => onPageChange(item)}>{item}</button>
       )}
       <button className="pagination-btn" onClick={() => onPageChange(currentPage + 1)} disabled={currentPage === totalPages}>
-        Next →
+        Next
       </button>
     </div>
   );
 }
+
+// ── Interactive Radar Steps ────────────────────────────────────────────────
+const RADAR_STEPS = [
+  {
+    id: 'ingest',
+    title: 'Auto Ingestion',
+    badge: 'Phase 01 · 24/7 Scraping',
+    headline: '5 Parallel Scrapers Polling Continually',
+    desc: 'Independent Python worker routines continuously query Devfolio, Unstop (with TLS fingerprint spoofing), Devpost, HackerEarth, and Devnovate without relying on manual submissions.',
+    chips: ['TLS Fingerprint Spoofing', 'Cloudflare Bypass', 'Concurrent Workers', '5 Platforms'],
+    terminalLog: `[INGEST] Scraping devfolio.co ... 24 events\n[INGEST] Scraping unstop.com ... 38 events\n[INGEST] Syncing devpost.com ... 19 events\n[INGEST] Scraping hackerearth.com ... 14 events\n[SYNC] 95 total opportunities active & verified`
+  },
+  {
+    id: 'classify',
+    title: 'Smart Filter',
+    badge: 'Phase 02 · Classification',
+    headline: 'Heuristic Filtering & Tier Detection',
+    desc: 'Our engine cleans scraped listings, extracts cash prize pools, identifies registration caps, and automatically flags prestigious tier-1 college hackathons (IIT, NIT, IIIT, BITS).',
+    chips: ['Cash Prize Parser', 'IIT/NIT Tagger', 'Team Range Parser', 'Spam Filter'],
+    terminalLog: `[FILTER] Parsing raw listing metadata...\n[CLASSIFIER] Target: IIT Roorkee -> Flagged as Premier\n[REWARDS] Extracted prize: ₹5,00,000 cash pool\n[STATUS] Registration Verified: OPEN (Ends in 6d)`
+  },
+  {
+    id: 'geolocate',
+    title: 'Proximity GPS',
+    badge: 'Phase 03 · Geocoding',
+    headline: 'Haversine GPS Venue Distance',
+    desc: 'Physical venues are geocoded using OpenStreetMap Nominatim. When you tap Near Me, we compute spherical distance between your coordinates and the hackathon venue.',
+    chips: ['Nominatim Geocoding', 'Haversine Spherical Math', 'Venue Normalization', 'City Ranking'],
+    terminalLog: `[GEO] Resolving venue "Koramangala, Bengaluru"...\n[GEO] Lat: 12.9352, Lng: 77.6245\n[DISTANCE] Computed 4.2 km from your GPS location\n[PRIORITY] Ranked closest in-person events first`
+  },
+  {
+    id: 'dispatch',
+    title: 'Instant Dispatch',
+    badge: 'Phase 04 · Broadcast',
+    headline: 'Zero-Lag Telegram & Web Broadcast',
+    desc: 'New hackathons are pushed to Telegram subscribers in under 10 seconds. You get direct registration links before team caps fill up, with zero marketing clutter.',
+    chips: ['< 10s Latency', 'Direct Links', 'Zero Noise', 'Telegram Bot API'],
+    terminalLog: `[BROADCAST] Target: @hackathon_alert_notifier_bot\n[PUSH] Instant dispatch sent to active subscribers\n[TELEMETRY] Web dashboard live synced (32ms)\n[DISPATCH] Status: DELIVERED (Zero Spam)`
+  }
+];
 
 // ── Main App ───────────────────────────────────────────────────────────────
 function App() {
@@ -204,11 +240,30 @@ function App() {
   const [totalPages, setTotalPages]           = useState(1);
   const [upcomingTotal, setUpcomingTotal]     = useState(0);
   const [missedTotal, setMissedTotal]         = useState(0);
+  const [activeStage, setActiveStage]         = useState(0);
   const [stats, setStats] = useState({
     total: 0, unique_tags: 0, last_scraped: '', sources: [],
     top_college_count: 0, internship_count: 0, college_types: [],
     online_count: 0, offline_count: 0, unique_sources_count: 0, hackathon_count: 0
   });
+
+  const handleQuickFilter = (type) => {
+    if (type === 'prizes') {
+      setSortBy('newest');
+      setActiveCategory('All');
+      setSearchQuery('');
+    } else if (type === 'college') {
+      setSearchQuery('IIT');
+      setActiveCategory('All');
+    } else if (type === 'inperson') {
+      setActiveCategory('Offline');
+      setSearchQuery('');
+    } else if (type === 'online') {
+      setActiveCategory('Online');
+      setSearchQuery('');
+    }
+    scrollToSection('events');
+  };
 
   const homeRef            = useRef(null);
   const dashboardRef       = useRef(null);
@@ -411,7 +466,7 @@ function App() {
             className={activeSection === 'about' ? 'nav-active' : ''}
             onClick={e => { e.preventDefault(); scrollToSection('about'); }}
           >
-            Maker
+            About
           </a>
 
           <div className="nav-actions-group">
@@ -446,9 +501,8 @@ function App() {
       {/* ── HERO ── */}
       <section className="hero" id="hero-section" ref={homeRef}>
         <div className="hero-content">
-          <div className="hero-badge">
-            <span className="hero-badge-dot"></span>
-            <span>Live Index · 5 Platforms Synced · GPS Distance Enabled</span>
+          <div className="ink-stamp">
+            Tracking 5 platforms right now
           </div>
           <h1>
             Never miss another<br />
@@ -459,20 +513,21 @@ function App() {
             Intelligent premier-college classification, deadline tracking, and instant alerts.
           </p>
           <div className="hero-cta-buttons">
-            <button className="btn-primary" onClick={() => scrollToSection('events')}>
-              Explore Events →
-            </button>
-            <button className="btn-secondary" onClick={() => scrollToSection('dashboard')}>
-              Live Pipeline Stats
-            </button>
             <a
               href="https://t.me/hackathon_alert_notifier_bot"
               target="_blank"
               rel="noopener noreferrer"
-              className="btn-ghost hero-bot-btn"
+              className="btn-primary hero-bot-btn"
+              style={{ backgroundColor: '#3b82f6', borderColor: '#2563eb', color: 'white' }}
             >
-              <TelegramIcon /> Bot Alerts
+              <TelegramIcon /> Get instant Telegram alerts
             </a>
+            <button className="btn-secondary" onClick={() => scrollToSection('events')}>
+              See what's open now
+            </button>
+            <button className="btn-ghost" onClick={() => scrollToSection('dashboard')}>
+              View live stats
+            </button>
           </div>
         </div>
 
@@ -773,10 +828,10 @@ function App() {
           {!loading && !error && activeTab === 'upcoming' && upcomingTotal === 0 && (
             <div className="empty-state">
               <div className="empty-icon"><EmptySearchIcon /></div>
-              <h3>No matching upcoming hackathons found</h3>
-              <p>Try broadening your search query or selecting &quot;All&quot; categories.</p>
+              <h3>Nothing new right now — check back soon.</h3>
+              <p>Or try clearing your filters to see more.</p>
               <button className="btn-secondary" onClick={() => { setSearchQuery(''); setActiveCategory('All'); }} style={{ marginTop: '1rem' }}>
-                Reset Filters
+                Reset filters
               </button>
             </div>
           )}
@@ -784,78 +839,147 @@ function App() {
           {!loading && !error && activeTab === 'missed' && missedTotal === 0 && (
             <div className="empty-state">
               <div className="empty-icon"><CheckCircleIcon /></div>
-              <h3>You are completely caught up!</h3>
-              <p>No expired opportunities in this category view.</p>
+              <h3>Nothing here yet.</h3>
+              <p>No past opportunities matched your view.</p>
             </div>
           )}
         </div>
       </section>
 
-      {/* ── AUTHENTIC MAKER & ABOUT SECTION ── */}
-      <section className="about-maker-section" id="about-section" ref={aboutRef}>
-        <div className="maker-card">
-          <div className="maker-header">
-            <div className="maker-avatar">PD</div>
-            <div className="maker-intro">
-              <div className="maker-badge">Creator &amp; Architect</div>
-              <h2 className="maker-name">Pranav Deshmukh</h2>
-              <p className="maker-tagline">B.Tech 2nd Year Computer Science · Full-Stack &amp; Systems Builder</p>
+      {/* ── ABOUT HACKATHON NOTIFIER SECTION ── */}
+      <section className="about-section" id="about-section" ref={aboutRef}>
+        <div className="about-container">
+          <div className="about-header">
+            <div className="ink-stamp" style={{ transform: 'rotate(0deg)', marginBottom: '0.8rem' }}>
+              Platform Radar · 24/7 Engine
             </div>
-          </div>
-
-          <div className="maker-story">
-            <p>
-              I built <strong>Hackathon Notifier</strong> to solve a problem every engineering student faces:
-              valuable competitions and prize tracks are scattered across half a dozen platforms, with deadlines quietly passing by.
-            </p>
-            <p>
-              This is a fully autonomous, production-grade engine running 24/7. It indexes Devfolio, Unstop, Devpost, HackerEarth, and Devnovate,
-              applies heuristic tier classification, and routes instant notifications through Telegram and this web terminal.
+            <h2 className="about-title">Built to catch every hackathon before it closes.</h2>
+            <p className="about-subtitle">
+              High-value prize tracks, tier-1 campus competitions, and premier hiring hackathons are scattered across half a dozen platforms, with registration deadlines quietly passing by. 
+              Hackathon Notifier runs an autonomous continuous ingestion radar so you never miss another opportunity.
             </p>
           </div>
 
-          <div className="maker-stats-row">
-            <div className="m-stat">
-              <span className="m-stat-val">5</span>
-              <span className="m-stat-lbl">Active Scrapers</span>
+          {/* ── INTERACTIVE RADAR STAGES ── */}
+          <div className="interactive-radar-card">
+            <div className="radar-card-header">
+              <div className="radar-status-live">
+                <span className="pulse-dot"></span>
+                <span className="pulse-ring"></span>
+                <span className="radar-status-label">Continuous Radar Pipeline</span>
+              </div>
+              <span className="radar-step-indicator">Interactive · Tap any phase to inspect telemetry</span>
             </div>
-            <div className="m-stat">
-              <span className="m-stat-val">24/7</span>
-              <span className="m-stat-lbl">Cloud Automation</span>
+
+            <div className="radar-tabs">
+              {RADAR_STEPS.map((step, idx) => (
+                <button
+                  key={step.id}
+                  className={`radar-tab-btn ${activeStage === idx ? 'active' : ''}`}
+                  onClick={() => setActiveStage(idx)}
+                >
+                  <span className="radar-tab-num">0{idx + 1}</span>
+                  <span className="radar-tab-title">{step.title}</span>
+                </button>
+              ))}
             </div>
-            <div className="m-stat">
-              <span className="m-stat-val">&lt; 1hr</span>
-              <span className="m-stat-lbl">Sync Interval</span>
-            </div>
-            <div className="m-stat">
-              <span className="m-stat-val">100%</span>
-              <span className="m-stat-lbl">Open Source</span>
+
+            <div className="radar-stage-detail">
+              <div className="radar-detail-content">
+                <div className="radar-detail-badge">{RADAR_STEPS[activeStage].badge}</div>
+                <h3>{RADAR_STEPS[activeStage].headline}</h3>
+                <p>{RADAR_STEPS[activeStage].desc}</p>
+                <div className="radar-detail-chips">
+                  {RADAR_STEPS[activeStage].chips.map((chip, cIdx) => (
+                    <span key={cIdx} className="radar-chip">{chip}</span>
+                  ))}
+                </div>
+              </div>
+              <div className="radar-detail-visual">
+                <div className="radar-visual-terminal">
+                  <div className="terminal-header">
+                    <div className="terminal-dots">
+                      <span></span><span></span><span></span>
+                    </div>
+                    <span className="terminal-title">radar_dispatch.log</span>
+                  </div>
+                  <pre className="terminal-body">
+                    <code>{RADAR_STEPS[activeStage].terminalLog}</code>
+                  </pre>
+                </div>
+              </div>
             </div>
           </div>
 
-          <div className="maker-actions">
-            <a
-              href="https://github.com/Pranavdeshmukhhh"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="btn-primary maker-link"
-            >
-              <GithubIcon /> GitHub Profile <ExternalLinkIcon />
-            </a>
-            <a
-              href="https://github.com/Pranavdeshmukhhh/hackathon-notifier"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="btn-secondary maker-link"
-            >
-              Star Repository <ExternalLinkIcon />
-            </a>
-            <button
-              className="btn-ghost maker-spec-btn"
-              onClick={() => setShowTechSpecModal(true)}
-            >
-              View System Architecture
-            </button>
+          {/* ── INTERACTIVE DISCOVERY & TELEGRAM SPOTLIGHT ── */}
+          <div className="about-interactive-grid">
+            {/* Quick Matchmaker */}
+            <div className="matchmaker-card">
+              <div className="matchmaker-badge">Instant Finder</div>
+              <h3>Jump into high-priority opportunities</h3>
+              <p>One-click filters that immediately configure your live listings:</p>
+              <div className="matchmaker-buttons">
+                <button
+                  className="quick-filter-btn"
+                  onClick={() => handleQuickFilter('prizes')}
+                >
+                  💰 Highest Cash Pools
+                </button>
+                <button
+                  className="quick-filter-btn"
+                  onClick={() => handleQuickFilter('college')}
+                >
+                  🎓 Premier Colleges (IIT/NIT)
+                </button>
+                <button
+                  className="quick-filter-btn"
+                  onClick={() => handleQuickFilter('inperson')}
+                >
+                  📍 Physical &amp; In-Person Near You
+                </button>
+                <button
+                  className="quick-filter-btn"
+                  onClick={() => handleQuickFilter('online')}
+                >
+                  🌐 100% Online &amp; Remote
+                </button>
+              </div>
+            </div>
+
+            {/* Telegram Spotlight */}
+            <div className="telegram-spotlight-card">
+              <div className="telegram-card-header">
+                <div className="telegram-icon-badge"><TelegramIcon /></div>
+                <div>
+                  <h4>Zero Noise Telegram Channel</h4>
+                  <span>Direct registration links in &lt; 10s</span>
+                </div>
+              </div>
+              <div className="telegram-preview-box">
+                <div className="telegram-preview-title">⚡ Live Dispatch Sample</div>
+                <div className="telegram-preview-body">
+                  <strong>ETHIndia 2026</strong> · Bangalore (In-Person)<br />
+                  🏆 Prize Pool: $100,000+ USD<br />
+                  ⏳ Registration closes in 4 days
+                </div>
+              </div>
+              <div className="telegram-card-actions">
+                <a
+                  href="https://t.me/hackathon_alert_notifier_bot"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn-primary telegram-join-btn"
+                >
+                  <TelegramIcon /> Subscribe to Telegram Alerts
+                </a>
+                <button
+                  className="btn-secondary"
+                  onClick={() => setShowTechSpecModal(true)}
+                >
+                  Architecture Spec
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       </section>
@@ -870,15 +994,29 @@ function App() {
           <p className="footer-tagline">Autonomous developer opportunity ingestion &amp; notification platform.</p>
         </div>
         <div className="footer-bottom">
-          <span>Engineered by <strong>Pranav Deshmukh</strong> · B.Tech 2nd Year</span>
+          <span><strong>Hackathon Notifier</strong> · Autonomous Opportunity Intelligence</span>
           <div className="footer-nav">
             <a href="#events" onClick={e => { e.preventDefault(); scrollToSection('events'); }}>Events</a>
             <a href="#dashboard" onClick={e => { e.preventDefault(); scrollToSection('dashboard'); }}>Pipeline</a>
-            <a href="#about" onClick={e => { e.preventDefault(); scrollToSection('about'); }}>Maker</a>
+            <a href="#about" onClick={e => { e.preventDefault(); scrollToSection('about'); }}>About</a>
             <button className="footer-spec-link" onClick={() => setShowTechSpecModal(true)}>Architecture</button>
           </div>
         </div>
       </footer>
+
+      {/* ── FLOATING TELEGRAM CTA ── */}
+      <a
+        href="https://t.me/hackathon_alert_notifier_bot"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="floating-telegram-cta"
+        aria-label="Join Telegram Alerts"
+      >
+        <div className="floating-telegram-icon">
+          <TelegramIcon />
+        </div>
+        <span className="floating-telegram-text">Get Instant Alerts</span>
+      </a>
     </div>
   );
 }
