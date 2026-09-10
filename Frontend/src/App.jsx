@@ -2,14 +2,16 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import HackathonCard from '../Components/hakathoncard';
 import './index.css';
 
-let API_URL = import.meta.env.VITE_API_URL || (import.meta.env.PROD ? 'https://hackathon-notifier.onrender.com' : 'http://localhost:8000');
-if (API_URL.endsWith('/')) API_URL = API_URL.slice(0, -1);
-if (!API_URL.endsWith('/api/hackathons')) API_URL += '/api/hackathons';
+const PROD_API_URL = 'https://hackathon-notifier.onrender.com/api/hackathons';
+const LOCAL_API_URL = 'http://localhost:8000/api/hackathons';
+let DEFAULT_API_URL = import.meta.env.VITE_API_URL || (import.meta.env.PROD ? PROD_API_URL : LOCAL_API_URL);
+if (DEFAULT_API_URL.endsWith('/')) DEFAULT_API_URL = DEFAULT_API_URL.slice(0, -1);
+if (!DEFAULT_API_URL.endsWith('/api/hackathons')) DEFAULT_API_URL += '/api/hackathons';
 
-const COLD_START_WARN_MS = 5_000;
+const COLD_START_WARN_MS = 6_000;
 const PAGE_SIZE = 12;
 
-// ── Logo — lightning bolt inside a rounded square ──────────────────────────
+// ── Brand Logo ─────────────────────────────────────────────────────────────
 function HLogo({ size = 36 }) {
   return (
     <svg
@@ -24,8 +26,8 @@ function HLogo({ size = 36 }) {
       <rect width="40" height="40" rx="10" fill="#18181b" stroke="rgba(255,255,255,0.12)" strokeWidth="1" />
       <path
         d="M22 8L13 21h7l-3 11 12-15h-8l5-7z"
-        fill="#f4f4f5"
-        stroke="#f4f4f5"
+        fill="#6366f1"
+        stroke="#818cf8"
         strokeWidth="0.5"
         strokeLinejoin="round"
       />
@@ -33,7 +35,7 @@ function HLogo({ size = 36 }) {
   );
 }
 
-// ── Bespoke SVG Icons for Crafted UI ──────────────────────────────────────
+// ── SVG Icons ──────────────────────────────────────────────────────────────
 const DiscoveryIcon = () => (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <circle cx="12" cy="12" r="10" />
@@ -71,113 +73,86 @@ const CheckCircleIcon = () => (
   </svg>
 );
 
-// ── Dashboard Stats Popup ────────────────────────────────────────────────────
-function DashboardPopup({ stats, upcomingTotal, missedTotal, onClose }) {
+const ExternalLinkIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+    <polyline points="15 3 21 3 21 9" />
+    <line x1="10" y1="14" x2="21" y2="3" />
+  </svg>
+);
+
+const TelegramIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69.01-.03.01-.14-.07-.19-.08-.05-.19-.02-.27 0-.12.03-1.99 1.27-5.62 3.72-.53.36-1.01.54-1.44.53-.47-.01-1.38-.27-2.06-.49-.83-.27-1.49-.42-1.43-.88.03-.24.37-.49 1.02-.74 3.98-1.73 6.64-2.88 7.97-3.44 3.79-1.58 4.58-1.85 5.09-1.86.11 0 .37.03.53.17.14.12.18.28.2.45-.01.07.01.22 0 .34z" />
+  </svg>
+);
+
+const GithubIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+    <path fillRule="evenodd" clipRule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" />
+  </svg>
+);
+
+// ── Technical Architecture Modal ───────────────────────────────────────────
+function TechSpecModal({ onClose }) {
   useEffect(() => {
     const onKey = (e) => { if (e.key === 'Escape') onClose(); };
     document.addEventListener('keydown', onKey);
     document.body.style.overflow = 'hidden';
     return () => { document.removeEventListener('keydown', onKey); document.body.style.overflow = ''; };
   }, [onClose]);
+
   return (
     <div className="modal-backdrop" onClick={onClose}>
-      <div className="modal-window dash-popup" onClick={e => e.stopPropagation()} role="dialog" aria-modal="true" aria-label="Dashboard statistics">
-        <div className="modal-header dash-header">
+      <div className="modal-window about-modal-compact" onClick={e => e.stopPropagation()} role="dialog" aria-modal="true" aria-label="Technical Architecture">
+        <div className="modal-header">
           <HLogo size={40} />
           <div>
-            <h2 className="modal-name">Live Dashboard</h2>
-            <p className="modal-role">Real-time stats · Auto-refreshes every 1 hr</p>
-          </div>
-        </div>
-        <button className="modal-close" onClick={onClose} aria-label="Close">✕</button>
-        <div className="modal-body">
-          <div className="dash-metric-grid">
-            <div className="dash-metric"><span className="dash-metric-val">{stats.total || 0}</span><span className="dash-metric-label">Total Events</span></div>
-            <div className="dash-metric"><span className="dash-metric-val" style={{color:'#10b981'}}>{upcomingTotal || 0}</span><span className="dash-metric-label">Upcoming</span></div>
-            <div className="dash-metric"><span className="dash-metric-val" style={{color:'#64748b'}}>{missedTotal || 0}</span><span className="dash-metric-label">Missed</span></div>
-            <div className="dash-metric"><span className="dash-metric-val" style={{color:'#f59e0b'}}>{stats.top_college_count || 0}</span><span className="dash-metric-label">IIT/NIT/BITS</span></div>
-            <div className="dash-metric"><span className="dash-metric-val" style={{color:'#a78bfa'}}>{stats.internship_count || 0}</span><span className="dash-metric-label">Internships</span></div>
-            <div className="dash-metric"><span className="dash-metric-val">{stats.unique_tags || 0}</span><span className="dash-metric-label">Unique Tags</span></div>
-          </div>
-          <div className="modal-section">
-            <h3>Mode Distribution</h3>
-            <div className="dash-bar-row">
-              <span className="dash-bar-label">Online</span>
-              <div className="dash-bar-track"><div className="dash-bar-fill dash-bar--online" style={{width: stats.total ? `${((stats.online_count||0)/stats.total)*100}%` : '0%'}} /></div>
-              <span className="dash-bar-count">{stats.online_count || 0}</span>
-            </div>
-            <div className="dash-bar-row">
-              <span className="dash-bar-label">Offline</span>
-              <div className="dash-bar-track"><div className="dash-bar-fill dash-bar--offline" style={{width: stats.total ? `${((stats.offline_count||0)/stats.total)*100}%` : '0%'}} /></div>
-              <span className="dash-bar-count">{stats.offline_count || 0}</span>
-            </div>
-          </div>
-          <div className="modal-section">
-            <h3>Sources</h3>
-            <div style={{display:'flex',gap:'8px',flexWrap:'wrap'}}>
-              {(stats.sources || []).map(s => <span key={s} className={`source-badge source-badge--${s.toLowerCase()}`}>{s}</span>)}
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ── About Modal ──────────────────────────────────────────────────────────────
-function AboutModal({ onClose }) {
-  useEffect(() => {
-    const onKey = (e) => { if (e.key === 'Escape') onClose(); };
-    document.addEventListener('keydown', onKey);
-    document.body.style.overflow = 'hidden';
-    return () => { document.removeEventListener('keydown', onKey); document.body.style.overflow = ''; };
-  }, [onClose]);
-  return (
-    <div className="modal-backdrop" onClick={onClose}>
-      <div className="modal-window about-modal-compact" onClick={e => e.stopPropagation()} role="dialog" aria-modal="true" aria-label="About the maker">
-        <div className="modal-header">
-          <div className="modal-avatar">PD</div>
-          <div>
-            <h2 className="modal-name">Pranav Deshmukh</h2>
-            <p className="modal-role">Systems &amp; Full-Stack Builder</p>
+            <h2 className="modal-name">System Architecture</h2>
+            <p className="modal-role">Autonomous Scraper &amp; Notification Engine</p>
           </div>
         </div>
         <button className="modal-close" onClick={onClose} aria-label="Close">✕</button>
         <div className="modal-body about-body-compact">
           <div className="modal-badge-row">
             <span className="modal-badge modal-badge--green">Developer: Pranav Deshmukh</span>
-            <span className="modal-badge modal-badge--purple">Independent Project</span>
+            <span className="modal-badge modal-badge--purple">100% Automated Pipeline</span>
           </div>
-          <p className="modal-bio" style={{fontSize:'0.88rem',marginBottom:'1rem'}}>
+          <p className="modal-bio" style={{ fontSize: '0.88rem', marginBottom: '1rem' }}>
             Built to automate hackathon discovery across India and global platforms in real time.
             Aggregates, categorizes, and geo-locates opportunities so developers never miss a deadline.
           </p>
-          <div className="modal-section" style={{marginBottom:'0.9rem'}}>
-            <h3>Stack &amp; Architecture</h3>
+          <div className="modal-section" style={{ marginBottom: '0.9rem' }}>
+            <h3>Stack &amp; Services</h3>
             <div className="modal-tech-grid">
-              <div className="modal-tech-item"><span className="tech-dot" /> FastAPI + Python</div>
-              <div className="modal-tech-item"><span className="tech-dot" /> MongoDB Atlas</div>
-              <div className="modal-tech-item"><span className="tech-dot" /> React + Vite</div>
+              <div className="modal-tech-item"><span className="tech-dot" /> FastAPI (Python 3.12)</div>
+              <div className="modal-tech-item"><span className="tech-dot" /> MongoDB Atlas Cluster</div>
+              <div className="modal-tech-item"><span className="tech-dot" /> React 18 + Vite</div>
               <div className="modal-tech-item"><span className="tech-dot" /> Telegram Bot API</div>
-              <div className="modal-tech-item"><span className="tech-dot" /> Render + Vercel</div>
-              <div className="modal-tech-item"><span className="tech-dot" /> Scraper Pipeline</div>
+              <div className="modal-tech-item"><span className="tech-dot" /> Cloudflare Bypass (curl_cffi)</div>
+              <div className="modal-tech-item"><span className="tech-dot" /> Geocoder (Nominatim)</div>
             </div>
           </div>
-          <div className="modal-section" style={{marginBottom:'0.9rem'}}>
-            <h3>Core Capabilities</h3>
+          <div className="modal-section" style={{ marginBottom: '0.9rem' }}>
+            <h3>Pipeline Capabilities</h3>
             <div className="about-chips">
-              <span>5 concurrent scrapers</span><span>College classifier</span>
-              <span>GPS geo-distance</span><span>Telegram push alerts</span>
+              <span>5 concurrent scrapers</span>
+              <span>IIT/NIT/BITS classifier</span>
+              <span>GPS Haversine distance</span>
+              <span>Telegram push broadcast</span>
+              <span>Server-side pagination</span>
             </div>
           </div>
-          <div className="modal-footer-note"><em>Engineered with focus on reliable automated ingestion.</em></div>
+          <div className="modal-footer-note">
+            <em>Engineered by Pranav Deshmukh · Open source for the developer community.</em>
+          </div>
         </div>
       </div>
     </div>
   );
 }
 
-// ── Pagination ──────────────────────────────────────────────────────────────
+// ── Pagination ─────────────────────────────────────────────────────────────
 function Pagination({ currentPage, totalPages, onPageChange }) {
   if (totalPages <= 1) return null;
   const pages = [];
@@ -193,18 +168,22 @@ function Pagination({ currentPage, totalPages, onPageChange }) {
   }
   return (
     <div className="pagination">
-      <button className="pagination-btn" onClick={() => onPageChange(currentPage - 1)} disabled={currentPage === 1}>← Prev</button>
+      <button className="pagination-btn" onClick={() => onPageChange(currentPage - 1)} disabled={currentPage === 1}>
+        ← Prev
+      </button>
       {withEllipsis.map((item, i) =>
         item === '...'
           ? <span key={`e-${i}`} className="pagination-ellipsis">…</span>
           : <button key={item} className={`pagination-btn ${currentPage === item ? 'active' : ''}`} onClick={() => onPageChange(item)}>{item}</button>
       )}
-      <button className="pagination-btn" onClick={() => onPageChange(currentPage + 1)} disabled={currentPage === totalPages}>Next →</button>
+      <button className="pagination-btn" onClick={() => onPageChange(currentPage + 1)} disabled={currentPage === totalPages}>
+        Next →
+      </button>
     </div>
   );
 }
 
-// ── Main App ──────────────────────────────────────────────────────────────
+// ── Main App ───────────────────────────────────────────────────────────────
 function App() {
   const [hackathons, setHackathons]           = useState([]);
   const [loading, setLoading]                 = useState(true);
@@ -219,8 +198,7 @@ function App() {
   const [activeSection, setActiveSection]     = useState('home');
   const [mobileMenuOpen, setMobileMenuOpen]   = useState(false);
   const [showColdStartBanner, setShowColdStartBanner] = useState(false);
-  const [showAboutModal, setShowAboutModal]   = useState(false);
-  const [showDashboard, setShowDashboard]     = useState(false);
+  const [showTechSpecModal, setShowTechSpecModal] = useState(false);
   const [activeTab, setActiveTab]             = useState('upcoming');
   const [currentPage, setCurrentPage]         = useState(1);
   const [totalPages, setTotalPages]           = useState(1);
@@ -234,31 +212,50 @@ function App() {
 
   const homeRef            = useRef(null);
   const dashboardRef       = useRef(null);
-  const aboutRef           = useRef(null);
+  const featuresRef        = useRef(null);
   const eventsRef          = useRef(null);
+  const aboutRef           = useRef(null);
   const abortControllerRef = useRef(null);
   const coldStartTimerRef  = useRef(null);
   const intervalRef        = useRef(null);
 
   useEffect(() => {
-    const h = setTimeout(() => { setDebouncedSearch(searchQuery); setCurrentPage(1); }, 400);
+    const h = setTimeout(() => { setDebouncedSearch(searchQuery); setCurrentPage(1); }, 350);
     return () => clearTimeout(h);
   }, [searchQuery]);
 
+  // Robust fetcher with automatic live Render fallback if localhost is offline
   const fetchHackathons = useCallback(async (isAutoRefresh = false) => {
     if (abortControllerRef.current) abortControllerRef.current.abort();
     abortControllerRef.current = new AbortController();
+
     if (!isAutoRefresh) {
-      setLoading(true); setError(null); setShowColdStartBanner(false);
+      setLoading(true);
+      setError(null);
+      setShowColdStartBanner(false);
       coldStartTimerRef.current = setTimeout(() => setShowColdStartBanner(true), COLD_START_WARN_MS);
     }
+
     try {
       const lat = userLocation?.lat ?? '';
       const lng = userLocation?.lng ?? '';
-      let url = `${API_URL}?page=${currentPage}&limit=${PAGE_SIZE}&category=${encodeURIComponent(activeCategory)}&sort=${sortBy}&tab=${activeTab}`;
-      if (debouncedSearch) url += `&search=${encodeURIComponent(debouncedSearch)}`;
-      if (lat && lng) url += `&lat=${lat}&lng=${lng}`;
-      const res = await fetch(url, { signal: abortControllerRef.current.signal });
+      const queryParams = `?page=${currentPage}&limit=${PAGE_SIZE}&category=${encodeURIComponent(activeCategory)}&sort=${sortBy}&tab=${activeTab}${debouncedSearch ? `&search=${encodeURIComponent(debouncedSearch)}` : ''}${lat && lng ? `&lat=${lat}&lng=${lng}` : ''}`;
+
+      let url = `${DEFAULT_API_URL}${queryParams}`;
+      let res;
+      try {
+        res = await fetch(url, { signal: abortControllerRef.current.signal });
+      } catch (networkErr) {
+        if (networkErr.name === 'AbortError') return;
+        // If local API is unreachable and we weren't already hitting production, fall back to production API
+        if (!url.startsWith(PROD_API_URL)) {
+          const fallbackUrl = `${PROD_API_URL}${queryParams}`;
+          res = await fetch(fallbackUrl, { signal: abortControllerRef.current.signal });
+        } else {
+          throw networkErr;
+        }
+      }
+
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const result = await res.json();
       if (result.success) {
@@ -275,8 +272,8 @@ function App() {
       }
     } catch (e) {
       if (e.name === 'AbortError') return;
-      setError('Could not connect to the API. Make sure the backend is running.');
-      console.error(e);
+      setError('Could not connect to the API. Connecting to cloud pipeline…');
+      console.error('Fetch error:', e);
     } finally {
       clearTimeout(coldStartTimerRef.current);
       setShowColdStartBanner(false);
@@ -296,11 +293,20 @@ function App() {
   }, [fetchHackathons]);
 
   const requestLocation = useCallback(() => {
-    if (!navigator.geolocation) { setLocationError('Geolocation not supported'); return; }
+    if (!navigator.geolocation) { setLocationError('Geolocation not supported by browser'); return; }
     setIsLocating(true); setLocationError(null);
     navigator.geolocation.getCurrentPosition(
-      (pos) => { setUserLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude }); setIsLocating(false); setSortBy('distance'); setCurrentPage(1); },
-      ()    => { setLocationError('Unable to retrieve your location'); setIsLocating(false); }
+      (pos) => {
+        setUserLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+        setIsLocating(false);
+        setSortBy('distance');
+        setCurrentPage(1);
+      },
+      () => {
+        setLocationError('Location permission denied or unavailable');
+        setIsLocating(false);
+      },
+      { timeout: 8000 }
     );
   }, []);
 
@@ -308,19 +314,25 @@ function App() {
   const handleSearchChange   = (e)   => { setSearchQuery(e.target.value); };
   const handleSortChange     = (e)   => {
     const v = e.target.value;
-    if (v === 'distance' && !userLocation) { setSortBy('distance'); requestLocation(); return; }
-    setSortBy(v); setCurrentPage(1);
+    if (v === 'distance' && !userLocation) {
+      setSortBy('distance');
+      requestLocation();
+      return;
+    }
+    setSortBy(v);
+    setCurrentPage(1);
   };
   const handleTabChange  = (tab) => { setActiveTab(tab); setCurrentPage(1); eventsRef.current?.scrollIntoView({ behavior: 'smooth' }); };
   const handlePageChange = (p)   => { setCurrentPage(p); eventsRef.current?.scrollIntoView({ behavior: 'smooth' }); };
   const scrollToSection  = (section) => {
-    setActiveSection(section); setMobileMenuOpen(false);
-    const refMap = { home: homeRef, dashboard: dashboardRef, about: aboutRef, events: eventsRef };
+    setActiveSection(section);
+    setMobileMenuOpen(false);
+    const refMap = { home: homeRef, dashboard: dashboardRef, features: featuresRef, events: eventsRef, about: aboutRef };
     refMap[section]?.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
   const formatLastScraped = (isoStr) => {
-    if (!isoStr) return '—';
+    if (!isoStr) return 'Active now';
     try {
       const d = new Date(isoStr);
       const diffMins = Math.floor((Date.now() - d) / 60000);
@@ -328,49 +340,106 @@ function App() {
       if (diffMins < 60) return `${diffMins}m ago`;
       const diffHrs = Math.floor(diffMins / 60);
       if (diffHrs < 24)  return `${diffHrs}h ago`;
-      return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
-    } catch { return '—'; }
+      return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+    } catch { return 'Active now'; }
   };
 
   const categories = [
     { key: 'All',            label: 'All',            count: stats.total },
-    { key: 'Online',         label: 'Online',         count: stats.online_count || 0 },
-    { key: 'Offline',        label: 'In-Person',      count: stats.offline_count || 0 },
-    { key: 'Top College',    label: 'Top College',    count: stats.top_college_count || 0 },
-    { key: 'Internship',     label: 'Internships',    count: stats.internship_count || 0 },
+    { key: 'Online',         label: '🌐 Online',       count: stats.online_count || 0 },
+    { key: 'Offline',        label: '📍 In-Person',    count: stats.offline_count || 0 },
+    { key: 'Top College',    label: '🏛 Top College',  count: stats.top_college_count || 0 },
+    { key: 'Internship',     label: '💼 Internships',  count: stats.internship_count || 0 },
     { key: 'Hackathon',      label: 'Hackathons',     count: stats.hackathon_count || 0 },
-    { key: 'Unique Sources', label: 'Curated',        count: stats.unique_sources_count || 0 },
+    { key: 'Unique Sources', label: '⭐ Curated',      count: stats.unique_sources_count || 0 },
   ];
 
   return (
     <div className="app-container">
-      {showAboutModal && <AboutModal onClose={() => setShowAboutModal(false)} />}
-      {showDashboard  && <DashboardPopup stats={stats} upcomingTotal={upcomingTotal} missedTotal={missedTotal} onClose={() => setShowDashboard(false)} />}
+      {showTechSpecModal && <TechSpecModal onClose={() => setShowTechSpecModal(false)} />}
+
+      {/* ── MOBILE BACKDROP OVERLAY ── */}
+      {mobileMenuOpen && (
+        <div className="nav-backdrop" onClick={() => setMobileMenuOpen(false)} />
+      )}
 
       {/* ── NAVBAR ── */}
       <nav className="navbar" id="main-nav">
         <div className="navbar-brand" onClick={() => scrollToSection('home')}>
-          <HLogo size={36} /><span>Hackathon Notifier</span>
+          <HLogo size={34} />
+          <div className="brand-text-container">
+            <span className="brand-title">Hackathon Notifier</span>
+            <span className="brand-badge">PRO</span>
+          </div>
         </div>
-        <button className="mobile-menu-btn" onClick={() => setMobileMenuOpen(!mobileMenuOpen)} aria-label="Toggle menu">
-          <span className={`hamburger ${mobileMenuOpen ? 'open' : ''}`}></span>
+
+        <button
+          className={`mobile-menu-btn ${mobileMenuOpen ? 'open' : ''}`}
+          onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+          aria-label="Toggle mobile menu"
+          aria-expanded={mobileMenuOpen}
+        >
+          <span className="hamburger-box">
+            <span className="hamburger-inner"></span>
+          </span>
         </button>
+
         <div className={`navbar-links ${mobileMenuOpen ? 'mobile-open' : ''}`}>
-          <a href="#about"  className={activeSection === 'about'  ? 'nav-active' : ''} onClick={e => { e.preventDefault(); scrollToSection('about'); }}>Features</a>
-          <a href="#events" className={activeSection === 'events' ? 'nav-active' : ''} onClick={e => { e.preventDefault(); scrollToSection('events'); }}>Events</a>
-          <button className="btn-link" onClick={() => { setShowDashboard(true); setMobileMenuOpen(false); }}>Dashboard</button>
-          <button className="btn-link" onClick={() => { setShowAboutModal(true); setMobileMenuOpen(false); }}>About</button>
-          <button className={`btn-secondary ${userLocation ? 'active' : ''}`} onClick={() => { requestLocation(); setMobileMenuOpen(false); }} disabled={isLocating}>
-            {isLocating ? 'Locating…' : 'Near Me'}
-          </button>
-          <button className="btn-primary" id="refresh-btn" onClick={() => { fetchHackathons(); setMobileMenuOpen(false); }}>Refresh</button>
+          <a
+            href="#events"
+            className={activeSection === 'events' ? 'nav-active' : ''}
+            onClick={e => { e.preventDefault(); scrollToSection('events'); }}
+          >
+            Events
+          </a>
+          <a
+            href="#dashboard"
+            className={activeSection === 'dashboard' ? 'nav-active' : ''}
+            onClick={e => { e.preventDefault(); scrollToSection('dashboard'); }}
+          >
+            Live Pipeline
+          </a>
+          <a
+            href="#features"
+            className={activeSection === 'features' ? 'nav-active' : ''}
+            onClick={e => { e.preventDefault(); scrollToSection('features'); }}
+          >
+            Features
+          </a>
+          <a
+            href="#about"
+            className={activeSection === 'about' ? 'nav-active' : ''}
+            onClick={e => { e.preventDefault(); scrollToSection('about'); }}
+          >
+            Maker
+          </a>
+
+          <div className="nav-actions-group">
+            <button
+              className={`btn-secondary nav-loc-btn ${userLocation ? 'active' : ''}`}
+              onClick={() => { requestLocation(); setMobileMenuOpen(false); }}
+              disabled={isLocating}
+              title="Filter hackathons nearest to your GPS coordinates"
+            >
+              <PinIcon />
+              <span>{isLocating ? 'Locating…' : userLocation ? 'Near You' : 'Near Me'}</span>
+            </button>
+            <button
+              className="btn-primary nav-refresh-btn"
+              id="refresh-btn"
+              onClick={() => { fetchHackathons(); setMobileMenuOpen(false); }}
+            >
+              Sync
+            </button>
+          </div>
         </div>
       </nav>
 
+      {/* ── COLD START BANNER ── */}
       {showColdStartBanner && (
         <div className="cold-start-banner">
           <div className="cold-start-spinner"></div>
-          <span><strong>Backend is waking up</strong> (Render free tier cold-start — ~30s on first visit). Hang tight…</span>
+          <span><strong>Cloud server waking up</strong> · Render free tier initial spin-up (~25s). Loading live database…</span>
         </div>
       )}
 
@@ -379,200 +448,435 @@ function App() {
         <div className="hero-content">
           <div className="hero-badge">
             <span className="hero-badge-dot"></span>
-            Live · 5 Integrated Platforms
+            <span>Live Index · 5 Platforms Synced · GPS Distance Enabled</span>
           </div>
           <h1>
-            Never miss a<br />
+            Never miss another<br />
             <span className="hero-highlight">hackathon</span> again.
           </h1>
           <p>
-            Real-time automated ingestion across Devfolio, Unstop, Devpost, HackerEarth, and Devnovate.
-            Smart classification, deadline tracking, and geo-distance ranking.
+            Continuous automated discovery across <strong>Devfolio, Unstop, Devpost, HackerEarth &amp; Devnovate</strong>.
+            Intelligent premier-college classification, deadline tracking, and instant alerts.
           </p>
           <div className="hero-cta-buttons">
-            <button className="btn-primary" onClick={() => scrollToSection('events')}>Browse Events →</button>
-            <button className="btn-secondary" onClick={() => setShowDashboard(true)}>View Dashboard</button>
+            <button className="btn-primary" onClick={() => scrollToSection('events')}>
+              Explore Events →
+            </button>
+            <button className="btn-secondary" onClick={() => scrollToSection('dashboard')}>
+              Live Pipeline Stats
+            </button>
+            <a
+              href="https://t.me/hackathon_alert_notifier_bot"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="btn-ghost hero-bot-btn"
+            >
+              <TelegramIcon /> Bot Alerts
+            </a>
           </div>
         </div>
 
+        {/* ── HERO HUD STATS PANEL ── */}
         <div className="hero-stats-panel">
           <div className="hero-stats-header">
-            <span className="live-dot"></span>
-            Live Data Pipeline
+            <div className="pulse-indicator">
+              <span className="pulse-dot"></span>
+              <span className="pulse-ring"></span>
+            </div>
+            <span className="hero-stats-title">Automated Ingestion Pipeline</span>
+            <span className="hero-stats-time">{formatLastScraped(stats.last_scraped)}</span>
           </div>
           <div className="hero-stats-grid">
             <div className="hero-stat-box">
-              <div className="hero-stat-value">{stats.total}</div>
-              <div className="hero-stat-label">Total Events</div>
+              <div className="hero-stat-value">{stats.total || '—'}</div>
+              <div className="hero-stat-label">Total Tracked</div>
             </div>
             <div className="hero-stat-box">
-              <div className="hero-stat-value">{upcomingTotal}</div>
-              <div className="hero-stat-label">Active</div>
+              <div className="hero-stat-value" style={{ color: '#10b981' }}>{upcomingTotal || '—'}</div>
+              <div className="hero-stat-label">Active &amp; Open</div>
             </div>
             <div className="hero-stat-box">
-              <div className="hero-stat-value">{stats.top_college_count || 0}</div>
-              <div className="hero-stat-label">Top College</div>
+              <div className="hero-stat-value" style={{ color: '#f59e0b' }}>{stats.top_college_count || 0}</div>
+              <div className="hero-stat-label">IIT / NIT / BITS</div>
             </div>
             <div className="hero-stat-box">
-              <div className="hero-stat-value" style={{ fontSize: '1.1rem', letterSpacing: 0 }}>{formatLastScraped(stats.last_scraped)}</div>
-              <div className="hero-stat-label">Last Update</div>
+              <div className="hero-stat-value" style={{ color: '#a78bfa' }}>{stats.internship_count || 0}</div>
+              <div className="hero-stat-label">Internships</div>
+            </div>
+          </div>
+          <div className="hero-sources-strip">
+            <span className="sources-label">Sources:</span>
+            <div className="sources-tags">
+              {(stats.sources && stats.sources.length > 0 ? stats.sources : ['Devfolio', 'Unstop', 'Devpost', 'HackerEarth', 'Devnovate']).map(s => (
+                <span key={s} className="source-pill">{s}</span>
+              ))}
             </div>
           </div>
         </div>
       </section>
 
-      {/* ── PLATFORM STRIP ── */}
+      {/* ── PLATFORM LOGO STRIP ── */}
       <div className="logo-strip">
-        <p>Tracking the world's most ambitious building platforms</p>
+        <p>Continuous automated indexing across the world&apos;s leading hackathon hosts</p>
         <div className="logo-grid">
-          <div className="logo-item">Devfolio</div>
-          <div className="logo-item">Unstop</div>
-          <div className="logo-item">Devpost</div>
-          <div className="logo-item">HackerEarth</div>
-          <div className="logo-item">Devnovate</div>
+          <div className="logo-item"><span className="logo-dot dot--blue" />Devfolio</div>
+          <div className="logo-item"><span className="logo-dot dot--green" />Unstop</div>
+          <div className="logo-item"><span className="logo-dot dot--orange" />Devpost</div>
+          <div className="logo-item"><span className="logo-dot dot--purple" />HackerEarth</div>
+          <div className="logo-item"><span className="logo-dot dot--cyan" />Devnovate</div>
         </div>
       </div>
 
-      {/* ── FEATURES ── */}
-      <section className="about-section" id="about-section" ref={aboutRef}>
-        <div className="section-header" style={{ textAlign: 'center', borderBottom: 'none' }}>
-          <h2>Engineering-grade opportunity pipeline</h2>
-          <p>Continuous automated ingestion, deduplication, and classification.</p>
-        </div>
-        <div className="about-grid">
-          <div className="about-card">
-            <div className="about-card-icon"><DiscoveryIcon /></div>
-            <h3>Automated Ingestion</h3>
-            <p>Scrapes Devfolio, Unstop, Devpost, HackerEarth, and Devnovate continuously without manual curation.</p>
-          </div>
-          <div className="about-card">
-            <div className="about-card-icon"><LayersIcon /></div>
-            <h3>Smart Classification</h3>
-            <p>Heuristics detect premier engineering institutions (IIT, NIT, IIIT, BITS) and paid internship tracks.</p>
-          </div>
-          <div className="about-card">
-            <div className="about-card-icon"><PinIcon /></div>
-            <h3>Geo-Distance Ranking</h3>
-            <p>Computes Haversine distance from your GPS coordinates to rank in-person hackathons by proximity.</p>
-          </div>
-        </div>
-      </section>
-
-      {/* ── DASHBOARD HIGHLIGHT ── */}
+      {/* ── LIVE PIPELINE COMMAND CENTER (IN-PAGE DASHBOARD) ── */}
       <section className="dashboard-section" id="dashboard-section" ref={dashboardRef}>
         <div className="section-header">
-          <h2>Powering developers of all sizes.</h2>
-          <p>Real-time analytics on the hackathon landscape.</p>
+          <div className="section-badge">Live Telemetry</div>
+          <h2>Ingestion Pipeline &amp; Ecosystem Metrics</h2>
+          <p>Real-time analytics across opportunities, platforms, and verified institutions.</p>
         </div>
-        <div className="highlight-grid">
-          <div className="highlight-card bg-orange" onClick={() => setShowDashboard(true)}>
-            <h3>See how many Top College events are live right now</h3>
-            <div className="highlight-stats">
-              <div className="h-stat"><span className="h-stat-val">{stats.top_college_count || 0}</span><span className="h-stat-label">IIT/NIT/BITS</span></div>
-              <div className="h-stat"><span className="h-stat-val">{stats.internship_count || 0}</span><span className="h-stat-label">Internships</span></div>
+
+        <div className="kpi-grid">
+          <div className="kpi-card">
+            <div className="kpi-header">
+              <span className="kpi-title">Active vs Past Events</span>
+              <span className="kpi-badge badge--green">Live</span>
             </div>
-            <div className="highlight-cta">Tap to open full dashboard →</div>
+            <div className="kpi-numbers">
+              <div className="kpi-num-col">
+                <span className="kpi-value text-green">{upcomingTotal}</span>
+                <span className="kpi-sub">Upcoming</span>
+              </div>
+              <div className="kpi-divider">/</div>
+              <div className="kpi-num-col">
+                <span className="kpi-value text-muted">{missedTotal}</span>
+                <span className="kpi-sub">Past</span>
+              </div>
+            </div>
+            <div className="kpi-progress">
+              <div
+                className="kpi-progress-fill fill--green"
+                style={{ width: stats.total ? `${((upcomingTotal) / stats.total) * 100}%` : '50%' }}
+              />
+            </div>
           </div>
-          <div className="highlight-card bg-blue" onClick={() => setShowDashboard(true)}>
-            <h3>Missed Opportunities tracker to keep you accountable</h3>
-            <div className="highlight-stats">
-              <div className="h-stat"><span className="h-stat-val">{upcomingTotal}</span><span className="h-stat-label">Upcoming</span></div>
-              <div className="h-stat"><span className="h-stat-val">{missedTotal}</span><span className="h-stat-label">Missed</span></div>
+
+          <div className="kpi-card">
+            <div className="kpi-header">
+              <span className="kpi-title">Premier Colleges</span>
+              <span className="kpi-badge badge--amber">Elite</span>
             </div>
-            <div className="highlight-cta">Tap to open full dashboard →</div>
+            <div className="kpi-numbers">
+              <div className="kpi-num-col">
+                <span className="kpi-value text-amber">{stats.top_college_count || 0}</span>
+                <span className="kpi-sub">IIT / NIT / BITS / IIIT</span>
+              </div>
+            </div>
+            <p className="kpi-note">Auto-detected by college classifier heuristics</p>
+          </div>
+
+          <div className="kpi-card">
+            <div className="kpi-header">
+              <span className="kpi-title">Paid Internships</span>
+              <span className="kpi-badge badge--purple">Careers</span>
+            </div>
+            <div className="kpi-numbers">
+              <div className="kpi-num-col">
+                <span className="kpi-value text-purple">{stats.internship_count || 0}</span>
+                <span className="kpi-sub">Student &amp; Hiring Tracks</span>
+              </div>
+            </div>
+            <p className="kpi-note">Competitions with direct interview &amp; offer pipelines</p>
+          </div>
+
+          <div className="kpi-card">
+            <div className="kpi-header">
+              <span className="kpi-title">Event Mode Split</span>
+              <span className="kpi-badge badge--cyan">Format</span>
+            </div>
+            <div className="kpi-numbers">
+              <div className="kpi-num-col">
+                <span className="kpi-value text-cyan">{stats.online_count || 0}</span>
+                <span className="kpi-sub">Online</span>
+              </div>
+              <div className="kpi-divider">·</div>
+              <div className="kpi-num-col">
+                <span className="kpi-value text-orange">{stats.offline_count || 0}</span>
+                <span className="kpi-sub">In-Person</span>
+              </div>
+            </div>
+            <div className="kpi-progress">
+              <div
+                className="kpi-progress-fill fill--cyan"
+                style={{ width: stats.total ? `${((stats.online_count || 0) / stats.total) * 100}%` : '60%' }}
+              />
+            </div>
           </div>
         </div>
       </section>
 
-      {/* ── EVENTS SECTION ── */}
-      <div className="events-section-title" ref={eventsRef}>
-        <h2>Discover Events</h2>
-        <p>Browse, filter, and register for your next hackathon.</p>
-      </div>
-
-      <div className="search-sort-container">
-        <div className="search-sort-bar">
-          <div className="search-box">
-            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-            <input type="text" placeholder="Search hackathons, locations, tags…" value={searchQuery} onChange={handleSearchChange} id="search-input" />
+      {/* ── ENGINEERING FEATURES ── */}
+      <section className="features-section" id="features-section" ref={featuresRef}>
+        <div className="section-header" style={{ textAlign: 'center' }}>
+          <div className="section-badge" style={{ margin: '0 auto 0.75rem' }}>Core Engine</div>
+          <h2>Built for reliability. Zero fluff.</h2>
+          <p>Engineered from scratch to solve fragmented event listings across the web.</p>
+        </div>
+        <div className="features-grid">
+          <div className="feature-card">
+            <div className="feature-card-icon"><DiscoveryIcon /></div>
+            <h3>5 Parallel Python Scrapers</h3>
+            <p>Runs concurrent workers over Devfolio, Unstop (Cloudflare TLS fingerprint spoofing), Devpost, HackerEarth, and Devnovate.</p>
           </div>
-          <div className="sort-box">
-            <label htmlFor="sort-select">Sort by:</label>
-            <select id="sort-select" value={sortBy} onChange={handleSortChange}>
-              <option value="deadline">Deadline (soonest)</option>
-              <option value="newest">Recently Added</option>
-              <option value="name">Name (A–Z)</option>
-              <option value="distance">Nearest {!userLocation && '(grant location)'}</option>
-            </select>
+          <div className="feature-card">
+            <div className="feature-card-icon"><LayersIcon /></div>
+            <h3>Intelligent Classification</h3>
+            <p>Automatically flags prestigious institutions (IIT, NIT, IIIT, BITS) and parses prize pools and registration team ranges.</p>
+          </div>
+          <div className="feature-card">
+            <div className="feature-card-icon"><PinIcon /></div>
+            <h3>GPS Haversine Distance</h3>
+            <p>Geocodes physical venues with Nominatim and calculates live GPS distance to rank in-person hackathons closest to you.</p>
           </div>
         </div>
-        {!loading && !error && stats.total > 0 && (
-          <div className="category-tabs" id="category-tabs">
-            {categories.map(cat => (
-              <button key={cat.key} className={`category-tab ${activeCategory === cat.key ? 'active' : ''}`} onClick={() => handleCategoryChange(cat.key)}>
-                {cat.label}<span className="tab-count">{cat.count}</span>
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
+      </section>
 
-      {/* ── HACKATHON LIST ── */}
-      <section className="hack-list-section">
-        {locationError && <div className="error-box" style={{ marginTop: '2rem' }}><p>⚠️ {locationError}</p></div>}
-        {error && (
-          <div className="error-box">
-            <h3>Connection Error</h3><p>{error}</p>
-            <button className="btn-primary" onClick={() => fetchHackathons()} style={{ marginTop: '1rem' }}>Retry</button>
-          </div>
-        )}
-        {loading && (
-          <div className="card-grid">{Array.from({ length: 6 }).map((_, i) => <div key={i} className="skeleton" />)}</div>
-        )}
-        {!loading && !error && (upcomingTotal > 0 || missedTotal > 0) && (
-          <div className="list-tabs">
-            <button className={`list-tab ${activeTab === 'upcoming' ? 'active' : ''}`} onClick={() => handleTabChange('upcoming')}>
-              Upcoming<span className="tab-count">{upcomingTotal}</span>
-            </button>
-            <button className={`list-tab ${activeTab === 'missed' ? 'active' : ''}`} onClick={() => handleTabChange('missed')}>
-              Past Events<span className="tab-count">{missedTotal}</span>
-            </button>
-          </div>
-        )}
-        {!loading && !error && activeTab === 'upcoming' && upcomingTotal > 0 && (
-          <>
-            <div className="section-header" style={{ borderBottom: 'none', marginBottom: '1.5rem' }}>
-              <h2>Upcoming Events</h2>
-              <p>Page {currentPage} of {totalPages} · {upcomingTotal} total</p>
+      {/* ── DISCOVER EVENTS SECTION ── */}
+      <section className="events-container-section" id="events-section" ref={eventsRef}>
+        <div className="events-section-title">
+          <div className="section-badge">Live Listings</div>
+          <h2>Explore Opportunities</h2>
+          <p>Filter by domain, search by technology, or sort by deadline and proximity.</p>
+        </div>
+
+        {/* ── SEARCH + SORT TOOLBAR ── */}
+        <div className="search-sort-container">
+          <div className="search-sort-bar">
+            <div className="search-box">
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
+              </svg>
+              <input
+                type="text"
+                placeholder="Search by title, location, tag (e.g. AI, Web3, Bangalore)…"
+                value={searchQuery}
+                onChange={handleSearchChange}
+                id="search-input"
+              />
+              {searchQuery && (
+                <button className="search-clear-btn" onClick={() => setSearchQuery('')} aria-label="Clear search">✕</button>
+              )}
             </div>
-            <div className="card-grid">{hackathons.map(h => <HackathonCard key={h._id || h.link} hackathon={h} />)}</div>
-            <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={handlePageChange} />
-          </>
-        )}
-        {!loading && !error && activeTab === 'missed' && missedTotal > 0 && (
-          <>
-            <div className="section-header" style={{ borderBottom: 'none', marginBottom: '1.5rem' }}>
-              <h2 style={{ color: 'var(--text-muted)' }}>Missed Opportunities</h2>
-              <p>Page {currentPage} of {totalPages} · {missedTotal} total</p>
+            <div className="sort-box">
+              <label htmlFor="sort-select">Sort by:</label>
+              <select id="sort-select" value={sortBy} onChange={handleSortChange}>
+                <option value="deadline">⏳ Deadline (Soonest)</option>
+                <option value="newest">✨ Recently Added</option>
+                <option value="name">🔤 Name (A–Z)</option>
+                <option value="distance">📍 Nearest {!userLocation && '(uses GPS)'}</option>
+              </select>
             </div>
-            <div className="card-grid">{hackathons.map(h => <HackathonCard key={h._id || h.link} hackathon={h} />)}</div>
-            <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={handlePageChange} />
-          </>
-        )}
-        {!loading && !error && activeTab === 'upcoming' && upcomingTotal === 0 && (
-          <div className="empty-state"><div className="empty-icon"><EmptySearchIcon /></div><h3>No upcoming hackathons found</h3><p>Try adjusting your search query or filters.</p></div>
-        )}
-        {!loading && !error && activeTab === 'missed' && missedTotal === 0 && (
-          <div className="empty-state"><div className="empty-icon"><CheckCircleIcon /></div><h3>No missed hackathons!</h3><p>You are caught up on all deadlines. Keep building.</p></div>
-        )}
+          </div>
+
+          {/* ── CATEGORY PILL TABS ── */}
+          <div className="category-tabs-wrapper">
+            <div className="category-tabs" id="category-tabs">
+              {categories.map(cat => (
+                <button
+                  key={cat.key}
+                  className={`category-tab ${activeCategory === cat.key ? 'active' : ''}`}
+                  onClick={() => handleCategoryChange(cat.key)}
+                >
+                  <span className="tab-label">{cat.label}</span>
+                  <span className="tab-count">{cat.count}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* ── LISTINGS GRID ── */}
+        <div className="hack-list-section">
+          {locationError && (
+            <div className="notice-box notice--warning">
+              <span>📍 {locationError}</span>
+            </div>
+          )}
+
+          {error && (
+            <div className="error-box">
+              <h3>Connection Notice</h3>
+              <p>{error}</p>
+              <button className="btn-primary" onClick={() => fetchHackathons()} style={{ marginTop: '1rem' }}>
+                Retry Connection
+              </button>
+            </div>
+          )}
+
+          {/* Upcoming vs Missed Subtabs */}
+          {!loading && !error && (upcomingTotal > 0 || missedTotal > 0) && (
+            <div className="list-tabs-container">
+              <div className="list-tabs">
+                <button
+                  className={`list-tab ${activeTab === 'upcoming' ? 'active' : ''}`}
+                  onClick={() => handleTabChange('upcoming')}
+                >
+                  🚀 Upcoming Opportunities
+                  <span className="tab-count-pill count-green">{upcomingTotal}</span>
+                </button>
+                <button
+                  className={`list-tab ${activeTab === 'missed' ? 'active' : ''}`}
+                  onClick={() => handleTabChange('missed')}
+                >
+                  📁 Past Deadlines
+                  <span className="tab-count-pill count-muted">{missedTotal}</span>
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Skeletons on loading */}
+          {loading && (
+            <div className="card-grid">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <div key={i} className="skeleton-card">
+                  <div className="skeleton skeleton-banner" />
+                  <div className="skeleton-content">
+                    <div className="skeleton skeleton-line w-40" />
+                    <div className="skeleton skeleton-title" />
+                    <div className="skeleton skeleton-line w-60" />
+                    <div className="skeleton skeleton-footer" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Hackathons Render */}
+          {!loading && !error && hackathons.length > 0 && (
+            <>
+              <div className="results-meta-bar">
+                <span className="results-count">
+                  Showing <strong>{hackathons.length}</strong> of <strong>{activeTab === 'upcoming' ? upcomingTotal : missedTotal}</strong> opportunities
+                </span>
+                <span className="results-page">Page {currentPage} of {totalPages}</span>
+              </div>
+              <div className="card-grid">
+                {hackathons.map(h => (
+                  <HackathonCard key={h._id || h.link} hackathon={h} />
+                ))}
+              </div>
+              <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={handlePageChange} />
+            </>
+          )}
+
+          {/* Empty States */}
+          {!loading && !error && activeTab === 'upcoming' && upcomingTotal === 0 && (
+            <div className="empty-state">
+              <div className="empty-icon"><EmptySearchIcon /></div>
+              <h3>No matching upcoming hackathons found</h3>
+              <p>Try broadening your search query or selecting &quot;All&quot; categories.</p>
+              <button className="btn-secondary" onClick={() => { setSearchQuery(''); setActiveCategory('All'); }} style={{ marginTop: '1rem' }}>
+                Reset Filters
+              </button>
+            </div>
+          )}
+
+          {!loading && !error && activeTab === 'missed' && missedTotal === 0 && (
+            <div className="empty-state">
+              <div className="empty-icon"><CheckCircleIcon /></div>
+              <h3>You are completely caught up!</h3>
+              <p>No expired opportunities in this category view.</p>
+            </div>
+          )}
+        </div>
+      </section>
+
+      {/* ── AUTHENTIC MAKER & ABOUT SECTION ── */}
+      <section className="about-maker-section" id="about-section" ref={aboutRef}>
+        <div className="maker-card">
+          <div className="maker-header">
+            <div className="maker-avatar">PD</div>
+            <div className="maker-intro">
+              <div className="maker-badge">Creator &amp; Architect</div>
+              <h2 className="maker-name">Pranav Deshmukh</h2>
+              <p className="maker-tagline">B.Tech 2nd Year Computer Science · Full-Stack &amp; Systems Builder</p>
+            </div>
+          </div>
+
+          <div className="maker-story">
+            <p>
+              I built <strong>Hackathon Notifier</strong> to solve a problem every engineering student faces:
+              valuable competitions and prize tracks are scattered across half a dozen platforms, with deadlines quietly passing by.
+            </p>
+            <p>
+              This is a fully autonomous, production-grade engine running 24/7. It indexes Devfolio, Unstop, Devpost, HackerEarth, and Devnovate,
+              applies heuristic tier classification, and routes instant notifications through Telegram and this web terminal.
+            </p>
+          </div>
+
+          <div className="maker-stats-row">
+            <div className="m-stat">
+              <span className="m-stat-val">5</span>
+              <span className="m-stat-lbl">Active Scrapers</span>
+            </div>
+            <div className="m-stat">
+              <span className="m-stat-val">24/7</span>
+              <span className="m-stat-lbl">Cloud Automation</span>
+            </div>
+            <div className="m-stat">
+              <span className="m-stat-val">&lt; 1hr</span>
+              <span className="m-stat-lbl">Sync Interval</span>
+            </div>
+            <div className="m-stat">
+              <span className="m-stat-val">100%</span>
+              <span className="m-stat-lbl">Open Source</span>
+            </div>
+          </div>
+
+          <div className="maker-actions">
+            <a
+              href="https://github.com/Pranavdeshmukhhh"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="btn-primary maker-link"
+            >
+              <GithubIcon /> GitHub Profile <ExternalLinkIcon />
+            </a>
+            <a
+              href="https://github.com/Pranavdeshmukhhh/hackathon-notifier"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="btn-secondary maker-link"
+            >
+              Star Repository <ExternalLinkIcon />
+            </a>
+            <button
+              className="btn-ghost maker-spec-btn"
+              onClick={() => setShowTechSpecModal(true)}
+            >
+              View System Architecture
+            </button>
+          </div>
+        </div>
       </section>
 
       {/* ── FOOTER ── */}
       <footer className="app-footer">
-        <div className="footer-brand"><HLogo size={28} /><span>Hackathon Notifier</span></div>
-        <p className="footer-tagline">Real-time developer opportunity aggregator.</p>
-        <div className="footer-links">
-          <button className="btn-link footer-about-btn" onClick={() => setShowAboutModal(true)}>Built by Pranav Deshmukh · About &amp; Stack</button>
+        <div className="footer-top">
+          <div className="footer-brand">
+            <HLogo size={28} />
+            <span>Hackathon Notifier</span>
+          </div>
+          <p className="footer-tagline">Autonomous developer opportunity ingestion &amp; notification platform.</p>
+        </div>
+        <div className="footer-bottom">
+          <span>Engineered by <strong>Pranav Deshmukh</strong> · B.Tech 2nd Year</span>
+          <div className="footer-nav">
+            <a href="#events" onClick={e => { e.preventDefault(); scrollToSection('events'); }}>Events</a>
+            <a href="#dashboard" onClick={e => { e.preventDefault(); scrollToSection('dashboard'); }}>Pipeline</a>
+            <a href="#about" onClick={e => { e.preventDefault(); scrollToSection('about'); }}>Maker</a>
+            <button className="footer-spec-link" onClick={() => setShowTechSpecModal(true)}>Architecture</button>
+          </div>
         </div>
       </footer>
     </div>

@@ -164,11 +164,12 @@ class TestSendBatch:
         mock_resp.text = "Internal Server Error"
         return mock_resp
 
+    @patch("db.mongo_client.get_active_subscribers", return_value=[])
     @patch("notifier.telegram_bot.TELEGRAM_BOT_TOKEN", "fake-token")
     @patch("notifier.telegram_bot.TELEGRAM_CHAT_ID", "12345")
     @patch("notifier.telegram_bot.time.sleep")     # don't actually sleep in tests
     @patch("notifier.telegram_bot.requests.Session")
-    def test_all_sent_returns_correct_counts(self, MockSession, mock_sleep):
+    def test_all_sent_returns_correct_counts(self, MockSession, mock_sleep, mock_subs):
         session_instance = MagicMock()
         MockSession.return_value.__enter__ = MagicMock(return_value=session_instance)
         MockSession.return_value.__exit__ = MagicMock(return_value=False)
@@ -180,11 +181,12 @@ class TestSendBatch:
         assert result["sent"] == 2
         assert result["failed"] == 0
 
+    @patch("db.mongo_client.get_active_subscribers", return_value=[])
     @patch("notifier.telegram_bot.TELEGRAM_BOT_TOKEN", "fake-token")
     @patch("notifier.telegram_bot.TELEGRAM_CHAT_ID", "12345")
     @patch("notifier.telegram_bot.time.sleep")
     @patch("notifier.telegram_bot.requests.Session")
-    def test_failed_send_counted_in_failed(self, MockSession, mock_sleep):
+    def test_failed_send_counted_in_failed(self, MockSession, mock_sleep, mock_subs):
         session_instance = MagicMock()
         MockSession.return_value.__enter__ = MagicMock(return_value=session_instance)
         MockSession.return_value.__exit__ = MagicMock(return_value=False)
@@ -200,11 +202,12 @@ class TestSendBatch:
         assert result["sent"] == 1
         assert result["failed"] == 1
 
+    @patch("db.mongo_client.get_active_subscribers", return_value=[])
     @patch("notifier.telegram_bot.TELEGRAM_BOT_TOKEN", "fake-token")
     @patch("notifier.telegram_bot.TELEGRAM_CHAT_ID", "12345")
     @patch("notifier.telegram_bot.time.sleep")
     @patch("notifier.telegram_bot.requests.Session")
-    def test_delay_called_between_messages(self, MockSession, mock_sleep):
+    def test_delay_called_between_messages(self, MockSession, mock_sleep, mock_subs):
         """The inter-message delay must fire between messages (but not after the last)."""
         session_instance = MagicMock()
         MockSession.return_value.__enter__ = MagicMock(return_value=session_instance)
