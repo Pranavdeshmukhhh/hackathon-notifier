@@ -21,23 +21,55 @@ function HLogo({ size = 36 }) {
       xmlns="http://www.w3.org/2000/svg"
       aria-hidden="true"
     >
-      <rect width="40" height="40" rx="11" fill="url(#logo-grad)" />
+      <rect width="40" height="40" rx="10" fill="#18181b" stroke="rgba(255,255,255,0.12)" strokeWidth="1" />
       <path
-        d="M23 7L13 22h8l-4 11 14-17h-9l6-9z"
-        fill="white"
-        stroke="rgba(255,255,255,0.3)"
+        d="M22 8L13 21h7l-3 11 12-15h-8l5-7z"
+        fill="#f4f4f5"
+        stroke="#f4f4f5"
         strokeWidth="0.5"
         strokeLinejoin="round"
       />
-      <defs>
-        <linearGradient id="logo-grad" x1="0" y1="0" x2="40" y2="40" gradientUnits="userSpaceOnUse">
-          <stop offset="0%" stopColor="#8b5cf6" />
-          <stop offset="100%" stopColor="#06b6d4" />
-        </linearGradient>
-      </defs>
     </svg>
   );
 }
+
+// ── Bespoke SVG Icons for Crafted UI ──────────────────────────────────────
+const DiscoveryIcon = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="12" r="10" />
+    <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76" />
+  </svg>
+);
+
+const LayersIcon = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <polygon points="12 2 2 7 12 12 22 7 12 2" />
+    <polyline points="2 17 12 22 22 17" />
+    <polyline points="2 12 12 17 22 12" />
+  </svg>
+);
+
+const PinIcon = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
+    <circle cx="12" cy="10" r="3" />
+  </svg>
+);
+
+const EmptySearchIcon = () => (
+  <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.4 }}>
+    <circle cx="11" cy="11" r="8" />
+    <line x1="21" y1="21" x2="16.65" y2="16.65" />
+    <line x1="8" y1="11" x2="14" y2="11" />
+  </svg>
+);
+
+const CheckCircleIcon = () => (
+  <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ color: '#10b981', opacity: 0.8 }}>
+    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+    <polyline points="22 4 12 14.01 9 11.01" />
+  </svg>
+);
 
 // ── Dashboard Stats Popup ────────────────────────────────────────────────────
 function DashboardPopup({ stats, upcomingTotal, missedTotal, onClose }) {
@@ -107,39 +139,38 @@ function AboutModal({ onClose }) {
           <div className="modal-avatar">PD</div>
           <div>
             <h2 className="modal-name">Pranav Deshmukh</h2>
-            <p className="modal-role">B.Tech 2nd Year &nbsp;·&nbsp; Systems Architect &nbsp;·&nbsp; Builder</p>
+            <p className="modal-role">Systems &amp; Full-Stack Builder</p>
           </div>
         </div>
         <button className="modal-close" onClick={onClose} aria-label="Close">✕</button>
         <div className="modal-body about-body-compact">
           <div className="modal-badge-row">
-            <span className="modal-badge modal-badge--green">🏗️ Architect: Pranav Deshmukh</span>
-            <span className="modal-badge modal-badge--purple">⚡ LLM-Accelerated</span>
+            <span className="modal-badge modal-badge--green">Developer: Pranav Deshmukh</span>
+            <span className="modal-badge modal-badge--purple">Independent Project</span>
           </div>
           <p className="modal-bio" style={{fontSize:'0.88rem',marginBottom:'1rem'}}>
-            A 2nd-year B.Tech student who decided manually refreshing four hackathon
-            platforms every morning was an unsolved systems problem — <strong>so I solved it.</strong>{' '}
-            LLMs acted as a <em>pair programmer</em>, not the engineer.
+            Built to automate hackathon discovery across India and global platforms in real time.
+            Aggregates, categorizes, and geo-locates opportunities so developers never miss a deadline.
           </p>
           <div className="modal-section" style={{marginBottom:'0.9rem'}}>
-            <h3>Under the Hood</h3>
+            <h3>Stack &amp; Architecture</h3>
             <div className="modal-tech-grid">
-              <div className="modal-tech-item"><span>⚡</span> FastAPI + Python</div>
-              <div className="modal-tech-item"><span>🌿</span> MongoDB Atlas</div>
-              <div className="modal-tech-item"><span>⚛️</span> React + Vite</div>
-              <div className="modal-tech-item"><span>📲</span> Telegram Bot</div>
-              <div className="modal-tech-item"><span>☁️</span> Render + Vercel</div>
-              <div className="modal-tech-item"><span>🕷️</span> curl-cffi (CF bypass)</div>
+              <div className="modal-tech-item"><span className="tech-dot" /> FastAPI + Python</div>
+              <div className="modal-tech-item"><span className="tech-dot" /> MongoDB Atlas</div>
+              <div className="modal-tech-item"><span className="tech-dot" /> React + Vite</div>
+              <div className="modal-tech-item"><span className="tech-dot" /> Telegram Bot API</div>
+              <div className="modal-tech-item"><span className="tech-dot" /> Render + Vercel</div>
+              <div className="modal-tech-item"><span className="tech-dot" /> Scraper Pipeline</div>
             </div>
           </div>
           <div className="modal-section" style={{marginBottom:'0.9rem'}}>
-            <h3>What it ships</h3>
+            <h3>Core Capabilities</h3>
             <div className="about-chips">
-              <span>5 concurrent scrapers</span><span>IIT/NIT/BITS classifier</span>
-              <span>Haversine geo-ranking</span><span>Telegram push alerts</span>
+              <span>5 concurrent scrapers</span><span>College classifier</span>
+              <span>GPS geo-distance</span><span>Telegram push alerts</span>
             </div>
           </div>
-          <div className="modal-footer-note"><em>🤖 AI-accelerated, not AI-generated. The architecture runs on human ingenuity.</em></div>
+          <div className="modal-footer-note"><em>Engineered with focus on reliable automated ingestion.</em></div>
         </div>
       </div>
     </div>
@@ -303,12 +334,12 @@ function App() {
 
   const categories = [
     { key: 'All',            label: 'All',            count: stats.total },
-    { key: 'Online',         label: '🌐 Online',       count: stats.online_count || 0 },
-    { key: 'Offline',        label: '📍 Offline',      count: stats.offline_count || 0 },
-    { key: 'Top College',    label: '🏛 Top College',  count: stats.top_college_count || 0 },
-    { key: 'Internship',     label: '💼 Internship',   count: stats.internship_count || 0 },
-    { key: 'Hackathon',      label: '💻 Hackathons',   count: stats.hackathon_count || 0 },
-    { key: 'Unique Sources', label: '⭐ Curated',      count: stats.unique_sources_count || 0 },
+    { key: 'Online',         label: 'Online',         count: stats.online_count || 0 },
+    { key: 'Offline',        label: 'In-Person',      count: stats.offline_count || 0 },
+    { key: 'Top College',    label: 'Top College',    count: stats.top_college_count || 0 },
+    { key: 'Internship',     label: 'Internships',    count: stats.internship_count || 0 },
+    { key: 'Hackathon',      label: 'Hackathons',     count: stats.hackathon_count || 0 },
+    { key: 'Unique Sources', label: 'Curated',        count: stats.unique_sources_count || 0 },
   ];
 
   return (
@@ -327,10 +358,10 @@ function App() {
         <div className={`navbar-links ${mobileMenuOpen ? 'mobile-open' : ''}`}>
           <a href="#about"  className={activeSection === 'about'  ? 'nav-active' : ''} onClick={e => { e.preventDefault(); scrollToSection('about'); }}>Features</a>
           <a href="#events" className={activeSection === 'events' ? 'nav-active' : ''} onClick={e => { e.preventDefault(); scrollToSection('events'); }}>Events</a>
-          <button className="btn-link" onClick={() => { setShowDashboard(true); setMobileMenuOpen(false); }}>📊 Dashboard</button>
+          <button className="btn-link" onClick={() => { setShowDashboard(true); setMobileMenuOpen(false); }}>Dashboard</button>
           <button className="btn-link" onClick={() => { setShowAboutModal(true); setMobileMenuOpen(false); }}>About</button>
           <button className={`btn-secondary ${userLocation ? 'active' : ''}`} onClick={() => { requestLocation(); setMobileMenuOpen(false); }} disabled={isLocating}>
-            {isLocating ? 'Locating…' : '📍 Near Me'}
+            {isLocating ? 'Locating…' : 'Near Me'}
           </button>
           <button className="btn-primary" id="refresh-btn" onClick={() => { fetchHackathons(); setMobileMenuOpen(false); }}>Refresh</button>
         </div>
@@ -348,19 +379,19 @@ function App() {
         <div className="hero-content">
           <div className="hero-badge">
             <span className="hero-badge-dot"></span>
-            Live · Auto-scraping 5 platforms
+            Live · 5 Integrated Platforms
           </div>
           <h1>
             Never miss a<br />
-            <span className="gradient-text">hackathon</span> again.
+            <span className="hero-highlight">hackathon</span> again.
           </h1>
           <p>
-            Automatically scraping Devfolio, Unstop, Devpost, HackerEarth &amp; Devnovate
-            to classify and deliver opportunities straight to you.
+            Real-time automated ingestion across Devfolio, Unstop, Devpost, HackerEarth, and Devnovate.
+            Smart classification, deadline tracking, and geo-distance ranking.
           </p>
           <div className="hero-cta-buttons">
             <button className="btn-primary" onClick={() => scrollToSection('events')}>Browse Events →</button>
-            <button className="btn-secondary" onClick={() => setShowDashboard(true)}>📊 Live Dashboard</button>
+            <button className="btn-secondary" onClick={() => setShowDashboard(true)}>View Dashboard</button>
           </div>
         </div>
 
@@ -405,24 +436,24 @@ function App() {
       {/* ── FEATURES ── */}
       <section className="about-section" id="about-section" ref={aboutRef}>
         <div className="section-header" style={{ textAlign: 'center', borderBottom: 'none' }}>
-          <h2>One platform for your entire opportunity stack.</h2>
-          <p>Agents that keep scraping 24/7 so you don't have to.</p>
+          <h2>Engineering-grade opportunity pipeline</h2>
+          <p>Continuous automated ingestion, deduplication, and classification.</p>
         </div>
         <div className="about-grid">
           <div className="about-card">
-            <div className="about-card-icon">🔍</div>
-            <h3>Auto-Discovery</h3>
-            <p>Scrapes 5 major platforms every few hours. No manual entry needed.</p>
+            <div className="about-card-icon"><DiscoveryIcon /></div>
+            <h3>Automated Ingestion</h3>
+            <p>Scrapes Devfolio, Unstop, Devpost, HackerEarth, and Devnovate continuously without manual curation.</p>
           </div>
           <div className="about-card">
-            <div className="about-card-icon">🏛</div>
+            <div className="about-card-icon"><LayersIcon /></div>
             <h3>Smart Classification</h3>
-            <p>Automatically identifies IIT, NIT, IIIT, BITS events and internships.</p>
+            <p>Heuristics detect premier engineering institutions (IIT, NIT, IIIT, BITS) and paid internship tracks.</p>
           </div>
           <div className="about-card">
-            <div className="about-card-icon">📍</div>
-            <h3>Location-Aware</h3>
-            <p>Uses your GPS to calculate distance to offline events. Sort by nearest.</p>
+            <div className="about-card-icon"><PinIcon /></div>
+            <h3>Geo-Distance Ranking</h3>
+            <p>Computes Haversine distance from your GPS coordinates to rank in-person hackathons by proximity.</p>
           </div>
         </div>
       </section>
@@ -471,7 +502,7 @@ function App() {
               <option value="deadline">Deadline (soonest)</option>
               <option value="newest">Recently Added</option>
               <option value="name">Name (A–Z)</option>
-              <option value="distance">📍 Nearest {!userLocation && '(grant location)'}</option>
+              <option value="distance">Nearest {!userLocation && '(grant location)'}</option>
             </select>
           </div>
         </div>
@@ -501,10 +532,10 @@ function App() {
         {!loading && !error && (upcomingTotal > 0 || missedTotal > 0) && (
           <div className="list-tabs">
             <button className={`list-tab ${activeTab === 'upcoming' ? 'active' : ''}`} onClick={() => handleTabChange('upcoming')}>
-              🚀 Upcoming<span className="tab-count">{upcomingTotal}</span>
+              Upcoming<span className="tab-count">{upcomingTotal}</span>
             </button>
             <button className={`list-tab ${activeTab === 'missed' ? 'active' : ''}`} onClick={() => handleTabChange('missed')}>
-              📁 Missed<span className="tab-count">{missedTotal}</span>
+              Past Events<span className="tab-count">{missedTotal}</span>
             </button>
           </div>
         )}
@@ -529,19 +560,19 @@ function App() {
           </>
         )}
         {!loading && !error && activeTab === 'upcoming' && upcomingTotal === 0 && (
-          <div className="empty-state"><span className="empty-icon">🔍</span><h3>No upcoming hackathons found</h3><p>Try adjusting your filters or wait for the next scrape cycle.</p></div>
+          <div className="empty-state"><div className="empty-icon"><EmptySearchIcon /></div><h3>No upcoming hackathons found</h3><p>Try adjusting your search query or filters.</p></div>
         )}
         {!loading && !error && activeTab === 'missed' && missedTotal === 0 && (
-          <div className="empty-state"><span className="empty-icon">🎉</span><h3>No missed hackathons!</h3><p>You're on top of it. Keep building.</p></div>
+          <div className="empty-state"><div className="empty-icon"><CheckCircleIcon /></div><h3>No missed hackathons!</h3><p>You are caught up on all deadlines. Keep building.</p></div>
         )}
       </section>
 
       {/* ── FOOTER ── */}
       <footer className="app-footer">
         <div className="footer-brand"><HLogo size={28} /><span>Hackathon Notifier</span></div>
-        <p className="footer-tagline">Never miss a submission deadline.</p>
+        <p className="footer-tagline">Real-time developer opportunity aggregator.</p>
         <div className="footer-links">
-          <button className="btn-link footer-about-btn" onClick={() => setShowAboutModal(true)}>Made by Pranav Deshmukh 👋</button>
+          <button className="btn-link footer-about-btn" onClick={() => setShowAboutModal(true)}>Built by Pranav Deshmukh · About &amp; Stack</button>
         </div>
       </footer>
     </div>
