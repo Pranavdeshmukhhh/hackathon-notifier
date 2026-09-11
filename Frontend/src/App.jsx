@@ -215,7 +215,7 @@ const RADAR_STEPS = [
     headline: 'Zero-Lag Telegram & Web Broadcast',
     desc: 'New hackathons are pushed to Telegram subscribers in under 10 seconds. You get direct registration links before team caps fill up, with zero marketing clutter.',
     chips: ['< 10s Latency', 'Direct Links', 'Zero Noise', 'Telegram Bot API'],
-    terminalLog: `[BROADCAST] Target: @hackathon_alert_notifier_bot\n[PUSH] Instant dispatch sent to active subscribers\n[TELEMETRY] Web dashboard live synced (32ms)\n[DISPATCH] Status: DELIVERED (Zero Spam)`
+    terminalLog: `[BROADCAST] Target: @Pranavhakathon_bot\n[PUSH] Instant dispatch sent to active subscribers\n[TELEMETRY] Web dashboard live synced (32ms)\n[DISPATCH] Status: DELIVERED (Zero Spam)`
   }
 ];
 
@@ -241,26 +241,38 @@ function App() {
   const [upcomingTotal, setUpcomingTotal]     = useState(0);
   const [missedTotal, setMissedTotal]         = useState(0);
   const [activeStage, setActiveStage]         = useState(0);
+  const [toast, setToast]                     = useState({ message: '', visible: false });
   const [stats, setStats] = useState({
     total: 0, unique_tags: 0, last_scraped: '', sources: [],
     top_college_count: 0, internship_count: 0, college_types: [],
     online_count: 0, offline_count: 0, unique_sources_count: 0, hackathon_count: 0
   });
 
+  const showToast = useCallback((msg) => {
+    setToast({ message: msg, visible: true });
+    setTimeout(() => {
+      setToast(prev => ({ ...prev, visible: false }));
+    }, 3200);
+  }, []);
+
   const handleQuickFilter = (type) => {
     if (type === 'prizes') {
       setSortBy('newest');
       setActiveCategory('All');
       setSearchQuery('');
+      showToast('⚡ Filter: Highest Cash Pools');
     } else if (type === 'college') {
       setSearchQuery('IIT');
       setActiveCategory('All');
+      showToast('🎓 Filter: Premier Colleges (IIT/NIT/BITS)');
     } else if (type === 'inperson') {
       setActiveCategory('Offline');
       setSearchQuery('');
+      showToast('📍 Filter: In-Person Hackathons Near You');
     } else if (type === 'online') {
       setActiveCategory('Online');
       setSearchQuery('');
+      showToast('🌐 Filter: 100% Online & Global Hackathons');
     }
     scrollToSection('events');
   };
@@ -514,7 +526,7 @@ function App() {
           </p>
           <div className="hero-cta-buttons">
             <a
-              href="https://t.me/hackathon_alert_notifier_bot"
+              href="https://t.me/Pranavhakathon_bot"
               target="_blank"
               rel="noopener noreferrer"
               className="btn-primary hero-bot-btn"
@@ -817,7 +829,11 @@ function App() {
               </div>
               <div className="card-grid">
                 {hackathons.map(h => (
-                  <HackathonCard key={h._id || h.link} hackathon={h} />
+                  <HackathonCard
+                    key={h._id || h.link}
+                    hackathon={h}
+                    onShare={(title) => showToast(`Copied link for ${title}`)}
+                  />
                 ))}
               </div>
               <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={handlePageChange} />
@@ -965,7 +981,7 @@ function App() {
               </div>
               <div className="telegram-card-actions">
                 <a
-                  href="https://t.me/hackathon_alert_notifier_bot"
+                  href="https://t.me/Pranavhakathon_bot"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="btn-primary telegram-join-btn"
@@ -973,7 +989,18 @@ function App() {
                   <TelegramIcon /> Subscribe to Telegram Alerts
                 </a>
                 <button
+                  type="button"
                   className="btn-secondary"
+                  onClick={() => {
+                    if (navigator.clipboard) navigator.clipboard.writeText('@Pranavhakathon_bot');
+                    showToast('Copied handle: @Pranavhakathon_bot');
+                  }}
+                  title="Copy bot handle"
+                >
+                  Copy Handle
+                </button>
+                <button
+                  className="btn-ghost"
                   onClick={() => setShowTechSpecModal(true)}
                 >
                   Architecture Spec
@@ -1006,7 +1033,7 @@ function App() {
 
       {/* ── FLOATING TELEGRAM CTA ── */}
       <a
-        href="https://t.me/hackathon_alert_notifier_bot"
+        href="https://t.me/Pranavhakathon_bot"
         target="_blank"
         rel="noopener noreferrer"
         className="floating-telegram-cta"
@@ -1017,6 +1044,14 @@ function App() {
         </div>
         <span className="floating-telegram-text">Get Instant Alerts</span>
       </a>
+
+      {/* ── INTERACTIVE TOAST NOTIFICATION ── */}
+      {toast.visible && (
+        <div className="telex-toast" role="status" aria-live="polite">
+          <span className="toast-dot"></span>
+          <span>{toast.message}</span>
+        </div>
+      )}
     </div>
   );
 }
