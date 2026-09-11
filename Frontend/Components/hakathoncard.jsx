@@ -25,6 +25,16 @@ const ExternalLinkIcon = () => (
   </svg>
 );
 
+const ShareIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="18" cy="5" r="3" />
+    <circle cx="6" cy="12" r="3" />
+    <circle cx="18" cy="19" r="3" />
+    <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
+    <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
+  </svg>
+);
+
 const MapPinIcon = () => (
   <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
@@ -106,7 +116,7 @@ function getSafeUrl(url) {
   return '#';
 }
 
-const HackathonCard = ({ hackathon }) => {
+const HackathonCard = ({ hackathon, onShare }) => {
   const isPast        = hackathon.is_past === true;
   const source        = hackathon.source || 'Unknown';
   const isTopCollege  = hackathon.is_top_college === true;
@@ -220,6 +230,21 @@ const HackathonCard = ({ hackathon }) => {
           >
             Register Now <ExternalLinkIcon />
           </a>
+          <button
+            type="button"
+            className="card-share-btn"
+            onClick={(e) => {
+              e.preventDefault();
+              if (safeLink !== '#' && navigator.clipboard) {
+                navigator.clipboard.writeText(safeLink);
+              }
+              onShare?.(hackathon.title);
+            }}
+            title="Copy registration link"
+            aria-label="Copy link"
+          >
+            <ShareIcon />
+          </button>
         </div>
       </div>
     </div>
