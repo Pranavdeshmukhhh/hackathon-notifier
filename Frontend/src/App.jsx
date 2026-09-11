@@ -87,6 +87,19 @@ const TelegramIcon = () => (
   </svg>
 );
 
+const GithubIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+    <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z" />
+  </svg>
+);
+
+const StarIcon = () => (
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
+    <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" />
+  </svg>
+);
+
+
 
 
 // ── Technical Architecture Modal ───────────────────────────────────────────
@@ -423,6 +436,14 @@ function App() {
 
   return (
     <div className="app-container">
+      {/* ── AMBIENT GLASSMORPHIC BLUR ORBS ── */}
+      <div className="ambient-blur-container" aria-hidden="true">
+        <div className="ambient-orb orb-1"></div>
+        <div className="ambient-orb orb-2"></div>
+        <div className="ambient-orb orb-3"></div>
+        <div className="ambient-grid-overlay"></div>
+      </div>
+
       {showTechSpecModal && <TechSpecModal onClose={() => setShowTechSpecModal(false)} />}
 
       {/* ── MOBILE BACKDROP OVERLAY ── */}
@@ -478,7 +499,7 @@ function App() {
             className={activeSection === 'about' ? 'nav-active' : ''}
             onClick={e => { e.preventDefault(); scrollToSection('about'); }}
           >
-            About
+            About &amp; Maker
           </a>
 
           <div className="nav-actions-group">
@@ -513,8 +534,9 @@ function App() {
       {/* ── HERO ── */}
       <section className="hero" id="hero-section" ref={homeRef}>
         <div className="hero-content">
-          <div className="ink-stamp">
-            Tracking 5 platforms right now
+          <div className="hero-creator-pill">
+            <span className="creator-pulse-dot"></span>
+            <span>Engineered by <strong>Pranav Deshmukh</strong> · 2nd Year ETC · 24/7 Radar</span>
           </div>
           <h1>
             Never miss another<br />
@@ -862,18 +884,93 @@ function App() {
         </div>
       </section>
 
-      {/* ── ABOUT HACKATHON NOTIFIER SECTION ── */}
+      {/* ── ABOUT & MAKER SECTION ── */}
       <section className="about-section" id="about-section" ref={aboutRef}>
         <div className="about-container">
           <div className="about-header">
-            <div className="ink-stamp" style={{ transform: 'rotate(0deg)', marginBottom: '0.8rem' }}>
-              Platform Radar · 24/7 Engine
+            <div className="section-badge">
+              Platform Creator · 24/7 Autonomous Ingestion Radar
             </div>
-            <h2 className="about-title">Built to catch every hackathon before it closes.</h2>
+            <h2 className="about-title">Built by a Student Builder, for Developers Everywhere.</h2>
             <p className="about-subtitle">
               High-value prize tracks, tier-1 campus competitions, and premier hiring hackathons are scattered across half a dozen platforms, with registration deadlines quietly passing by. 
               Hackathon Notifier runs an autonomous continuous ingestion radar so you never miss another opportunity.
             </p>
+          </div>
+
+          {/* ── AUTHENTIC MAKER SHOWCASE CARD ── */}
+          <div className="maker-glass-card">
+            <div className="maker-glass-glow"></div>
+            <div className="maker-main-row">
+              <div className="maker-avatar-wrap">
+                <div className="maker-avatar-ring"></div>
+                <div className="maker-avatar">PD</div>
+              </div>
+              <div className="maker-meta">
+                <div className="maker-badge-row">
+                  <span className="maker-badge maker-badge--cyan">Creator &amp; Systems Architect</span>
+                  <span className="maker-badge maker-badge--indigo">B.Tech 2nd Year ETC</span>
+                  <span className="maker-badge maker-badge--green">Live Ingestion 24/7</span>
+                </div>
+                <h3 className="maker-name">Pranav Deshmukh</h3>
+                <p className="maker-tagline">2nd Year ETC Engineering Student · Full-Stack &amp; Systems Builder</p>
+              </div>
+            </div>
+
+            <div className="maker-story-glass">
+              <p>
+                I engineered <strong>Hackathon Notifier</strong> as a 2nd year ETC engineering student to solve a problem every ambitious builder experiences firsthand:
+                valuable hackathons, six-figure prize pools, and premier internship opportunities are fragmented across Devfolio, Unstop, Devpost, HackerEarth, and college portals. By the time students hear about them, registration caps have filled or deadlines have quietly expired.
+              </p>
+              <p>
+                This platform is a production-grade autonomous daemon operating 24/7 in the cloud. It indexes opportunities across 5 ecosystems, extracts verified prizes and team caps, identifies premier tier-1 colleges (IIT, NIT, IIIT, BITS), computes spherical GPS proximity, and broadcasts instant alerts to Telegram in under 10 seconds.
+              </p>
+            </div>
+
+            <div className="maker-stats-strip">
+              <div className="maker-stat-box">
+                <span className="m-stat-val">5</span>
+                <span className="m-stat-lbl">Active Scrapers</span>
+              </div>
+              <div className="maker-stat-box">
+                <span className="m-stat-val">24/7</span>
+                <span className="m-stat-lbl">Autonomous Radar</span>
+              </div>
+              <div className="maker-stat-box">
+                <span className="m-stat-val">&lt; 10s</span>
+                <span className="m-stat-lbl">Push Broadcast</span>
+              </div>
+              <div className="maker-stat-box">
+                <span className="m-stat-val">100%</span>
+                <span className="m-stat-lbl">Free &amp; Open Source</span>
+              </div>
+            </div>
+
+            <div className="maker-actions-row">
+              <a
+                href="https://t.me/Pranavhakathon_bot"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="btn-primary maker-link-btn"
+              >
+                <TelegramIcon /> Telegram Alerts Bot
+              </a>
+              <a
+                href="https://github.com/Pranavdeshmukhhh/hackathon-notifier"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="btn-secondary maker-link-btn"
+              >
+                <StarIcon /> Star on GitHub <ExternalLinkIcon />
+              </a>
+              <button
+                type="button"
+                className="btn-ghost maker-link-btn"
+                onClick={() => setShowTechSpecModal(true)}
+              >
+                System Architecture Spec
+              </button>
+            </div>
           </div>
 
           {/* ── INTERACTIVE RADAR STAGES ── */}
@@ -1021,11 +1118,12 @@ function App() {
           <p className="footer-tagline">Autonomous developer opportunity ingestion &amp; notification platform.</p>
         </div>
         <div className="footer-bottom">
-          <span><strong>Hackathon Notifier</strong> · Autonomous Opportunity Intelligence</span>
+          <span>Crafted &amp; Engineered with pride by <strong>Pranav Deshmukh</strong> · 2nd Year ETC Student</span>
           <div className="footer-nav">
             <a href="#events" onClick={e => { e.preventDefault(); scrollToSection('events'); }}>Events</a>
             <a href="#dashboard" onClick={e => { e.preventDefault(); scrollToSection('dashboard'); }}>Pipeline</a>
-            <a href="#about" onClick={e => { e.preventDefault(); scrollToSection('about'); }}>About</a>
+            <a href="#about" onClick={e => { e.preventDefault(); scrollToSection('about'); }}>About &amp; Maker</a>
+            <a href="https://github.com/Pranavdeshmukhhh/hackathon-notifier" target="_blank" rel="noopener noreferrer">Source Code</a>
             <button className="footer-spec-link" onClick={() => setShowTechSpecModal(true)}>Architecture</button>
           </div>
         </div>
