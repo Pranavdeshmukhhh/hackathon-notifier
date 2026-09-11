@@ -18,10 +18,11 @@
   --border-card:    rgba(255, 255, 255, 0.07);
   --border-hover:   rgba(56, 189, 248, 0.45);
 
-  /* Text Hierarchy */
-  --text-primary:   #f8fafc;
-  --text-secondary: #94a3b8;
-  --text-muted:     #64748b;
+  /* Text Hierarchy — Ergonomically Tuned for Human Eyes (Anti-Halation) */
+  --text-primary:   #f1f5f9; /* Soft Slate White: eliminates ocular halo on dark backgrounds */
+  --text-body:      #cbd5e1; /* Soothing reading contrast */
+  --text-secondary: #94a3b8; /* Calming secondary info */
+  --text-muted:     #64748b; /* Subtle metadata */
 
   /* Accent Tones — Clean Electric Cyan & Indigo, NO GOLD/AMBER ACCENT */
   --accent:         #38bdf8;
@@ -77,8 +78,11 @@ body {
   background-image: var(--grad-hero);
   background-attachment: fixed;
   color: var(--text-primary);
-  line-height: 1.6;
+  line-height: 1.62;
+  letter-spacing: -0.011em;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
   min-height: 100vh;
   overflow-x: hidden;
   max-width: 100vw;
@@ -110,9 +114,9 @@ a {
 .ambient-orb {
   position: absolute;
   border-radius: 50%;
-  filter: blur(100px);
-  opacity: 0.55;
-  animation: orbFloat 20s ease-in-out infinite alternate;
+  filter: blur(120px);
+  opacity: 0.45;
+  animation: orbFloat 22s ease-in-out infinite alternate;
   will-change: transform;
 }
 .orb-1 {
@@ -120,25 +124,25 @@ a {
   height: 520px;
   top: -120px;
   left: 5%;
-  background: radial-gradient(circle, rgba(56, 189, 248, 0.24) 0%, rgba(99, 102, 241, 0.12) 60%, transparent 80%);
+  background: radial-gradient(circle, rgba(56, 189, 248, 0.22) 0%, rgba(99, 102, 241, 0.1) 60%, transparent 80%);
 }
 .orb-2 {
   width: 620px;
   height: 620px;
   top: 35%;
   right: -120px;
-  background: radial-gradient(circle, rgba(99, 102, 241, 0.22) 0%, rgba(168, 85, 247, 0.15) 60%, transparent 80%);
+  background: radial-gradient(circle, rgba(99, 102, 241, 0.2) 0%, rgba(168, 85, 247, 0.12) 60%, transparent 80%);
   animation-delay: -7s;
-  animation-duration: 24s;
+  animation-duration: 26s;
 }
 .orb-3 {
   width: 480px;
   height: 480px;
   bottom: -100px;
   left: 22%;
-  background: radial-gradient(circle, rgba(14, 165, 233, 0.18) 0%, rgba(16, 185, 129, 0.1) 60%, transparent 80%);
+  background: radial-gradient(circle, rgba(14, 165, 233, 0.16) 0%, rgba(16, 185, 129, 0.08) 60%, transparent 80%);
   animation-delay: -14s;
-  animation-duration: 22s;
+  animation-duration: 24s;
 }
 @keyframes orbFloat {
   0% { transform: translate(0, 0) scale(1); }
@@ -148,10 +152,10 @@ a {
 .ambient-grid-overlay {
   position: absolute;
   inset: 0;
-  background-image: radial-gradient(rgba(255, 255, 255, 0.045) 1px, transparent 1px);
+  background-image: radial-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 1px);
   background-size: 32px 32px;
   mask-image: radial-gradient(ellipse at 50% 50%, black 40%, transparent 92%);
-  opacity: 0.7;
+  opacity: 0.65;
 }
 
 /* Custom Scrollbars */
@@ -171,14 +175,14 @@ a {
 }
 
 /* ══════════════════════════════════════════════════════════════
-   BUTTON SYSTEM
+   BUTTON SYSTEM — Tactile Physics & Contour Ergonomics
    ══════════════════════════════════════════════════════════════ */
 button {
   font-family: inherit;
   cursor: pointer;
   border: none;
   outline: none;
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .btn-primary {
@@ -186,52 +190,54 @@ button {
   color: #07080e;
   font-weight: 700;
   font-size: 0.88rem;
-  padding: 10px 20px;
-  border-radius: 6px;
+  padding: 10px 22px;
+  border-radius: 8px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3), 0 0 20px rgba(56, 189, 248, 0.2);
+  box-shadow: 0 4px 16px -2px rgba(56, 189, 248, 0.3), 0 2px 5px rgba(0, 0, 0, 0.4);
 }
 .btn-primary:hover {
   background: #ffffff;
-  transform: translateY(-1px);
-  box-shadow: 0 6px 20px rgba(56, 189, 248, 0.35);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px -2px rgba(56, 189, 248, 0.45);
 }
 .btn-primary:active {
-  transform: scale(0.98);
+  transform: scale(0.975);
 }
 
 .btn-secondary {
   background: rgba(255, 255, 255, 0.05);
   color: var(--text-primary);
-  border: 1px solid var(--border);
-  font-weight: 500;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  font-weight: 600;
   font-size: 0.88rem;
-  padding: 10px 18px;
-  border-radius: 6px;
+  padding: 10px 20px;
+  border-radius: 8px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.08);
 }
 .btn-secondary:hover {
   background: rgba(255, 255, 255, 0.09);
-  border-color: rgba(255, 255, 255, 0.2);
-  transform: translateY(-1px);
+  border-color: rgba(56, 189, 248, 0.4);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.35);
 }
 .btn-secondary:active {
-  transform: scale(0.98);
+  transform: scale(0.975);
 }
 
 .btn-secondary.active {
   background: rgba(56, 189, 248, 0.18);
   border-color: var(--accent);
   color: #38bdf8;
-  box-shadow: 0 0 16px rgba(56, 189, 248, 0.2);
+  box-shadow: 0 0 18px rgba(56, 189, 248, 0.25);
 }
 
 .btn-ghost {
@@ -239,8 +245,8 @@ button {
   color: var(--text-secondary);
   font-weight: 500;
   font-size: 0.88rem;
-  padding: 10px 16px;
-  border-radius: 4px;
+  padding: 10px 18px;
+  border-radius: 8px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -249,7 +255,10 @@ button {
 }
 .btn-ghost:hover {
   color: var(--text-primary);
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(255, 255, 255, 0.06);
+}
+.btn-ghost:active {
+  transform: scale(0.975);
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -297,8 +306,8 @@ button {
   font-family: 'JetBrains Mono', monospace;
   font-size: 0.65rem;
   font-weight: 700;
-  padding: 2px 6px;
-  border-radius: 2px;
+  padding: 3px 8px;
+  border-radius: 6px;
   background: var(--accent-dim);
   color: var(--accent);
   border: 1px solid rgba(56, 189, 248, 0.3);
@@ -315,18 +324,19 @@ button {
   font-size: 0.875rem;
   font-weight: 500;
   color: var(--text-secondary);
-  transition: all 0.2s;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   padding: 7px 14px;
-  border-radius: 2px;
+  border-radius: 6px;
   white-space: nowrap;
 }
 .navbar-links a:hover {
   color: var(--text-primary);
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(255, 255, 255, 0.06);
 }
 .navbar-links a.nav-active {
   color: #ffffff;
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.09);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
 }
 
 .nav-actions-group {
@@ -339,13 +349,13 @@ button {
 .nav-loc-btn {
   padding: 7px 14px;
   font-size: 0.82rem;
-  border-radius: 2px;
+  border-radius: 6px;
 }
 
 .nav-refresh-btn {
   padding: 7px 16px;
   font-size: 0.82rem;
-  border-radius: 2px;
+  border-radius: 6px;
 }
 
 /* Mobile Hamburger Button */
@@ -353,7 +363,7 @@ button {
   display: none;
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid var(--border);
-  border-radius: 2px;
+  border-radius: 8px;
   padding: 8px;
   align-items: center;
   justify-content: center;
@@ -613,8 +623,8 @@ button {
   font-size: 0.72rem;
   color: var(--text-muted);
   background: rgba(255, 255, 255, 0.04);
-  padding: 2px 8px;
-  border-radius: 2px;
+  padding: 3px 10px;
+  border-radius: 6px;
   border: 1px solid var(--border);
 }
 
@@ -628,13 +638,13 @@ button {
 .hero-stat-box {
   background: rgba(255, 255, 255, 0.025);
   border: 1px solid var(--border);
-  border-radius: 2px;
-  padding: 1rem 1.1rem;
-  transition: transform 0.2s;
+  border-radius: 10px;
+  padding: 1.1rem 1.2rem;
+  transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1);
 }
 .hero-stat-box:hover {
   transform: translateY(-2px);
-  background: rgba(255, 255, 255, 0.04);
+  background: rgba(255, 255, 255, 0.045);
   border-bottom: 2px solid var(--accent);
 }
 
@@ -676,8 +686,8 @@ button {
 
 .source-pill {
   font-size: 0.7rem;
-  padding: 2px 8px;
-  border-radius: 2px;
+  padding: 3px 9px;
+  border-radius: 6px;
   background: rgba(255, 255, 255, 0.05);
   color: var(--text-secondary);
   border: 1px solid var(--border);
@@ -718,8 +728,8 @@ button {
   font-size: 0.95rem;
   font-weight: 600;
   color: var(--text-secondary);
-  padding: 6px 14px;
-  border-radius: 2px;
+  padding: 7px 16px;
+  border-radius: 8px;
   background: rgba(255, 255, 255, 0.02);
   border: 1px solid var(--border);
 }
@@ -748,8 +758,8 @@ button {
   display: inline-block;
   font-size: 0.75rem;
   font-weight: 600;
-  padding: 4px 12px;
-  border-radius: 4px;
+  padding: 4px 14px;
+  border-radius: 999px;
   background: var(--accent-dim);
   color: var(--accent);
   border: 1px solid rgba(56, 189, 248, 0.3);
@@ -785,7 +795,7 @@ button {
   backdrop-filter: blur(20px) saturate(180%);
   -webkit-backdrop-filter: blur(20px) saturate(180%);
   border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 10px;
+  border-radius: 14px;
   padding: 1.5rem;
   box-shadow: 0 8px 24px -4px rgba(0, 0, 0, 0.4), inset 0 1px 0 0 rgba(255, 255, 255, 0.1);
   display: flex;
@@ -816,8 +826,8 @@ button {
   font-size: 0.68rem;
   font-weight: 700;
   text-transform: uppercase;
-  padding: 2px 7px;
-  border-radius: 2px;
+  padding: 3px 8px;
+  border-radius: 6px;
 }
 .badge--green { background: var(--green-dim); color: var(--green); border: 1px solid rgba(16,185,129,0.3); }
 .badge--amber { background: var(--amber-dim); color: var(--amber); border: 1px solid rgba(245,158,11,0.3); }
@@ -906,7 +916,7 @@ button {
   backdrop-filter: blur(20px) saturate(180%);
   -webkit-backdrop-filter: blur(20px) saturate(180%);
   border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 10px;
+  border-radius: 14px;
   padding: 2rem;
   transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
   position: relative;
@@ -935,7 +945,7 @@ button {
 .feature-card-icon {
   width: 44px;
   height: 44px;
-  border-radius: 6px;
+  border-radius: 10px;
   background: var(--accent-dim);
   color: var(--accent);
   border: 1px solid rgba(56, 189, 248, 0.3);
@@ -1055,7 +1065,7 @@ button {
 }
 .sort-box select {
   padding: 11px 14px;
-  border-radius: 4px;
+  border-radius: 8px;
   border: 1px solid var(--input-border);
   background: var(--input-bg);
   color: var(--text-primary);
@@ -1095,24 +1105,26 @@ button {
   align-items: center;
   gap: 6px;
   padding: 7px 15px;
-  border-radius: 4px;
+  border-radius: 8px;
   border: 1px solid var(--border);
   background: rgba(255, 255, 255, 0.03);
   color: var(--text-secondary);
   font-size: 0.82rem;
   font-weight: 600;
-  transition: all 0.18s;
+  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
   flex-shrink: 0;
 }
 .category-tab:hover {
   border-color: var(--border-hover);
   color: var(--text-primary);
   background: rgba(255, 255, 255, 0.06);
+  transform: translateY(-1px);
 }
 .category-tab.active {
   background: var(--text-primary);
   color: #09090b;
   border-color: var(--text-primary);
+  box-shadow: 0 2px 10px rgba(255, 255, 255, 0.15);
 }
 .category-tab.active .tab-count {
   background: rgba(0, 0, 0, 0.15);
@@ -1122,8 +1134,8 @@ button {
 .tab-count {
   font-family: 'JetBrains Mono', monospace;
   font-size: 0.72rem;
-  padding: 1px 6px;
-  border-radius: 2px;
+  padding: 2px 7px;
+  border-radius: 6px;
   background: rgba(255, 255, 255, 0.08);
   color: var(--text-muted);
 }
@@ -1143,7 +1155,7 @@ button {
   display: inline-flex;
   background: rgba(255, 255, 255, 0.04);
   padding: 4px;
-  border-radius: 4px;
+  border-radius: 10px;
   border: 1px solid var(--border);
   gap: 4px;
 }
@@ -1153,12 +1165,12 @@ button {
   align-items: center;
   gap: 8px;
   padding: 8px 16px;
-  border-radius: 2px;
+  border-radius: 8px;
   font-size: 0.85rem;
   font-weight: 600;
   color: var(--text-secondary);
   background: transparent;
-  transition: all 0.18s;
+  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
 }
 .list-tab:hover {
   color: var(--text-primary);
@@ -1166,14 +1178,14 @@ button {
 .list-tab.active {
   background: var(--bg-card-hover);
   color: #ffffff;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
 }
 
 .tab-count-pill {
   font-family: 'JetBrains Mono', monospace;
   font-size: 0.72rem;
-  padding: 1px 7px;
-  border-radius: 2px;
+  padding: 2px 8px;
+  border-radius: 6px;
 }
 .count-green { background: var(--green-dim); color: var(--green); }
 .count-muted { background: rgba(255, 255, 255, 0.08); color: var(--text-muted); }
@@ -1250,8 +1262,8 @@ button {
 .source-badge {
   font-size: 0.68rem;
   font-weight: 700;
-  padding: 2px 8px;
-  border-radius: 2px;
+  padding: 3px 8px;
+  border-radius: 6px;
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
@@ -1266,8 +1278,8 @@ button {
 .status-badge {
   font-size: 0.68rem;
   font-weight: 700;
-  padding: 2px 8px;
-  border-radius: 2px;
+  padding: 3px 8px;
+  border-radius: 6px;
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
@@ -1282,8 +1294,8 @@ button {
   gap: 4px;
   font-size: 0.68rem;
   font-weight: 700;
-  padding: 2px 8px;
-  border-radius: 2px;
+  padding: 3px 8px;
+  border-radius: 6px;
   background: var(--amber-dim);
   color: var(--amber);
   border: 1px solid rgba(245,158,11,0.3);
@@ -1296,8 +1308,8 @@ button {
   gap: 4px;
   font-size: 0.68rem;
   font-weight: 700;
-  padding: 2px 8px;
-  border-radius: 2px;
+  padding: 3px 8px;
+  border-radius: 6px;
   background: var(--purple-dim);
   color: #d8b4fe;
   border: 1px solid rgba(168,85,247,0.3);
@@ -1321,11 +1333,11 @@ button {
   gap: 6px;
   font-size: 0.85rem;
   font-weight: 700;
-  color: #fbbf24;
-  background: rgba(245, 158, 11, 0.1);
+  color: #34d399;
+  background: rgba(16, 185, 129, 0.12);
   padding: 4px 10px;
-  border-radius: 2px;
-  border: 1px solid rgba(245, 158, 11, 0.2);
+  border-radius: 6px;
+  border: 1px solid rgba(16, 185, 129, 0.28);
   width: fit-content;
 }
 
@@ -1348,7 +1360,7 @@ button {
   gap: 6px;
   background: rgba(255, 255, 255, 0.02);
   border: 1px solid var(--border);
-  border-radius: 4px;
+  border-radius: 10px;
   padding: 10px 12px;
   margin-top: auto;
 }
@@ -1370,8 +1382,8 @@ button {
 
 .hack-card-tags span {
   font-size: 0.72rem;
-  padding: 2px 7px;
-  border-radius: 2px;
+  padding: 3px 8px;
+  border-radius: 6px;
   background: rgba(255, 255, 255, 0.04);
   color: var(--text-muted);
   border: 1px solid var(--border);
@@ -1396,27 +1408,27 @@ button {
   justify-content: center;
   gap: 8px;
   padding: 10px 16px;
-  border-radius: 6px;
+  border-radius: 8px;
   background: #ffffff;
   color: #07080e;
   font-size: 0.88rem;
   font-weight: 700;
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
 }
 .view-details-btn:hover {
   background: #ffffff;
-  transform: translateY(-1px);
-  box-shadow: 0 6px 18px rgba(56, 189, 248, 0.35);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(56, 189, 248, 0.35);
 }
 .view-details-btn:active {
-  transform: scale(0.98);
+  transform: scale(0.975);
 }
 
 .card-share-btn {
   width: 42px;
   height: 42px;
-  border-radius: 6px;
+  border-radius: 8px;
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid var(--border);
   color: var(--text-secondary);
@@ -1431,11 +1443,11 @@ button {
   background: rgba(56, 189, 248, 0.12);
   color: #38bdf8;
   border-color: rgba(56, 189, 248, 0.4);
-  transform: translateY(-1px);
-  box-shadow: 0 0 14px rgba(56, 189, 248, 0.2);
+  transform: translateY(-2px);
+  box-shadow: 0 0 14px rgba(56, 189, 248, 0.25);
 }
 .card-share-btn:active {
-  transform: scale(0.94);
+  transform: scale(0.95);
 }
 
 /* Pagination */
@@ -1450,24 +1462,26 @@ button {
 
 .pagination-btn {
   padding: 8px 14px;
-  border-radius: 4px;
+  border-radius: 8px;
   background: var(--bg-card);
   border: 1px solid var(--border);
   color: var(--text-secondary);
   font-size: 0.85rem;
   font-weight: 600;
-  transition: all 0.18s;
+  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
   cursor: pointer;
 }
 .pagination-btn:hover:not(:disabled) {
   background: rgba(255, 255, 255, 0.08);
   color: #ffffff;
   border-color: rgba(255, 255, 255, 0.2);
+  transform: translateY(-1px);
 }
 .pagination-btn.active {
   background: var(--accent);
   color: #07080e;
   border-color: var(--accent);
+  box-shadow: 0 0 12px rgba(56, 189, 248, 0.35);
 }
 .pagination-btn:disabled {
   opacity: 0.35;
@@ -1483,7 +1497,7 @@ button {
 .skeleton-card {
   background: var(--bg-card);
   border: 1px solid var(--border-card);
-  border-radius: 4px;
+  border-radius: 14px;
   overflow: hidden;
   height: 380px;
   display: flex;
@@ -1507,12 +1521,12 @@ button {
   background: linear-gradient(90deg, #18181e 25%, #252530 50%, #18181e 75%);
   background-size: 200% 100%;
   animation: shimmer 1.8s infinite;
-  border-radius: 2px;
+  border-radius: 6px;
 }
 
 .skeleton-title  { height: 28px; width: 85%; }
 .skeleton-line   { height: 16px; }
-.skeleton-footer { height: 42px; width: 100%; margin-top: auto; border-radius: 4px; }
+.skeleton-footer { height: 42px; width: 100%; margin-top: auto; border-radius: 8px; }
 .w-40 { width: 40%; }
 .w-60 { width: 60%; }
 
@@ -1527,7 +1541,7 @@ button {
   padding: 4rem 2rem;
   background: var(--bg-card);
   border: 1px solid var(--border);
-  border-radius: 4px;
+  border-radius: 14px;
   max-width: 540px;
   margin: 2rem auto;
 }
@@ -1734,7 +1748,7 @@ button {
 .maker-story-glass {
   background: rgba(255, 255, 255, 0.025);
   border: 1px solid rgba(255, 255, 255, 0.06);
-  border-radius: 8px;
+  border-radius: 10px;
   padding: 1.35rem 1.6rem;
   margin-bottom: 1.6rem;
   display: flex;
@@ -1760,13 +1774,13 @@ button {
   background: rgba(255, 255, 255, 0.035);
   border: 1px solid rgba(255, 255, 255, 0.08);
   backdrop-filter: blur(12px);
-  border-radius: 8px;
+  border-radius: 10px;
   padding: 1rem;
   display: flex;
   flex-direction: column;
   gap: 2px;
   text-align: center;
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
 }
 .maker-stat-box:hover {
   background: rgba(255, 255, 255, 0.06);
@@ -1799,7 +1813,7 @@ button {
 .maker-link-btn {
   font-size: 0.86rem;
   padding: 9px 18px;
-  border-radius: 6px;
+  border-radius: 8px;
 }
 
 /* ── Interactive Radar Card ── */
@@ -1808,7 +1822,7 @@ button {
   backdrop-filter: blur(24px) saturate(200%);
   -webkit-backdrop-filter: blur(24px) saturate(200%);
   border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 12px;
+  border-radius: 16px;
   padding: 2.2rem;
   box-shadow: 0 20px 50px -10px rgba(0, 0, 0, 0.7), 0 0 35px rgba(56, 189, 248, 0.1), inset 0 1px 0 0 rgba(255, 255, 255, 0.18);
   position: relative;
@@ -1858,7 +1872,7 @@ button {
   color: var(--accent);
   background: var(--accent-dim);
   padding: 3px 10px;
-  border-radius: 4px;
+  border-radius: 6px;
   border: 1px solid rgba(56, 189, 248, 0.3);
 }
 
@@ -1872,7 +1886,7 @@ button {
 .radar-tab-btn {
   background: rgba(255, 255, 255, 0.03);
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: 8px;
   padding: 12px 14px;
   display: flex;
   flex-direction: column;
@@ -1956,7 +1970,7 @@ button {
   padding: 3px 9px;
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid var(--border);
-  border-radius: 4px;
+  border-radius: 6px;
   color: var(--text-secondary);
   transition: all 0.18s ease;
 }
@@ -1971,7 +1985,7 @@ button {
 .radar-visual-terminal {
   background: #060810;
   border: 1px solid var(--border-strong);
-  border-radius: 8px;
+  border-radius: 12px;
   overflow: hidden;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
   transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
@@ -2035,7 +2049,7 @@ button {
   backdrop-filter: blur(20px) saturate(180%);
   -webkit-backdrop-filter: blur(20px) saturate(180%);
   border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 12px;
+  border-radius: 16px;
   padding: 2.2rem;
   display: flex;
   flex-direction: column;
@@ -2058,8 +2072,8 @@ button {
   color: var(--accent);
   background: var(--accent-dim);
   border: 1px solid rgba(56, 189, 248, 0.3);
-  padding: 2px 8px;
-  border-radius: 4px;
+  padding: 3px 8px;
+  border-radius: 6px;
   width: fit-content;
   margin-bottom: 0.75rem;
 }
@@ -2089,7 +2103,7 @@ button {
   border: 1px solid var(--border);
   color: var(--text-primary);
   padding: 10px 14px;
-  border-radius: 4px;
+  border-radius: 8px;
   font-size: 0.82rem;
   font-weight: 600;
   text-align: left;
@@ -2293,7 +2307,7 @@ button {
   font-size: 0.72rem;
   font-weight: 700;
   padding: 3px 9px;
-  border-radius: 2px;
+  border-radius: 6px;
   text-transform: uppercase;
 }
 .modal-badge--green  { background: var(--green-dim); color: var(--green); border: 1px solid rgba(16,185,129,0.3); }
@@ -2326,7 +2340,7 @@ button {
 .modal-tech-item {
   background: rgba(255, 255, 255, 0.03);
   border: 1px solid var(--border);
-  border-radius: 2px;
+  border-radius: 8px;
   padding: 8px 12px;
   font-size: 0.82rem;
   display: flex;
@@ -2351,7 +2365,7 @@ button {
 .about-chips span {
   font-size: 0.75rem;
   padding: 4px 10px;
-  border-radius: 2px;
+  border-radius: 6px;
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid var(--border);
   color: var(--text-secondary);
@@ -2538,7 +2552,7 @@ button {
 
   .hero-stats-panel {
     padding: 1.4rem 1.15rem;
-    border-radius: 4px;
+    border-radius: 12px;
   }
 
   .hero-stats-grid {
@@ -2556,7 +2570,8 @@ button {
   }
   .logo-item {
     font-size: 0.8rem;
-    padding: 5px 10px;
+    padding: 6px 12px;
+    border-radius: 6px;
   }
 
   .dashboard-section {
@@ -2598,6 +2613,7 @@ button {
     justify-content: center;
     padding: 10px 8px;
     font-size: 0.8rem;
+    border-radius: 6px;
   }
 
   .card-grid {
@@ -2607,7 +2623,7 @@ button {
 
   .maker-card {
     padding: 1.75rem 1.25rem;
-    border-radius: 4px;
+    border-radius: 12px;
   }
   .maker-header {
     flex-direction: column;
@@ -2660,29 +2676,29 @@ button {
   position: fixed;
   bottom: 2rem;
   right: 2rem;
-  background: #3b82f6; /* Telegram Blue */
+  background: linear-gradient(135deg, #0284c7 0%, #2563eb 100%);
   color: white;
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 12px 20px 12px 16px;
+  padding: 12px 22px 12px 16px;
   border-radius: 999px;
-  box-shadow: 0 4px 20px rgba(59, 130, 246, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.1) inset;
+  box-shadow: 0 6px 24px -2px rgba(2, 132, 199, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.25);
   z-index: 9999;
   text-decoration: none;
-  font-weight: 600;
+  font-weight: 700;
   font-size: 0.95rem;
-  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .floating-telegram-cta:hover {
-  transform: translateY(-4px) scale(1.02);
-  background: #2563eb;
-  box-shadow: 0 8px 30px rgba(59, 130, 246, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.2) inset;
+  transform: translateY(-3px) scale(1.02);
+  background: linear-gradient(135deg, #0369a1 0%, #1d4ed8 100%);
+  box-shadow: 0 10px 30px -4px rgba(2, 132, 199, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.35);
 }
 
 .floating-telegram-cta:active {
-  transform: translateY(0) scale(0.98);
+  transform: translateY(0) scale(0.975);
 }
 
 .floating-telegram-icon {
@@ -2702,7 +2718,7 @@ button {
   .floating-telegram-cta {
     bottom: 1.5rem;
     right: 1.5rem;
-    padding: 10px 16px 10px 12px;
+    padding: 10px 18px 10px 14px;
     font-size: 0.9rem;
   }
 }
@@ -2716,7 +2732,7 @@ button {
   backdrop-filter: blur(24px) saturate(200%);
   -webkit-backdrop-filter: blur(24px) saturate(200%);
   border: 1px solid rgba(56, 189, 248, 0.4);
-  border-radius: 8px;
+  border-radius: 10px;
   padding: 11px 18px;
   display: flex;
   align-items: center;
