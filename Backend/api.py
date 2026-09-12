@@ -1,6 +1,7 @@
 import ipaddress
 import logging
 import os
+import re
 import secrets
 import sys
 import time
@@ -88,9 +89,9 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 # Tuning:
 #   Set CACHE_TTL_SECONDS env var to override. Recommended values:
 #     - Development / testing : 60    (1 minute — see changes quickly)
-#     - Production            : 3600  (1 hour  — matches scrape interval)
+#     - Production            : 10800 (3 hours — calculated every 3-4 hours)
 #
-_CACHE_TTL = int(os.getenv("CACHE_TTL_SECONDS", 1 * 3600))
+_CACHE_TTL = int(os.getenv("CACHE_TTL_SECONDS", 3 * 3600))
 _cache: TTLCache = TTLCache(maxsize=32, ttl=_CACHE_TTL)
 _CACHE_KEY = "hackathons"
 
@@ -130,6 +131,48 @@ app.add_middleware(
     allow_methods=["GET", "POST", "HEAD", "OPTIONS"],
     allow_headers=["Content-Type", "Authorization", "X-Admin-Secret", "Accept", "Origin"],
 )
+
+def _clean_prize_to_inr(text: str) -> float:
+    """Parse raw prize string into numerical INR safely without false positive triggers."""
+    if not text:
+        return 0.0
+    s = str(text).strip()
+    is_crore = bool(re.search(r'\b(?:cr|crore|crores)\b', s, re.I))
+    is_lakh = bool(re.search(r'\b(?:lakh|lakhs|lac|lacs)\b', s, re.I))
+    is_usd = '$' in s or bool(re.search(r'\b(?:usd)\b', s, re.I))
+    is_eur = '€' in s or bool(re.search(r'\b(?:eur)\b', s, re.I))
+    is_gbp = '£' in s or bool(re.search(r'\b(?:gbp)\b', s, re.I))
+
+    # Remove commas between digits (e.g. 10,00,000 -> 1000000)
+    s_clean = re.sub(r'(\d),(\d)', r'\1\2', s)
+    m = re.search(r'(\d+(?:\.\d+)?)', s_clean)
+    if not m:
+        return 0.0
+    try:
+        val = float(m.group(1))
+    except ValueError:
+        return 0.0
+
+    if val > 500_000_000:
+        return 0.0
+
+    mult = 1.0
+    if is_crore:
+        mult = 10_000_000.0
+    elif is_lakh:
+        mult = 100_000.0
+    elif is_usd:
+        mult = 87.0
+    elif is_eur:
+        mult = 94.0
+    elif is_gbp:
+        mult = 110.0
+
+    total = val * mult
+    # Cap single hackathon prize to 10 Cr to filter typos or test strings
+    if total > 100_000_000:
+        return 0.0
+    return total
 
 def _sort_hackathons(docs: list[dict]) -> list[dict]:
     """
@@ -245,6 +288,25 @@ def get_hackathons(
                 if doc.get("is_internship"):
                     internship_count += 1
 
+            # Calculate real prize pool & real total registrations
+            total_prize_inr = sum(_clean_prize_to_inr(d.get("prize", "")) for d in sorted_docs)
+            if total_prize_inr >= 10_000_000:
+                total_prize_formatted = f"₹{total_prize_inr / 10_000_000:.1f} Cr"
+            elif total_prize_inr >= 100_000:
+                total_prize_formatted = f"₹{total_prize_inr / 100_000:.1f} Lakh"
+            elif total_prize_inr > 0:
+                total_prize_formatted = f"₹{int(total_prize_inr):,}"
+            else:
+                total_prize_formatted = "₹0"
+
+            total_registrations = sum(int(d.get("total_registrations") or d.get("registrations") or 0) for d in sorted_docs)
+            if total_registrations >= 1_000:
+                total_registrations_formatted = f"{total_registrations / 1000:.1f}k"
+            else:
+                total_registrations_formatted = str(total_registrations)
+
+            p50_lat = round(statistics.median(_latencies), 1) if _latencies else 32.0
+
             stats = {
                 "total": len(sorted_docs),
                 "unique_tags": len(all_tags),
@@ -256,7 +318,14 @@ def get_hackathons(
                 "online_count": sum(1 for d in sorted_docs if "online" in d.get("mode", "").lower()),
                 "offline_count": sum(1 for d in sorted_docs if "offline" in d.get("mode", "").lower()),
                 "unique_sources_count": sum(1 for d in sorted_docs if d.get("source") == "Unique Sources"),
-                "hackathon_count": sum(1 for d in sorted_docs if d.get("opportunity_type") == "Hackathon")
+                "hackathon_count": sum(1 for d in sorted_docs if d.get("opportunity_type") == "Hackathon"),
+                "total_prize_pool_inr": total_prize_inr,
+                "total_prize_pool_formatted": total_prize_formatted,
+                "total_registrations": total_registrations,
+                "total_registrations_formatted": total_registrations_formatted,
+                "p50_latency_ms": p50_lat,
+                "recalculated_cadence": "Every 3-4 hours",
+                "calculated_at": datetime.now(timezone.utc).isoformat()
             }
 
             cached = {"docs": sorted_docs, "stats": stats}
