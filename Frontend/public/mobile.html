@@ -1,0 +1,1075 @@
+<!DOCTYPE html>
+<html class="dark" lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport"/>
+  <title>Hackathon Notifier - Mobile Dual Mode Prototype</title>
+  <!-- Tailwind CSS v3 CDN with plugins -->
+  <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+  <!-- Tailwind Configuration -->
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            theme: {
+              lightBg: '#FAF9FE',
+              darkBg: '#07070A',
+              cardDark: '#13141F',
+              accentLight: '#007AFF',
+              accentDark: '#0A84FF',
+              successLight: '#34C759',
+              successDark: '#30D158'
+            }
+          },
+          fontFamily: {
+            sans: ['-apple-system', 'BlinkMacSystemFont', '"SF Pro Display"', '"SF Pro Text"', 'Inter', 'system-ui', 'sans-serif']
+          }
+        }
+      }
+    }
+  </script>
+  <style data-purpose="custom-scrollbars-and-blur">
+    /* Hide scrollbar for horizontal scrollable pills */
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+    
+    /* Native smooth tap behavior */
+    * {
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    /* Seamless color transitions */
+    .theme-transition, 
+    .theme-transition * {
+      transition-property: color, background-color, border-color, text-decoration-color, fill, stroke, box-shadow;
+      transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+      transition-duration: 200ms;
+    }
+
+    /* Bottom Sheet Animation */
+    .sheet-backdrop {
+      background: rgba(0, 0, 0, 0.65);
+      backdrop-filter: blur(8px);
+    }
+    .sheet-enter {
+      transform: translateY(100%);
+      transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .sheet-enter-active {
+      transform: translateY(0);
+    }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 flex flex-col items-center min-h-screen p-0 sm:py-6 selection:bg-blue-600 selection:text-white antialiased">
+
+  <!-- BEGIN: ModeSwitcherTopBar -->
+  <!-- Floating Segmented Control to switch entire UI between Normal Light & OLED Dark Mode -->
+  <aside class="sticky top-2 z-50 px-3 py-1.5 rounded-full bg-black/80 backdrop-blur-xl border border-white/10 shadow-2xl flex items-center gap-2 mb-3 text-xs font-medium">
+    <span class="text-[11px] text-slate-400 px-2 tracking-wide font-mono uppercase">Display Mode</span>
+    <div class="flex bg-white/10 p-0.5 rounded-full" data-purpose="mode-segmented-control">
+      <button class="px-3 py-1 rounded-full text-slate-300 hover:text-white transition-all duration-200 text-xs flex items-center gap-1.5" data-purpose="theme-toggle-light" id="btnLightMode" onclick="setTheme('light')">
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+        <span>Normal Light</span>
+      </button>
+      <button class="px-3 py-1 rounded-full bg-blue-600 text-white font-semibold shadow-sm transition-all duration-200 text-xs flex items-center gap-1.5" data-purpose="theme-toggle-dark" id="btnDarkMode" onclick="setTheme('dark')">
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+        <span>OLED Dark</span>
+      </button>
+    </div>
+  </aside>
+  <!-- END: ModeSwitcherTopBar -->
+
+  <!-- BEGIN: MobileContainer -->
+  <!-- Standalone 390px Native Canvas Simulator -->
+  <div class="w-full max-w-[400px] min-h-screen sm:min-h-[844px] sm:rounded-[44px] sm:border-[8px] sm:border-slate-800/80 bg-[#07070A] text-slate-100 relative overflow-hidden transition-colors duration-300 shadow-2xl pb-12 theme-transition" id="phoneContainer">
+    
+    <!-- BEGIN: StatusStatusBar -->
+    <!-- Top Notch & Status Area -->
+    <header class="pt-3 px-6 pb-2 flex justify-between items-center text-xs tracking-tight select-none">
+      <span class="font-semibold text-[13px] text-slate-100 transition-colors" id="statusBarClock">9:41</span>
+      <div class="flex items-center gap-1.5 opacity-90">
+        <!-- Cellular Signal -->
+        <svg class="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24"><path d="M12 3c-4.97 0-9 4.03-9 9 0 2.12.74 4.07 1.97 5.61L12 22l7.03-4.39C20.26 16.07 21 14.12 21 12c0-4.97-4.03-9-9-9zm0 15c-3.31 0-6-2.69-6-6s2.69-6 6-6 6 2.69 6 6-2.69 6-6 6z" fill="none"></path><circle cx="12" cy="12" r="3"></circle><path d="M2 17h20v2H2z" fill="none"></path></svg>
+        <span class="text-[10px] font-mono tracking-tighter">5G</span>
+        <!-- Battery Icon -->
+        <div class="w-5 h-2.5 border border-current rounded-sm p-0.5 flex items-center">
+          <div class="h-full w-3/4 bg-current rounded-2xs"></div>
+        </div>
+      </div>
+    </header>
+    <!-- END: StatusStatusBar -->
+
+    <!-- BEGIN: AppNavigationHeader -->
+    <nav class="px-4 py-2 flex items-center justify-between border-b border-white/5 transition-colors" id="navBorder">
+      <div class="flex items-center gap-2">
+        <div class="w-8 h-8 rounded-xl bg-blue-600 flex items-center justify-center text-white font-bold shadow-md shadow-blue-500/20 text-sm">
+          ⚡
+        </div>
+        <div>
+          <div class="flex items-center gap-1.5">
+            <h1 class="font-semibold text-sm tracking-tight leading-none text-slate-100" id="navTitle">Hackathon Notifier</h1>
+          </div>
+          <span class="inline-flex items-center gap-1 text-[10px] font-medium text-emerald-500 mt-0.5">
+            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+            Live Stream v4.2
+          </span>
+        </div>
+      </div>
+      <!-- Quick Action Buttons -->
+      <div class="flex items-center gap-1.5">
+        <button class="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-slate-300 hover:text-white active:scale-95 transition" id="searchBtn" title="Search" onclick="toggleSearchInput()">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+        </button>
+        <button class="px-2.5 py-1 rounded-full bg-blue-600 hover:bg-blue-500 text-[11px] font-semibold text-white tracking-tight flex items-center gap-1 active:scale-95 transition shadow-sm" id="syncBtn" onclick="triggerSyncNotification()">
+          <svg class="w-3 h-3 animate-spin hidden" id="syncSpinner" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+          <svg class="w-3 h-3" id="syncIcon" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.8 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"></path></svg>
+          <span id="syncText">Sync</span>
+        </button>
+      </div>
+    </nav>
+    <!-- END: AppNavigationHeader -->
+
+    <!-- Search Input Bar (Expandable) -->
+    <div class="px-4 pt-2 hidden" id="searchBarContainer">
+      <div class="relative flex items-center">
+        <input type="text" id="liveSearchInput" oninput="filterHackathonsLive(this.value)" placeholder="Search Flipkart, IIT, Robotics, cash pool..." class="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-1.5 pl-8 text-xs text-white placeholder-slate-400 focus:outline-none focus:border-blue-500 transition"/>
+        <svg class="w-3.5 h-3.5 text-slate-400 absolute left-2.5 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+      </div>
+    </div>
+
+    <main class="px-4 pt-3 pb-8 space-y-4">
+      <!-- BEGIN: HeroSection -->
+      <section class="space-y-3" data-purpose="hero-overview">
+        <!-- Native Standard Tag -->
+        <div class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-[10px] font-medium text-emerald-400" id="heroBadge">
+          <span class="w-1 h-1 rounded-full bg-emerald-400"></span>
+          ZERO AMBER GUARANTEE • NATIVE APNs
+        </div>
+        <h2 class="text-xl font-bold tracking-tight leading-tight text-slate-100" id="heroTitle">
+          Stop missing hackathons while arguing in the canteen.
+        </h2>
+        <p class="text-xs text-slate-400 leading-relaxed" id="heroDesc">
+          Continuously scanning <span class="text-blue-500 dark:text-blue-400 font-semibold">450+ verified student hackathons</span> across top IITs, NITs, and global hubs. Rigorously vetted for ₹50k+ cash pools and genuine On-Duty (OD) approval letters.
+        </p>
+        <!-- CTA Action Buttons -->
+        <div class="flex gap-2 pt-1">
+          <a class="flex-1 bg-blue-600 hover:bg-blue-500 text-white font-semibold py-2.5 px-4 rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-md shadow-blue-500/25 transition active:scale-[0.98]" href="#radar">
+            <span>Explore 450+ Hacks</span>
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M14 5l7 7m0 0l-7 7m7-7H3" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+          </a>
+          <a class="px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-xs text-slate-300 font-medium flex items-center justify-center gap-1 active:scale-[0.98] transition hover:bg-white/10" id="heroTelegramBtn" href="https://t.me/Pranavhakathon_bot" target="_blank" rel="noopener noreferrer">
+            <svg class="w-4 h-4 text-blue-500 dark:text-blue-400" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69a.2.2 0 00-.05-.18c-.06-.05-.14-.03-.21-.02-.09.02-1.49.95-4.22 2.79-.4.27-.76.41-1.08.4-.36-.01-1.04-.2-1.55-.37-.63-.2-1.12-.31-1.08-.66.02-.18.27-.36.75-.55 2.95-1.28 4.91-2.13 5.89-2.55 2.8-.1.2 3.38 1.48 3.58 1.95.02.06.02.13.01.19z"></path></svg>
+            <span>Telegram</span>
+          </a>
+        </div>
+        <!-- Metric Badges Row -->
+        <div class="grid grid-cols-3 gap-2 pt-1" id="metricsRow">
+          <div class="p-2 rounded-xl bg-white/[0.03] border border-white/5 text-center metric-box">
+            <span class="block text-sm font-bold text-white tracking-tight leading-none metric-value">₹4.2 Cr</span>
+            <span class="text-[9px] text-slate-400 uppercase tracking-wider mt-1 block metric-label">Verified Prizes</span>
+          </div>
+          <div class="p-2 rounded-xl bg-white/[0.03] border border-white/5 text-center metric-box">
+            <span class="block text-sm font-bold text-emerald-400 tracking-tight leading-none">100% OD</span>
+            <span class="text-[9px] text-slate-400 uppercase tracking-wider mt-1 block metric-label">HOD Approved</span>
+          </div>
+          <div class="p-2 rounded-xl bg-white/[0.03] border border-white/5 text-center metric-box">
+            <span class="block text-sm font-bold text-blue-400 tracking-tight leading-none">38ms</span>
+            <span class="text-[9px] text-slate-400 uppercase tracking-wider mt-1 block metric-label">Push Latency</span>
+          </div>
+        </div>
+      </section>
+      <!-- END: HeroSection -->
+
+      <!-- BEGIN: SpotlightLiveActivity -->
+      <!-- Dynamic Notification Banner Style Widget -->
+      <section class="p-3 rounded-2xl bg-[#13141F] border border-white/10 shadow-lg backdrop-blur-md relative overflow-hidden app-card" id="spotlightCard">
+        <div class="flex items-center justify-between pb-2 border-b border-white/5 divider-subtle">
+          <div class="flex items-center gap-2">
+            <div class="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></div>
+            <span class="text-[11px] font-semibold tracking-tight uppercase text-white card-header-text">Spotlight Live Activity</span>
+          </div>
+          <span class="text-[9px] font-mono px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-400 border border-blue-500/30">BROADCASTING</span>
+        </div>
+        <!-- Notification Banner Body -->
+        <div class="mt-2.5 flex gap-3 items-start">
+          <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-700 to-indigo-600 flex-shrink-0 flex items-center justify-center text-base font-bold shadow-md text-white">
+            🚀
+          </div>
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center justify-between">
+              <span class="text-[10px] font-mono text-emerald-400">NEW DROP • 4M AGO</span>
+              <span class="text-[9px] text-slate-400 stat-subtle">Tier-1 Verified</span>
+            </div>
+            <h3 class="text-xs font-bold text-white truncate mt-0.5 card-strong-title">Flipkart GRiD 6.0: AI &amp; Robotics</h3>
+            <p class="text-[11px] text-slate-300 line-clamp-1 mt-0.5 card-body-text">₹5,25,000 Cash Pool + Direct Finalist PPI for 32 LPA role.</p>
+          </div>
+        </div>
+        <!-- Quick Mini Action & Toggles -->
+        <div class="mt-3 pt-2.5 border-t border-white/5 divider-subtle flex items-center justify-between text-xs">
+          <div class="flex items-center gap-3">
+            <div>
+              <span class="text-[10px] text-slate-400 stat-subtle block leading-tight">Active Students</span>
+              <span class="text-xs font-semibold text-white card-strong-title">14,289</span>
+            </div>
+            <div class="h-4 w-px bg-white/10 divider-subtle"></div>
+            <div>
+              <span class="text-[10px] text-emerald-400 block leading-tight">OD Dispatched</span>
+              <span class="text-xs font-semibold text-emerald-400">3,492 Approved</span>
+            </div>
+          </div>
+          <button onclick="openApplySheet('Flipkart GRiD 6.0: Robotics & AI', '₹5,25,000 INR', '32 LPA PPIs', 'Bangalore Final')" class="px-3 py-1 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-semibold tracking-tight shadow active:scale-95 transition">
+            Join
+          </button>
+        </div>
+      </section>
+      <!-- END: SpotlightLiveActivity -->
+
+      <!-- BEGIN: RadarFilterTabs -->
+      <!-- Swipeable Horizontal Segmented Filters -->
+      <section class="space-y-2.5" id="radar">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-1.5">
+            <div class="w-2 h-2 rounded-full bg-blue-500"></div>
+            <h3 class="text-xs font-semibold uppercase tracking-wider text-slate-300 section-title">Live Hackathon Radar</h3>
+          </div>
+          <span class="text-[10px] text-emerald-400 font-mono flex items-center gap-1">
+            <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path clip-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" fill-rule="evenodd"></path></svg>
+            Zero scam portals
+          </span>
+        </div>
+        <div class="flex gap-1.5 overflow-x-auto no-scrollbar py-1" id="filterChips">
+          <button onclick="selectFilter(this, 'all')" class="px-3 py-1 rounded-full text-xs font-medium bg-blue-600 text-white whitespace-nowrap shadow-sm filter-pill active-pill">All Hacks (450)</button>
+          <button onclick="selectFilter(this, 'cash')" class="px-3 py-1 rounded-full text-xs font-medium bg-white/5 text-slate-300 hover:bg-white/10 whitespace-nowrap border border-white/5 filter-chip filter-pill">Cash &gt; ₹1L</button>
+          <button onclick="selectFilter(this, 'premier')" class="px-3 py-1 rounded-full text-xs font-medium bg-white/5 text-slate-300 hover:bg-white/10 whitespace-nowrap border border-white/5 filter-chip filter-pill">Premier IIT/NIT</button>
+          <button onclick="selectFilter(this, 'food')" class="px-3 py-1 rounded-full text-xs font-medium bg-white/5 text-slate-300 hover:bg-white/10 whitespace-nowrap border border-white/5 filter-chip filter-pill">Free Food &amp; Stay</button>
+          <button onclick="selectFilter(this, 'ppi')" class="px-3 py-1 rounded-full text-xs font-medium bg-white/5 text-slate-300 hover:bg-white/10 whitespace-nowrap border border-white/5 filter-chip filter-pill">Direct PPIs</button>
+        </div>
+      </section>
+      <!-- END: RadarFilterTabs -->
+
+      <!-- BEGIN: HackathonCardsList -->
+      <section class="space-y-3" data-purpose="radar-cards" id="hackathonListContainer">
+        <!-- Card 1: Flipkart GRiD -->
+        <article class="p-3.5 rounded-2xl bg-[#13141F] border border-white/10 shadow-sm relative space-y-2.5 app-card hack-card" data-tags="cash premier ppi" data-title="Flipkart GRiD 6.0: Robotics & AI">
+          <div class="flex items-center justify-between">
+            <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-blue-500/10 text-blue-400 border border-blue-500/20 badge-blue">
+              Tier-1 Flagship
+            </span>
+            <span class="text-[11px] text-slate-400 stat-subtle flex items-center gap-1">
+              <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+              12 Days Left
+            </span>
+          </div>
+          <div>
+            <h4 class="text-sm font-bold text-white card-strong-title">Flipkart GRiD 6.0: Robotics &amp; AI</h4>
+            <p class="text-[11px] text-slate-400 stat-subtle">National Virtual Prelims • Bangalore Final</p>
+          </div>
+          <div class="grid grid-cols-2 gap-2 p-2 rounded-xl bg-black/30 border border-white/5 text-[11px] card-inner-box">
+            <div>
+              <span class="text-slate-400 stat-subtle block text-[10px]">Cash Pool</span>
+              <span class="font-bold text-white card-strong-title tracking-tight">₹5,25,000 INR</span>
+            </div>
+            <div>
+              <span class="text-slate-400 stat-subtle block text-[10px]">CTC Band</span>
+              <span class="font-bold text-blue-400 tracking-tight">32 LPA PPIs</span>
+            </div>
+          </div>
+          <div class="flex items-center justify-between pt-1">
+            <span class="inline-flex items-center gap-1 text-[11px] font-medium text-emerald-400">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+              Automated PDF OD
+            </span>
+            <button onclick="openApplySheet('Flipkart GRiD 6.0: Robotics & AI', '₹5,25,000 INR', '32 LPA PPIs', 'Bangalore Final')" class="px-4 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold shadow-sm transition active:scale-95">
+              Apply
+            </button>
+          </div>
+        </article>
+
+        <!-- Card 2: DEFINE 4.0 Hackathon -->
+        <article class="p-3.5 rounded-2xl bg-[#13141F] border border-white/10 shadow-sm relative space-y-2.5 app-card hack-card" data-tags="cash food" data-title="DEFINE 4.0 Hackathon">
+          <div class="flex items-center justify-between">
+            <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 badge-emerald">
+              South India Hub
+            </span>
+            <span class="text-[11px] text-slate-400 stat-subtle flex items-center gap-1">
+              <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+              18 Days Left
+            </span>
+          </div>
+          <div>
+            <h4 class="text-sm font-bold text-white card-strong-title">DEFINE 4.0 Hackathon</h4>
+            <p class="text-[11px] text-slate-400 stat-subtle">Mar Baselios College • Trivandrum, Kerala</p>
+          </div>
+          <div class="grid grid-cols-2 gap-2 p-2 rounded-xl bg-black/30 border border-white/5 text-[11px] card-inner-box">
+            <div>
+              <span class="text-slate-400 stat-subtle block text-[10px]">Cash Pool</span>
+              <span class="font-bold text-white card-strong-title tracking-tight">₹1,50,000 INR</span>
+            </div>
+            <div>
+              <span class="text-slate-400 stat-subtle block text-[10px]">Hospitality</span>
+              <span class="font-bold text-emerald-400 tracking-tight">Free AC Stay + Meals</span>
+            </div>
+          </div>
+          <div class="flex items-center justify-between pt-1">
+            <span class="text-[11px] text-slate-400 stat-subtle">Free Entry • ₹0 Fee</span>
+            <button onclick="openApplySheet('DEFINE 4.0 Hackathon', '₹1,50,000 INR', 'Free AC Stay + Meals', 'Mar Baselios College, Trivandrum')" class="px-4 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold shadow-sm transition active:scale-95">
+              Apply
+            </button>
+          </div>
+        </article>
+
+        <!-- Card 3: Techfest World Hackathon 2026 -->
+        <article class="p-3.5 rounded-2xl bg-[#13141F] border border-white/10 shadow-sm relative space-y-2.5 app-card hack-card" data-tags="cash premier food" data-title="Techfest World Hackathon 2026">
+          <div class="flex items-center justify-between">
+            <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 badge-blue">
+              IIT Bombay Nodal
+            </span>
+            <span class="text-[11px] text-slate-400 stat-subtle flex items-center gap-1">
+              <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+              24 Days Left
+            </span>
+          </div>
+          <div>
+            <h4 class="text-sm font-bold text-white card-strong-title">Techfest World Hackathon 2026</h4>
+            <p class="text-[11px] text-slate-400 stat-subtle">Asia's Largest Tech Festival • Powai Campus</p>
+          </div>
+          <div class="grid grid-cols-2 gap-2 p-2 rounded-xl bg-black/30 border border-white/5 text-[11px] card-inner-box">
+            <div>
+              <span class="text-slate-400 stat-subtle block text-[10px]">Cash Pool</span>
+              <span class="font-bold text-white card-strong-title">₹3,50,000 INR</span>
+            </div>
+            <div>
+              <span class="text-slate-400 stat-subtle block text-[10px]">Travel Perks</span>
+              <span class="font-bold text-emerald-400">3AC Train Reimbursed</span>
+            </div>
+          </div>
+          <div class="flex items-center justify-between pt-1">
+            <span class="inline-flex items-center gap-1 text-[11px] font-medium text-emerald-400">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+              All-India College OD
+            </span>
+            <button onclick="openApplySheet('Techfest World Hackathon 2026', '₹3,50,000 INR', '3AC Train Reimbursed', 'IIT Bombay Powai Campus')" class="px-4 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold shadow-sm transition active:scale-95">
+              Apply
+            </button>
+          </div>
+        </article>
+
+        <!-- Card 4: YC x Moss: Zero Latency Sprint -->
+        <article class="p-3.5 rounded-2xl bg-[#13141F] border border-white/10 shadow-sm relative space-y-2.5 app-card hack-card" data-tags="cash ppi" data-title="YC x Moss: Zero Latency Sprint">
+          <div class="flex items-center justify-between">
+            <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-blue-500/10 text-blue-400 border border-blue-500/20 badge-blue">
+              Silicon Valley + BLR
+            </span>
+            <span class="text-[11px] text-slate-400 stat-subtle flex items-center gap-1">
+              <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+              5 Days Left
+            </span>
+          </div>
+          <div>
+            <h4 class="text-sm font-bold text-white card-strong-title">YC x Moss: Zero Latency Sprint</h4>
+            <p class="text-[11px] text-slate-400 stat-subtle">Koramangala Node + Global Livestream Hub</p>
+          </div>
+          <div class="grid grid-cols-2 gap-2 p-2 rounded-xl bg-black/30 border border-white/5 text-[11px] card-inner-box">
+            <div>
+              <span class="text-slate-400 stat-subtle block text-[10px]">Cash Pool</span>
+              <span class="font-bold text-white card-strong-title">$2,500 (~₹2.1L)</span>
+            </div>
+            <div>
+              <span class="text-slate-400 stat-subtle block text-[10px]">Compute</span>
+              <span class="font-bold text-blue-400 tracking-tight">$10k H100 GPU Grant</span>
+            </div>
+          </div>
+          <div class="flex items-center justify-between pt-1">
+            <span class="inline-flex items-center gap-1 text-[11px] font-medium text-emerald-400">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+              Fast-Track Founder PPI
+            </span>
+            <button onclick="openApplySheet('YC x Moss: Zero Latency Sprint', '$2,500 (~₹2.1L)', 'Fast-Track Founder PPI + H100 Grant', 'Koramangala, BLR')" class="px-4 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold shadow-sm transition active:scale-95">
+              Apply
+            </button>
+          </div>
+        </article>
+
+        <!-- Card 5: Smart India Hackathon (SIH) 2026 -->
+        <article class="p-3.5 rounded-2xl bg-[#13141F] border border-white/10 shadow-sm relative space-y-2.5 app-card hack-card" data-tags="premier" data-title="Smart India Hackathon (SIH) 2026">
+          <div class="flex items-center justify-between">
+            <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 badge-emerald">
+              Government of India
+            </span>
+            <span class="text-[11px] text-slate-400 stat-subtle flex items-center gap-1">
+              <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+              9 Days Left
+            </span>
+          </div>
+          <div>
+            <h4 class="text-sm font-bold text-white card-strong-title">Smart India Hackathon (SIH) 2026</h4>
+            <p class="text-[11px] text-slate-400 stat-subtle">AICTE &amp; MoE Innovation Cell • Pan-India Centers</p>
+          </div>
+          <div class="grid grid-cols-2 gap-2 p-2 rounded-xl bg-black/30 border border-white/5 text-[11px] card-inner-box">
+            <div>
+              <span class="text-slate-400 stat-subtle block text-[10px]">Grand Prize</span>
+              <span class="font-bold text-white card-strong-title tracking-tight">₹1,00,000 / Problem</span>
+            </div>
+            <div>
+              <span class="text-slate-400 stat-subtle block text-[10px]">OD Coverage</span>
+              <span class="font-bold text-emerald-400 tracking-tight">100% Guaranteed OD</span>
+            </div>
+          </div>
+          <div class="flex items-center justify-between pt-1">
+            <span class="inline-flex items-center gap-1 text-[11px] font-medium text-emerald-400">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+              Ministry Verified Portal
+            </span>
+            <button onclick="openApplySheet('Smart India Hackathon (SIH) 2026', '₹1,00,000 / Problem', '100% Guaranteed AICTE OD', 'Pan-India Nodal Centers')" class="px-4 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold shadow-sm transition active:scale-95">
+              Apply
+            </button>
+          </div>
+        </article>
+
+        <!-- Card 6: Next Byte National Buildathon -->
+        <article class="p-3.5 rounded-2xl bg-[#13141F] border border-white/10 shadow-sm relative space-y-2.5 app-card hack-card" data-tags="cash premier" data-title="Next Byte National Buildathon">
+          <div class="flex items-center justify-between">
+            <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-blue-500/10 text-blue-400 border border-blue-500/20 badge-blue">
+              Autonomous Systems
+            </span>
+            <span class="text-[11px] text-slate-400 stat-subtle flex items-center gap-1">
+              <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+              15 Days Left
+            </span>
+          </div>
+          <div>
+            <h4 class="text-sm font-bold text-white card-strong-title">Next Byte National Buildathon</h4>
+            <p class="text-[11px] text-slate-400 stat-subtle">IIT Hyderabad &amp; T-Hub • Hyderabad</p>
+          </div>
+          <div class="grid grid-cols-2 gap-2 p-2 rounded-xl bg-black/30 border border-white/5 text-[11px] card-inner-box">
+            <div>
+              <span class="text-slate-400 stat-subtle block text-[10px]">Cash Pool</span>
+              <span class="font-bold text-white card-strong-title tracking-tight">₹2,00,000 INR</span>
+            </div>
+            <div>
+              <span class="text-slate-400 stat-subtle block text-[10px]">Incubation</span>
+              <span class="font-bold text-blue-400 tracking-tight">Direct Seed Grants</span>
+            </div>
+          </div>
+          <div class="flex items-center justify-between pt-1">
+            <span class="text-[11px] text-slate-400 stat-subtle">All Branches Eligible</span>
+            <button onclick="openApplySheet('Next Byte National Buildathon', '₹2,00,000 INR', 'Direct Seed Grants + Incubation', 'IIT Hyderabad & T-Hub')" class="px-4 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold shadow-sm transition active:scale-95">
+              Apply
+            </button>
+          </div>
+        </article>
+      </section>
+      <!-- END: HackathonCardsList -->
+
+      <!-- BEGIN: HostelNoticeBoard -->
+      <section class="space-y-2.5 pt-2" data-purpose="hostel-board">
+        <div class="flex items-center justify-between">
+          <div>
+            <span class="text-[10px] font-mono text-blue-400 uppercase tracking-wider block stat-subtle-blue">HOSTEL CANVAS • LIVE SYNC</span>
+            <h3 class="text-sm font-bold text-white section-title">The Hostel Notice Board</h3>
+          </div>
+          <button class="text-[10px] font-semibold text-blue-400 px-2.5 py-1 rounded-full bg-blue-500/10 border border-blue-500/20 active:scale-95 transition hover:bg-blue-500/20" id="postRequestBtn" onclick="openPostModal()">
+            + Post Request
+          </button>
+        </div>
+        <!-- Post 1: Teammate Request -->
+        <div class="p-3 rounded-xl bg-[#13141F] border border-white/10 space-y-1.5 app-card">
+          <div class="flex justify-between items-center text-[10px]">
+            <span class="text-slate-400 font-mono stat-subtle">COEP Pune • Room 204</span>
+            <span class="text-emerald-400 font-semibold flex items-center gap-1">
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Active
+            </span>
+          </div>
+          <p class="text-xs text-slate-200 card-body-text">"Need 1 Flutter / React Native dev who doesn't crash before 4 AM! Travel confirmed for Mumbai finals."</p>
+          <div class="flex justify-between items-center pt-1 text-[11px]">
+            <span class="text-slate-400 stat-subtle">By Sahil K. (3rd Yr)</span>
+            <a class="text-blue-400 font-medium hover:underline inline-link" href="https://t.me/Pranavhakathon_bot" target="_blank" rel="noopener noreferrer">DM on Telegram</a>
+          </div>
+        </div>
+        <!-- Post 2: Sleeper Carpool -->
+        <div class="p-3 rounded-xl bg-[#13141F] border border-white/10 space-y-1.5 app-card">
+          <div class="flex justify-between items-center text-[10px]">
+            <span class="text-slate-400 font-mono stat-subtle">Travel Pool • BLR to Trivandrum</span>
+            <span class="text-blue-400 font-semibold">2 Seats Left</span>
+          </div>
+          <p class="text-xs text-slate-200 card-body-text">"3 of us taking sleeper train from Bangalore to Trivandrum for DEFINE 4.0. Split cab to MBCET &amp; night chai."</p>
+          <div class="flex justify-between items-center pt-1 text-[11px]">
+            <span class="text-slate-400 stat-subtle">By Rohan V. (BMSCE)</span>
+            <a class="text-blue-400 font-medium hover:underline inline-link" href="https://t.me/Pranavhakathon_bot" target="_blank" rel="noopener noreferrer">Pool In</a>
+          </div>
+        </div>
+        <!-- Post 3: Designer Request -->
+        <div class="p-3 rounded-xl bg-[#13141F] border border-white/10 space-y-1.5 app-card">
+          <div class="flex justify-between items-center text-[10px]">
+            <span class="text-slate-400 font-mono stat-subtle">Design Sprint • IIT Bombay Finals</span>
+            <span class="text-emerald-400 font-semibold">Urgent</span>
+          </div>
+          <p class="text-xs text-slate-200 card-body-text">"2 cracked ML guys need a Figma design wizard for Techfest finals. Backend &amp; models ready, need slick UI for 1st prize."</p>
+          <div class="flex justify-between items-center pt-1 text-[11px]">
+            <span class="text-slate-400 stat-subtle">By Karthik &amp; Dev (VJTI)</span>
+            <a class="text-blue-400 font-medium hover:underline inline-link" href="https://t.me/Pranavhakathon_bot" target="_blank" rel="noopener noreferrer">Send Portfolio</a>
+          </div>
+        </div>
+      </section>
+      <!-- END: HostelNoticeBoard -->
+
+      <!-- BEGIN: DeveloperSpotlight -->
+      <section class="p-3.5 rounded-2xl bg-gradient-to-b from-blue-950/40 to-black/50 border border-blue-500/20 space-y-2.5 app-card" data-purpose="developer-story" id="developerSpotlightCard">
+        <div class="flex justify-between items-center">
+          <span class="text-[10px] font-mono text-blue-400 uppercase stat-subtle-blue">DEVELOPER SPOTLIGHT • 4 MIN READ</span>
+          <span class="text-[10px] text-emerald-400 font-mono">100% Free &amp; Open Source</span>
+        </div>
+        <h4 class="text-xs font-bold text-white card-strong-title">"Why I spent 2 weeks coding this instead of studying for Signals &amp; Systems."</h4>
+        <p class="text-[11px] text-slate-300 leading-relaxed card-body-text">
+          I built Hackathon Notifier because missing out on the Smart India Hackathon internal quota due to a forwarded WhatsApp PDF buried under 800 spam messages was the last straw. No spam portals, no paywalls, just sub-second alerts right to your device and instant HOD OD letters.
+        </p>
+        <!-- Author & Architecture Grid -->
+        <div class="grid grid-cols-2 gap-2 pt-1">
+          <div class="p-2 rounded-xl bg-black/40 border border-white/5 space-y-1 card-inner-box">
+            <span class="text-[10px] text-slate-400 block font-mono stat-subtle">AUTHOR</span>
+            <span class="text-xs font-bold text-white block card-strong-title">Pranav Deshmukh</span>
+            <span class="text-[10px] text-slate-400 block stat-subtle">2nd Year ETC • Pune Univ</span>
+            <div class="pt-1 flex items-center justify-between text-[10px]">
+              <span class="text-slate-400 stat-subtle">Server Cost:</span>
+              <span class="text-emerald-400 font-mono">₹0 / mo</span>
+            </div>
+          </div>
+          <div class="p-2 rounded-xl bg-black/40 border border-white/5 space-y-1 card-inner-box">
+            <span class="text-[10px] text-slate-400 block font-mono stat-subtle">ARCHITECTURE</span>
+            <div class="text-[10px] text-slate-300 space-y-0.5 card-body-text">
+              <div class="flex justify-between"><span class="text-slate-400 stat-subtle">Engine:</span> <span class="font-mono text-blue-400">Playwright</span></div>
+              <div class="flex justify-between"><span class="text-slate-400 stat-subtle">Aggregator:</span> <span class="font-mono text-blue-400">38ms Go</span></div>
+              <div class="flex justify-between"><span class="text-slate-400 stat-subtle">OD Gen:</span> <span class="font-mono text-emerald-400">Canvas PDF</span></div>
+            </div>
+          </div>
+        </div>
+      </section>
+      <!-- END: DeveloperSpotlight -->
+
+      <!-- BEGIN: LiveTelegramPipelineCard -->
+      <section class="p-4 rounded-2xl bg-gradient-to-r from-blue-700 to-indigo-700 text-white space-y-2 shadow-lg shadow-blue-900/30" id="telegramPipelineCard">
+        <div class="flex items-center gap-1.5 text-[10px] tracking-wider uppercase opacity-90">
+          <span class="w-1.5 h-1.5 rounded-full bg-white animate-ping"></span>
+          Live Telegram Pipeline
+        </div>
+        <h4 class="text-sm font-bold tracking-tight">Never miss a 32 LPA PPI deadline again.</h4>
+        <p class="text-[11px] text-blue-100 leading-snug">Direct notifications within 38ms of registration openings. Zero noise guarantee.</p>
+        <a href="https://t.me/Pranavhakathon_bot" target="_blank" rel="noopener noreferrer" class="block text-center w-full mt-1 py-2 rounded-xl bg-white text-blue-700 font-bold text-xs tracking-tight shadow hover:bg-blue-50 transition active:scale-[0.98]">
+          Join @Pranavhakathon_bot
+        </a>
+      </section>
+      <!-- END: LiveTelegramPipelineCard -->
+
+      <!-- BEGIN: UniversityVerificationTermsFooter -->
+      <footer class="p-3 rounded-2xl bg-[#13141F] border border-white/5 space-y-2 text-[10px] text-slate-400 leading-relaxed app-card" data-purpose="legal-footer" id="legalFooter">
+        <div class="flex items-center gap-1 text-slate-300 font-semibold uppercase tracking-wider text-[9px] section-title">
+          <svg class="w-3.5 h-3.5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+          Terms, Eligibility &amp; OD Verification Policy
+        </div>
+        <p class="footer-copy">
+          Hackathon Notifier operates strictly as a zero-middleman student utility. Attendance On-Duty (OD) generation is automated per university guidelines (AICTE, KTU, VTU, Mumbai Univ) and subject to authorized HOD sign-off. Bounties and prize distributions are guaranteed directly via official organizer escrow.
+        </p>
+        <div class="flex flex-wrap items-center justify-between pt-1 border-t border-white/5 divider-subtle text-[9px]">
+          <span class="footer-copy">Privacy Policy: Zero Student Data Tracking</span>
+          <span class="text-emerald-400 font-mono">Telemetry: 100% Operational</span>
+        </div>
+        <div class="text-center pt-2 text-[9px] text-slate-400 footer-copy">
+          © 2026 Hackathon Notifier • Built for Indian Engineering Students • Latency: 38ms
+        </div>
+      </footer>
+      <!-- END: UniversityVerificationTermsFooter -->
+    </main>
+
+    <!-- BEGIN: HomeIndicator -->
+    <div class="w-32 h-1 bg-slate-500/50 rounded-full mx-auto mt-2 mb-1" data-purpose="home-indicator" id="homeIndicator"></div>
+    <!-- END: HomeIndicator -->
+
+    <!-- Quick Toast Notification -->
+    <div id="toastNotification" class="absolute top-12 left-4 right-4 bg-blue-600/95 backdrop-blur-md text-white px-3 py-2 rounded-xl text-xs font-semibold shadow-xl border border-blue-400/30 flex items-center justify-between transition-all duration-300 opacity-0 pointer-events-none transform -translate-y-2 z-50">
+      <div class="flex items-center gap-2">
+        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+        <span id="toastMessage">Synced 450+ hackathons with live telemetry!</span>
+      </div>
+      <span class="text-[10px] font-mono text-blue-200">38ms</span>
+    </div>
+
+    <!-- Bottom Sheet Modal for Apply / OD Letter Preview -->
+    <div id="applyModal" class="fixed inset-0 z-50 flex items-end justify-center hidden">
+      <div class="fixed inset-0 sheet-backdrop" onclick="closeApplySheet()"></div>
+      <div class="relative w-full max-w-[400px] bg-[#13141F] border-t border-white/10 rounded-t-[28px] p-5 space-y-3 z-10 shadow-2xl transition-all" id="modalSheetContent">
+        <div class="w-10 h-1 bg-white/20 rounded-full mx-auto mb-1"></div>
+        <div class="flex justify-between items-start">
+          <div>
+            <span class="text-[10px] font-mono text-blue-400 uppercase tracking-wide">CONFIRMED LISTING</span>
+            <h3 class="text-sm font-bold text-white" id="modalTitle">Hackathon Application</h3>
+          </div>
+          <button onclick="closeApplySheet()" class="w-6 h-6 rounded-full bg-white/10 flex items-center justify-center text-slate-300 hover:text-white text-xs">✕</button>
+        </div>
+        <div class="p-2.5 rounded-xl bg-black/40 border border-white/5 space-y-1.5 text-xs text-slate-300">
+          <div class="flex justify-between"><span class="text-slate-400">Cash Pool:</span> <span class="font-bold text-white" id="modalPrize">₹5,25,000</span></div>
+          <div class="flex justify-between"><span class="text-slate-400">Opportunity:</span> <span class="font-bold text-blue-400" id="modalPerk">32 LPA PPIs</span></div>
+          <div class="flex justify-between"><span class="text-slate-400">Venue:</span> <span class="text-slate-300" id="modalVenue">Bangalore</span></div>
+        </div>
+        <div class="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-[11px] text-emerald-400 flex items-center gap-2">
+          <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+          <span>1-Click HOD College OD Letter Ready (PDF Formatted)</span>
+        </div>
+        <div class="flex gap-2 pt-1">
+          <button onclick="showToast('⚡ Generating Official HOD Attendance OD PDF...'); closeApplySheet()" class="flex-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs transition active:scale-95">
+            Download OD Letter
+          </button>
+          <a href="https://t.me/Pranavhakathon_bot" target="_blank" rel="noopener noreferrer" class="flex-1 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs text-center transition active:scale-95">
+            Open Portal
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <!-- Post Request Modal -->
+    <div id="postModal" class="fixed inset-0 z-50 flex items-end justify-center hidden">
+      <div class="fixed inset-0 sheet-backdrop" onclick="closePostModal()"></div>
+      <div class="relative w-full max-w-[400px] bg-[#13141F] border-t border-white/10 rounded-t-[28px] p-5 space-y-3 z-10 shadow-2xl transition-all" id="postModalSheetContent">
+        <div class="w-10 h-1 bg-white/20 rounded-full mx-auto mb-1"></div>
+        <div class="flex justify-between items-start">
+          <div>
+            <span class="text-[10px] font-mono text-blue-400 uppercase tracking-wide">HOSTEL NOTICE BOARD</span>
+            <h3 class="text-sm font-bold text-white">Post Teammate or Travel Request</h3>
+          </div>
+          <button onclick="closePostModal()" class="w-6 h-6 rounded-full bg-white/10 flex items-center justify-center text-slate-300 hover:text-white text-xs">✕</button>
+        </div>
+        <input type="text" id="postInputCollege" placeholder="Your College & Room (e.g. COEP • Room 204)" class="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-blue-500"/>
+        <textarea id="postInputText" rows="3" placeholder="What are you looking for? (e.g. Need 1 React Native dev for Techfest finals...)" class="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-blue-500"></textarea>
+        <button onclick="submitPostRequest()" class="w-full py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs transition active:scale-95">
+          Publish to Board
+        </button>
+      </div>
+    </div>
+
+  </div>
+  <!-- END: MobileContainer -->
+
+  <!-- BEGIN: ThemeSwitchingScript -->
+  <script data-purpose="theme-switcher">
+    // Update live clock
+    function updateClock() {
+      const clock = document.getElementById('statusBarClock');
+      if (!clock) return;
+      const now = new Date();
+      let hours = now.getHours();
+      let mins = now.getMinutes();
+      mins = mins < 10 ? '0' + mins : mins;
+      clock.textContent = `${hours}:${mins}`;
+    }
+    updateClock();
+    setInterval(updateClock, 30000);
+
+    // Toast utility
+    function showToast(message) {
+      const toast = document.getElementById('toastNotification');
+      const toastMsg = document.getElementById('toastMessage');
+      if (!toast || !toastMsg) return;
+      toastMsg.textContent = message;
+      toast.classList.remove('opacity-0', 'pointer-events-none', '-translate-y-2');
+      toast.classList.add('opacity-100', 'translate-y-0');
+      setTimeout(() => {
+        toast.classList.remove('opacity-100', 'translate-y-0');
+        toast.classList.add('opacity-0', 'pointer-events-none', '-translate-y-2');
+      }, 2500);
+    }
+
+    function triggerSyncNotification() {
+      const spinner = document.getElementById('syncSpinner');
+      const icon = document.getElementById('syncIcon');
+      const syncText = document.getElementById('syncText');
+      if (spinner && icon && syncText) {
+        spinner.classList.remove('hidden');
+        icon.classList.add('hidden');
+        syncText.textContent = 'Syncing...';
+        setTimeout(() => {
+          spinner.classList.add('hidden');
+          icon.classList.remove('hidden');
+          syncText.textContent = 'Sync';
+          showToast('⚡ Synced with Devfolio, Unstop, Devpost & Devnovate (38ms)');
+        }, 600);
+      }
+    }
+
+    function toggleSearchInput() {
+      const searchCont = document.getElementById('searchBarContainer');
+      const input = document.getElementById('liveSearchInput');
+      if (!searchCont) return;
+      if (searchCont.classList.contains('hidden')) {
+        searchCont.classList.remove('hidden');
+        if (input) input.focus();
+      } else {
+        searchCont.classList.add('hidden');
+        if (input) {
+          input.value = '';
+          filterHackathonsLive('');
+        }
+      }
+    }
+
+    function filterHackathonsLive(query) {
+      const q = query.toLowerCase().trim();
+      const cards = document.querySelectorAll('.hack-card');
+      cards.forEach(card => {
+        const title = card.getAttribute('data-title') || '';
+        const text = card.textContent || '';
+        if (!q || title.toLowerCase().includes(q) || text.toLowerCase().includes(q)) {
+          card.style.display = '';
+        } else {
+          card.style.display = 'none';
+        }
+      });
+    }
+
+    function selectFilter(button, filterType) {
+      document.querySelectorAll('.filter-pill').forEach(btn => {
+        btn.classList.remove('bg-blue-600', 'text-white', 'shadow-sm', 'active-pill');
+        btn.classList.add('bg-white/5', 'text-slate-300', 'border-white/5', 'filter-chip');
+      });
+      button.classList.add('bg-blue-600', 'text-white', 'shadow-sm', 'active-pill');
+      button.classList.remove('bg-white/5', 'text-slate-300', 'border-white/5', 'filter-chip');
+
+      const cards = document.querySelectorAll('.hack-card');
+      cards.forEach(card => {
+        const tags = (card.getAttribute('data-tags') || '').split(' ');
+        if (filterType === 'all' || tags.includes(filterType)) {
+          card.style.display = '';
+        } else {
+          card.style.display = 'none';
+        }
+      });
+    }
+
+    function openApplySheet(title, prize, perk, venue) {
+      const modal = document.getElementById('applyModal');
+      document.getElementById('modalTitle').textContent = title;
+      document.getElementById('modalPrize').textContent = prize;
+      document.getElementById('modalPerk').textContent = perk;
+      document.getElementById('modalVenue').textContent = venue;
+      modal.classList.remove('hidden');
+    }
+
+    function closeApplySheet() {
+      document.getElementById('applyModal').classList.add('hidden');
+    }
+
+    function openPostModal() {
+      document.getElementById('postModal').classList.remove('hidden');
+    }
+
+    function closePostModal() {
+      document.getElementById('postModal').classList.add('hidden');
+    }
+
+    function submitPostRequest() {
+      const college = document.getElementById('postInputCollege').value;
+      const text = document.getElementById('postInputText').value;
+      if (!text.trim()) {
+        showToast('Please type your request description!');
+        return;
+      }
+      showToast('🚀 Request posted live to Hostel Notice Board!');
+      closePostModal();
+    }
+
+    function setTheme(mode) {
+      const htmlEl = document.documentElement;
+      const container = document.getElementById('phoneContainer');
+      const navBorder = document.getElementById('navBorder');
+      const navTitle = document.getElementById('navTitle');
+      const clock = document.getElementById('statusBarClock');
+      const searchBtn = document.getElementById('searchBtn');
+      const heroTitle = document.getElementById('heroTitle');
+      const heroDesc = document.getElementById('heroDesc');
+      const heroTelegramBtn = document.getElementById('heroTelegramBtn');
+      const postRequestBtn = document.getElementById('postRequestBtn');
+      const devSpotlight = document.getElementById('developerSpotlightCard');
+      const homeIndicator = document.getElementById('homeIndicator');
+      const btnLight = document.getElementById('btnLightMode');
+      const btnDark = document.getElementById('btnDarkMode');
+      const modalSheetContent = document.getElementById('modalSheetContent');
+      const postModalSheetContent = document.getElementById('postModalSheetContent');
+      
+      const appCards = document.querySelectorAll('.app-card');
+      const cardStrongTitles = document.querySelectorAll('.card-strong-title');
+      const cardBodyTexts = document.querySelectorAll('.card-body-text');
+      const statSubtles = document.querySelectorAll('.stat-subtle');
+      const sectionTitles = document.querySelectorAll('.section-title');
+      const metricBoxes = document.querySelectorAll('.metric-box');
+      const metricValues = document.querySelectorAll('.metric-value');
+      const metricLabels = document.querySelectorAll('.metric-label');
+      const cardInnerBoxes = document.querySelectorAll('.card-inner-box');
+      const filterChips = document.querySelectorAll('.filter-chip');
+      const subtleDividers = document.querySelectorAll('.divider-subtle');
+      const footerCopies = document.querySelectorAll('.footer-copy');
+      const inlineLinks = document.querySelectorAll('.inline-link');
+      const cardHeaderTexts = document.querySelectorAll('.card-header-text');
+
+      if (mode === 'light') {
+        htmlEl.classList.remove('dark');
+        // Switch Container to Cupertino Light Mode
+        container.classList.remove('bg-[#07070A]', 'text-slate-100');
+        container.classList.add('bg-[#FAF9FE]', 'text-slate-900');
+        
+        // Navigation & Status bar
+        clock.classList.remove('text-slate-100');
+        clock.classList.add('text-slate-900');
+        
+        navBorder.classList.remove('border-white/5');
+        navBorder.classList.add('border-slate-200');
+
+        navTitle.classList.remove('text-slate-100');
+        navTitle.classList.add('text-slate-900');
+
+        searchBtn.classList.remove('bg-white/5', 'border-white/10', 'text-slate-300');
+        searchBtn.classList.add('bg-white', 'border-slate-200', 'text-slate-600', 'shadow-xs');
+
+        // Hero Section
+        heroTitle.classList.remove('text-slate-100');
+        heroTitle.classList.add('text-slate-900');
+
+        heroDesc.classList.remove('text-slate-400');
+        heroDesc.classList.add('text-slate-600');
+
+        heroTelegramBtn.classList.remove('bg-white/5', 'border-white/10', 'text-slate-300');
+        heroTelegramBtn.classList.add('bg-white', 'border-slate-200', 'text-slate-700', 'shadow-xs');
+
+        // Post request button
+        postRequestBtn.classList.remove('text-blue-400', 'bg-blue-500/10', 'border-blue-500/20');
+        postRequestBtn.classList.add('text-blue-600', 'bg-blue-50', 'border-blue-200');
+
+        // Metric boxes
+        metricBoxes.forEach(el => {
+          el.classList.remove('bg-white/[0.03]', 'border-white/5');
+          el.classList.add('bg-white', 'border-slate-200', 'shadow-xs');
+        });
+        metricValues.forEach(el => {
+          el.classList.remove('text-white');
+          el.classList.add('text-slate-900');
+        });
+        metricLabels.forEach(el => {
+          el.classList.remove('text-slate-400');
+          el.classList.add('text-slate-500');
+        });
+
+        // Filter chips (inactive ones)
+        filterChips.forEach(el => {
+          if (!el.classList.contains('active-pill')) {
+            el.classList.remove('bg-white/5', 'text-slate-300', 'border-white/5');
+            el.classList.add('bg-white', 'text-slate-700', 'border-slate-200', 'shadow-xs');
+          }
+        });
+
+        // Standard App Cards
+        appCards.forEach(el => {
+          el.classList.remove('bg-[#13141F]', 'border-white/10', 'shadow-sm');
+          el.classList.add('bg-white', 'border-slate-200', 'shadow-sm');
+        });
+
+        // Modals
+        if (modalSheetContent) {
+          modalSheetContent.classList.remove('bg-[#13141F]', 'border-white/10');
+          modalSheetContent.classList.add('bg-white', 'border-slate-200');
+        }
+        if (postModalSheetContent) {
+          postModalSheetContent.classList.remove('bg-[#13141F]', 'border-white/10');
+          postModalSheetContent.classList.add('bg-white', 'border-slate-200');
+        }
+
+        // Card Strong Titles & Headers
+        cardStrongTitles.forEach(el => {
+          el.classList.remove('text-white');
+          el.classList.add('text-slate-900');
+        });
+        cardHeaderTexts.forEach(el => {
+          el.classList.remove('text-white');
+          el.classList.add('text-slate-900');
+        });
+        sectionTitles.forEach(el => {
+          el.classList.remove('text-slate-300');
+          el.classList.add('text-slate-800');
+        });
+
+        // Card Body Text & Stats
+        cardBodyTexts.forEach(el => {
+          el.classList.remove('text-slate-200', 'text-slate-300');
+          el.classList.add('text-slate-600');
+        });
+        statSubtles.forEach(el => {
+          el.classList.remove('text-slate-400');
+          el.classList.add('text-slate-500');
+        });
+        cardInnerBoxes.forEach(el => {
+          el.classList.remove('bg-black/30', 'bg-black/40', 'bg-black/20', 'border-white/5');
+          el.classList.add('bg-slate-50', 'border-slate-100');
+        });
+        subtleDividers.forEach(el => {
+          el.classList.remove('border-white/5', 'bg-white/10');
+          el.classList.add('border-slate-100', 'bg-slate-200');
+        });
+        footerCopies.forEach(el => {
+          el.classList.remove('text-slate-400');
+          el.classList.add('text-slate-500');
+        });
+        inlineLinks.forEach(el => {
+          el.classList.remove('text-blue-400');
+          el.classList.add('text-blue-600');
+        });
+
+        // Developer Spotlight Card Special Background in Light Mode
+        if (devSpotlight) {
+          devSpotlight.classList.remove('from-blue-950/40', 'to-black/50', 'border-blue-500/20');
+          devSpotlight.classList.add('from-blue-50/70', 'to-white', 'border-blue-200');
+        }
+
+        // Home Indicator
+        homeIndicator.classList.remove('bg-slate-500/50');
+        homeIndicator.classList.add('bg-slate-300');
+
+        // Toggle Switcher Active UI
+        btnLight.classList.add('bg-blue-600', 'text-white', 'font-semibold', 'shadow-sm');
+        btnLight.classList.remove('text-slate-300');
+        btnDark.classList.remove('bg-blue-600', 'text-white', 'font-semibold', 'shadow-sm');
+        btnDark.classList.add('text-slate-300');
+      } else {
+        htmlEl.classList.add('dark');
+        // Switch Container to OLED Dark Mode
+        container.classList.remove('bg-[#FAF9FE]', 'text-slate-900');
+        container.classList.add('bg-[#07070A]', 'text-slate-100');
+        
+        // Navigation & Status bar
+        clock.classList.add('text-slate-100');
+        clock.classList.remove('text-slate-900');
+
+        navBorder.classList.add('border-white/5');
+        navBorder.classList.remove('border-slate-200');
+
+        navTitle.classList.add('text-slate-100');
+        navTitle.classList.remove('text-slate-900');
+
+        searchBtn.classList.add('bg-white/5', 'border-white/10', 'text-slate-300');
+        searchBtn.classList.remove('bg-white', 'border-slate-200', 'text-slate-600', 'shadow-xs');
+
+        // Hero Section
+        heroTitle.classList.add('text-slate-100');
+        heroTitle.classList.remove('text-slate-900');
+
+        heroDesc.classList.add('text-slate-400');
+        heroDesc.classList.remove('text-slate-600');
+
+        heroTelegramBtn.classList.add('bg-white/5', 'border-white/10', 'text-slate-300');
+        heroTelegramBtn.classList.remove('bg-white', 'border-slate-200', 'text-slate-700', 'shadow-xs');
+
+        // Post request button
+        postRequestBtn.classList.add('text-blue-400', 'bg-blue-500/10', 'border-blue-500/20');
+        postRequestBtn.classList.remove('text-blue-600', 'bg-blue-50', 'border-blue-200');
+
+        // Metric boxes
+        metricBoxes.forEach(el => {
+          el.classList.add('bg-white/[0.03]', 'border-white/5');
+          el.classList.remove('bg-white', 'border-slate-200', 'shadow-xs');
+        });
+        metricValues.forEach(el => {
+          el.classList.add('text-white');
+          el.classList.remove('text-slate-900');
+        });
+        metricLabels.forEach(el => {
+          el.classList.add('text-slate-400');
+          el.classList.remove('text-slate-500');
+        });
+
+        // Filter chips
+        filterChips.forEach(el => {
+          if (!el.classList.contains('active-pill')) {
+            el.classList.add('bg-white/5', 'text-slate-300', 'border-white/5');
+            el.classList.remove('bg-white', 'text-slate-700', 'border-slate-200', 'shadow-xs');
+          }
+        });
+
+        // Standard App Cards
+        appCards.forEach(el => {
+          el.classList.add('bg-[#13141F]', 'border-white/10', 'shadow-sm');
+          el.classList.remove('bg-white', 'border-slate-200', 'shadow-sm');
+        });
+
+        // Modals
+        if (modalSheetContent) {
+          modalSheetContent.classList.add('bg-[#13141F]', 'border-white/10');
+          modalSheetContent.classList.remove('bg-white', 'border-slate-200');
+        }
+        if (postModalSheetContent) {
+          postModalSheetContent.classList.add('bg-[#13141F]', 'border-white/10');
+          postModalSheetContent.classList.remove('bg-white', 'border-slate-200');
+        }
+
+        // Card Strong Titles & Headers
+        cardStrongTitles.forEach(el => {
+          el.classList.add('text-white');
+          el.classList.remove('text-slate-900');
+        });
+        cardHeaderTexts.forEach(el => {
+          el.classList.add('text-white');
+          el.classList.remove('text-slate-900');
+        });
+        sectionTitles.forEach(el => {
+          el.classList.add('text-slate-300');
+          el.classList.remove('text-slate-800');
+        });
+
+        // Card Body Text & Stats
+        cardBodyTexts.forEach(el => {
+          el.classList.add('text-slate-300');
+          el.classList.remove('text-slate-600');
+        });
+        statSubtles.forEach(el => {
+          el.classList.add('text-slate-400');
+          el.classList.remove('text-slate-500');
+        });
+        cardInnerBoxes.forEach(el => {
+          el.classList.add('bg-black/30', 'border-white/5');
+          el.classList.remove('bg-slate-50', 'border-slate-100');
+        });
+        subtleDividers.forEach(el => {
+          el.classList.add('border-white/5', 'bg-white/10');
+          el.classList.remove('border-slate-100', 'bg-slate-200');
+        });
+        footerCopies.forEach(el => {
+          el.classList.add('text-slate-400');
+          el.classList.remove('text-slate-500');
+        });
+        inlineLinks.forEach(el => {
+          el.classList.add('text-blue-400');
+          el.classList.remove('text-blue-600');
+        });
+
+        // Developer Spotlight
+        if (devSpotlight) {
+          devSpotlight.classList.add('from-blue-950/40', 'to-black/50', 'border-blue-500/20');
+          devSpotlight.classList.remove('from-blue-50/70', 'to-white', 'border-blue-200');
+        }
+
+        // Home Indicator
+        homeIndicator.classList.add('bg-slate-500/50');
+        homeIndicator.classList.remove('bg-slate-300');
+
+        // Toggle Switcher Active UI
+        btnDark.classList.add('bg-blue-600', 'text-white', 'font-semibold', 'shadow-sm');
+        btnDark.classList.remove('text-slate-300');
+        btnLight.classList.remove('bg-blue-600', 'text-white', 'font-semibold', 'shadow-sm');
+        btnLight.classList.add('text-slate-300');
+      }
+    }
+  </script>
+  <!-- END: ThemeSwitchingScript -->
+</body>
+</html>
