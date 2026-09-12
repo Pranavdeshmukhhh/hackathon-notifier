@@ -1,5 +1,7 @@
+import ipaddress
 import logging
 import os
+import secrets
 import sys
 import time
 import statistics
@@ -26,18 +28,30 @@ logger = logging.getLogger(__name__)
 # Import the existing db module
 from db.mongo_client import get_collection
 
-# Proxy-aware client IP extractor for SlowAPI (respects Cloudflare & reverse proxies)
+# Proxy-aware client IP extractor for SlowAPI (respects Cloudflare & reverse proxies with IP validation)
 def get_client_ip(request: Request) -> str:
-    """Extract real client IP safely respecting Cloudflare and reverse proxy headers."""
+    """Extract real client IP safely respecting Cloudflare and reverse proxy headers with format validation."""
     cf_ip = request.headers.get("CF-Connecting-IP")
     if cf_ip:
-        return cf_ip.strip()
+        candidate = cf_ip.strip()
+        try:
+            ipaddress.ip_address(candidate)
+            return candidate
+        except ValueError:
+            pass
+
     forwarded = request.headers.get("X-Forwarded-For")
     if forwarded:
-        return forwarded.split(",")[0].strip()
+        candidate = forwarded.split(",")[0].strip()
+        try:
+            ipaddress.ip_address(candidate)
+            return candidate
+        except ValueError:
+            pass
+
     return get_remote_address(request)
 
-# Rate limiter – 30 requests/min per real client IP
+# Rate limiter – configured per real validated client IP
 limiter = Limiter(key_func=get_client_ip)
 
 _is_prod = os.getenv("ENVIRONMENT", "").lower() == "production" or os.getenv("RENDER", "").lower() == "true"
@@ -62,8 +76,8 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 # Strategy:
 #   - maxsize=32 (one slot per unique (lat, lng) pair plus the "all" key)
 #   - TTL = CACHE_TTL_SECONDS (default 3600s = 1 hour)
-#   - Cache is keyed by (lat, lng) so proximity-sorted results are also
-#     cached per unique user location, not just the default list.
+#   - Cache is keyed by rounded (lat, lng) so proximity-sorted results are also
+#     cached per unique user location area without allowing cache exhaustion attacks.
 #   - On a cache HIT the MongoDB round-trip is skipped entirely —
 #     a query that takes ~80ms from cold becomes ~0.2ms from cache.
 #   - After a scrape job runs (scrape_job.py / Render cron), the frontend
@@ -77,7 +91,7 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 #     - Production            : 3600  (1 hour  — matches scrape interval)
 #
 _CACHE_TTL = int(os.getenv("CACHE_TTL_SECONDS", 1 * 3600))
-_cache: TTLCache = TTLCache(maxsize=32, ttl=_CACHE_TTL)  # maxsize raised: supports ~32 unique locations
+_cache: TTLCache = TTLCache(maxsize=32, ttl=_CACHE_TTL)
 _CACHE_KEY = "hackathons"
 
 # ---------- Response-time tracking for p50/p95 ----------
@@ -99,15 +113,22 @@ async def security_headers_middleware(request: Request, call_next):
     response.headers["X-Frame-Options"] = "DENY"
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
     response.headers["X-XSS-Protection"] = "1; mode=block"
+    response.headers["Permissions-Policy"] = "geolocation=(self), camera=(), microphone=()"
+    response.headers["X-Permitted-Cross-Domain-Policies"] = "none"
+    if request.url.scheme == "https" or request.headers.get("X-Forwarded-Proto") == "https":
+        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
     return response
 
-# CORS – restrict to actual frontend origin; no credentials needed
-_frontend_url = os.getenv("FRONTEND_URL", "https://hackathon-notifier.vercel.app")
+# CORS – restrict to validated frontend origins; explicit allowed methods and headers
+_raw_frontends = os.getenv("FRONTEND_URL", "https://hackathon-notifier.vercel.app")
+_frontend_origins = [o.strip() for o in _raw_frontends.split(",") if o.strip()]
+_allowed_origins = list(set(_frontend_origins + ["http://localhost:5173", "http://127.0.0.1:5173"]))
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[_frontend_url, "http://localhost:5173", "http://127.0.0.1:5173"],
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origins=_allowed_origins,
+    allow_methods=["GET", "POST", "HEAD", "OPTIONS"],
+    allow_headers=["Content-Type", "Authorization", "X-Admin-Secret", "Accept", "Origin"],
 )
 
 def _sort_hackathons(docs: list[dict]) -> list[dict]:
@@ -150,19 +171,24 @@ def read_root():
     return {"message": "Hackathon API is running"}
 
 @app.get("/api/hackathons")
+@limiter.limit("60/minute")
 def get_hackathons(
     request: Request, 
     lat: Optional[float] = Query(default=None, ge=-90.0, le=90.0), 
     lng: Optional[float] = Query(default=None, ge=-180.0, le=180.0),
-    page: int = Query(default=1, ge=1),
+    page: int = Query(default=1, ge=1, le=1000),
     limit: int = Query(default=12, ge=1, le=100),
-    category: str = Query(default="All"),
-    search: str = Query(default=""),
-    sort: str = Query(default="deadline"),
-    tab: str = Query(default="upcoming")
+    category: str = Query(default="All", max_length=30),
+    search: str = Query(default="", max_length=100),
+    sort: str = Query(default="deadline", max_length=20),
+    tab: str = Query(default="upcoming", max_length=20)
 ):
     # --- cache hit → skip Mongo entirely ---
-    cache_key = f"{_CACHE_KEY}_{lat}_{lng}" if lat and lng else _CACHE_KEY
+    # Round coordinates to 2 decimal places (~1.1km radius) to group requests safely and avoid cache thrashing attacks
+    if lat is not None and lng is not None:
+        cache_key = f"{_CACHE_KEY}_{round(lat, 2)}_{round(lng, 2)}"
+    else:
+        cache_key = _CACHE_KEY
     cached = _cache.get(cache_key)
     
     if cached is None:
@@ -297,11 +323,12 @@ def get_hackathons(
 
 
 @app.get("/health")
-def health_check():
+@limiter.limit("60/minute")
+def health_check(request: Request):
     """
     Liveness + readiness probe.
     Returns 200 if Mongo is reachable, 503 otherwise.
-    Hook this up to UptimeRobot / Render health-check.
+    Protected from error message leakage and rate-limited.
     """
     try:
         col = get_collection()
@@ -317,12 +344,13 @@ def health_check():
         logger.error("Health check failed: %s", e)
         return JSONResponse(
             status_code=503,
-            content={"status": "unhealthy", "reason": str(e)},
+            content={"status": "unhealthy", "reason": "database unavailable"},
         )
 
 
 @app.get("/api/metrics")
-def get_metrics():
+@limiter.limit("60/minute")
+def get_metrics(request: Request):
     """Return p50/p95 response times (ms) for the last 500 requests."""
     if not _latencies:
         return {"message": "No requests recorded yet"}
@@ -344,8 +372,9 @@ def refresh_cache(request: Request):
     """Invalidate the in-memory cache, forcing the next GET /api/hackathons
     to re-query MongoDB.
 
-    Secured: If ADMIN_SECRET is set in environment, requires X-Admin-Secret or
-    Authorization: Bearer <secret>.
+    Secured: Uses constant-time token comparison (secrets.compare_digest).
+    If ADMIN_SECRET is set, requires valid X-Admin-Secret or Authorization: Bearer <secret>.
+    If in production and ADMIN_SECRET is not configured, rejects unauthenticated cache purges.
     Rate-limited: 5 calls per minute per client IP to prevent cache-stampede abuse.
     """
     admin_secret = os.getenv("ADMIN_SECRET", "").strip()
@@ -353,11 +382,16 @@ def refresh_cache(request: Request):
         auth_header = request.headers.get("X-Admin-Secret") or request.headers.get("Authorization", "")
         if auth_header.startswith("Bearer "):
             auth_header = auth_header[7:].strip()
-        if auth_header != admin_secret:
+        if not secrets.compare_digest(auth_header, admin_secret):
             return JSONResponse(
                 status_code=401,
                 content={"success": False, "error": "Unauthorized: invalid or missing admin token"}
             )
+    elif _is_prod:
+        return JSONResponse(
+            status_code=403,
+            content={"success": False, "error": "Forbidden: ADMIN_SECRET is not configured"}
+        )
 
     n = len(_cache)
     _cache.clear()
