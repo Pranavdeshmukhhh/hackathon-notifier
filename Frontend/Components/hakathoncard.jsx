@@ -196,8 +196,22 @@ const HackathonCard = ({ hackathon, onShare }) => {
 
   const handleMouseMove = (e) => {
     const rect = e.currentTarget.getBoundingClientRect();
-    e.currentTarget.style.setProperty('--mouse-x', `${e.clientX - rect.left}px`);
-    e.currentTarget.style.setProperty('--mouse-y', `${e.clientY - rect.top}px`);
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    e.currentTarget.style.setProperty('--mouse-x', `${x}px`);
+    e.currentTarget.style.setProperty('--mouse-y', `${y}px`);
+    // VisionOS Spatial Micro-Tilt
+    const centerX = rect.width / 2;
+    const centerY = rect.height / 2;
+    const tiltX = ((y - centerY) / centerY) * -2;
+    const tiltY = ((x - centerX) / centerX) * 2;
+    e.currentTarget.style.setProperty('--tilt-x', `${tiltX.toFixed(2)}deg`);
+    e.currentTarget.style.setProperty('--tilt-y', `${tiltY.toFixed(2)}deg`);
+  };
+
+  const handleMouseLeave = (e) => {
+    e.currentTarget.style.setProperty('--tilt-x', '0deg');
+    e.currentTarget.style.setProperty('--tilt-y', '0deg');
   };
 
   const teamDisplay = (minTeam || maxTeam)
@@ -207,7 +221,9 @@ const HackathonCard = ({ hackathon, onShare }) => {
   return (
     <div 
       onMouseMove={handleMouseMove}
-      className={`group relative overflow-hidden rounded-[24px] border border-black/[0.08] dark:border-white/[0.12] bg-white/95 dark:bg-[#1C1C1E]/90 backdrop-blur-xl shadow-[0_2px_14px_-2px_rgba(0,0,0,0.04)] dark:shadow-[0_4px_24px_-2px_rgba(0,0,0,0.45)] hover:shadow-xl dark:hover:shadow-[0_20px_48px_rgba(0,0,0,0.70)] hover:border-[#007AFF]/35 dark:hover:border-[#0A84FF]/45 ios-card-spring apple-touch-layer apple-specular-spotlight crystal-chamfer crystal-sheen flex flex-col justify-between h-full ${isPast ? 'opacity-60 grayscale-[0.4]' : ''}`}
+      onMouseLeave={handleMouseLeave}
+      style={{ transform: 'perspective(1000px) rotateX(var(--tilt-x, 0deg)) rotateY(var(--tilt-y, 0deg)) translateZ(0)' }}
+      className={`group relative overflow-hidden rounded-[24px] apple-squircle border border-black/[0.08] dark:border-white/[0.12] bg-white/95 dark:bg-[#1C1C1E]/90 backdrop-blur-xl shadow-[0_2px_14px_-2px_rgba(0,0,0,0.04)] dark:shadow-[0_4px_24px_-2px_rgba(0,0,0,0.45)] hover:shadow-2xl dark:hover:shadow-[0_24px_52px_rgba(0,0,0,0.75)] hover:border-[#007AFF]/40 dark:hover:border-[#0A84FF]/50 ios-card-spring apple-touch-layer apple-specular-spotlight crystal-chamfer crystal-sheen apple-card-contain apple-dual-bevel flex flex-col justify-between h-full ${isPast ? 'opacity-60 grayscale-[0.4]' : ''}`}
     >
       {/* Platform Branded Subtle Accent Hairline */}
       <div className={`h-1 group-hover:h-1.5 w-full bg-gradient-to-r ${bannerGradient} opacity-90 transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:opacity-100`} />
@@ -217,21 +233,21 @@ const HackathonCard = ({ hackathon, onShare }) => {
       <div className="p-5 sm:p-6 flex flex-col gap-3.5 flex-1 relative z-10">
         {/* Badges row: uniform min-h for perfect row baseline */}
         <div className="min-h-[26px] flex flex-wrap items-center gap-2">
-          <span className="inline-flex items-center px-2.5 py-0.5 rounded-[8px] text-[11px] font-semibold tracking-wider uppercase bg-[#007AFF]/10 text-[#007AFF] dark:bg-[#0A84FF]/15 dark:text-[#0A84FF] border border-[#007AFF]/20 dark:border-[#0A84FF]/30 crystal-pill">
+          <span className="inline-flex items-center px-2.5 py-0.5 rounded-[8px] text-[11px] font-semibold uppercase bg-[#007AFF]/10 text-[#007AFF] dark:bg-[#0A84FF]/15 dark:text-[#0A84FF] border border-[#007AFF]/20 dark:border-[#0A84FF]/30 crystal-pill apple-caption">
             {source}
           </span>
           {hackathon.status && (
-            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-[8px] text-[11px] font-semibold crystal-pill ${hackathon.status.toLowerCase() === 'live' ? 'bg-[#34C759]/10 text-[#34C759] dark:bg-[#30D158]/15 dark:text-[#30D158] border border-[#34C759]/25 dark:border-[#30D158]/30' : 'bg-black/[0.04] text-slate-700 dark:bg-white/[0.08] dark:text-slate-300 border border-black/[0.06] dark:border-white/[0.08]'}`}>
+            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-[8px] text-[11px] font-semibold crystal-pill apple-caption ${hackathon.status.toLowerCase() === 'live' ? 'bg-[#34C759]/10 text-[#34C759] dark:bg-[#30D158]/15 dark:text-[#30D158] border border-[#34C759]/25 dark:border-[#30D158]/30' : 'bg-black/[0.04] text-slate-700 dark:bg-white/[0.08] dark:text-slate-300 border border-black/[0.06] dark:border-white/[0.08]'}`}>
               {hackathon.status}
             </span>
           )}
           {isTopCollege && (
-            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-[8px] text-[11px] font-semibold bg-[#5856D6]/10 text-[#5856D6] dark:bg-[#5E5CE6]/15 dark:text-[#5E5CE6] border border-[#5856D6]/20 dark:border-[#5E5CE6]/30 crystal-pill" title={collegeName}>
+            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-[8px] text-[11px] font-semibold bg-[#5856D6]/10 text-[#5856D6] dark:bg-[#5E5CE6]/15 dark:text-[#5E5CE6] border border-[#5856D6]/20 dark:border-[#5E5CE6]/30 crystal-pill apple-caption" title={collegeName}>
               <BuildingIcon /> {collegeType}
             </span>
           )}
           {isInternship && (
-            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-[8px] text-[11px] font-semibold bg-[#AF52DE]/10 text-[#AF52DE] dark:bg-[#BF5AF2]/15 dark:text-[#BF5AF2] border border-[#AF52DE]/20 dark:border-[#BF5AF2]/30 crystal-pill">
+            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-[8px] text-[11px] font-semibold bg-[#AF52DE]/10 text-[#AF52DE] dark:bg-[#BF5AF2]/15 dark:text-[#BF5AF2] border border-[#AF52DE]/20 dark:border-[#BF5AF2]/30 crystal-pill apple-caption">
               <BriefcaseIcon /> Internship
             </span>
           )}
@@ -239,7 +255,7 @@ const HackathonCard = ({ hackathon, onShare }) => {
 
         {/* Title: uniform 46px envelope to prevent jagged baselines */}
         <div className="min-h-[46px] flex items-center">
-          <h3 className="text-[17px] font-bold tracking-tight text-slate-900 dark:text-white leading-snug line-clamp-2 group-hover:text-[#007AFF] dark:group-hover:text-[#0A84FF] transition-colors">
+          <h3 className="text-[17px] font-bold text-slate-900 dark:text-white leading-snug line-clamp-2 group-hover:text-[#007AFF] dark:group-hover:text-[#0A84FF] transition-colors apple-headline">
             {hackathon.title}
           </h3>
         </div>
@@ -331,14 +347,14 @@ const HackathonCard = ({ hackathon, onShare }) => {
               onShare?.(`Opening official ${source} portal for ${hackathon.title}`);
             }
           }}
-          className="h-10 flex-1 inline-flex items-center justify-center gap-2 px-4 rounded-[12px] bg-[#007AFF] hover:bg-[#0066D6] dark:bg-[#0A84FF] dark:hover:bg-[#0077ED] text-white font-semibold text-xs sm:text-sm shadow-xs hover:shadow-md hover:shadow-[#007AFF]/25 transition-all duration-250 ease-[cubic-bezier(0.16,1,0.3,1)] active:scale-[0.96] apple-touch-layer cursor-pointer crystal-chamfer"
+          className="h-11 min-h-[44px] flex-1 apple-touch-target apple-squircle inline-flex items-center justify-center gap-2 px-4 rounded-[14px] bg-[#007AFF] hover:bg-[#0066D6] dark:bg-[#0A84FF] dark:hover:bg-[#0077ED] text-white font-semibold text-xs sm:text-sm shadow-xs hover:shadow-md hover:shadow-[#007AFF]/25 transition-all duration-250 ease-[cubic-bezier(0.16,1,0.3,1)] apple-spring-press apple-touch-layer cursor-pointer crystal-chamfer apple-dual-bevel"
         >
           <span>Register Now</span>
           <span className="transition-transform duration-200 group-hover:translate-x-0.5"><ExternalLinkIcon /></span>
         </a>
         <button
           type="button"
-          className={`h-10 w-10 shrink-0 inline-flex items-center justify-center rounded-[12px] border transition-all duration-250 ease-[cubic-bezier(0.34,1.56,0.64,1)] active:scale-85 hover:scale-105 apple-touch-layer cursor-pointer crystal-chamfer ${copied ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-600 dark:text-emerald-400 scale-105' : 'bg-white dark:bg-white/[0.08] border-black/[0.08] dark:border-white/[0.10] text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/[0.14]'}`}
+          className={`h-11 w-11 min-h-[44px] shrink-0 apple-touch-target apple-squircle inline-flex items-center justify-center rounded-[14px] border transition-all duration-250 ease-[cubic-bezier(0.34,1.56,0.64,1)] apple-spring-press hover:scale-105 apple-touch-layer cursor-pointer crystal-chamfer apple-dual-bevel ${copied ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-600 dark:text-emerald-400 scale-105' : 'bg-white dark:bg-white/[0.08] border-black/[0.08] dark:border-white/[0.10] text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/[0.14]'}`}
           onClick={handleCopy}
           title={copied ? "Link copied!" : "Copy registration link"}
           aria-label="Copy link"

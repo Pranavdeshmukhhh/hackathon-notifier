@@ -71,16 +71,34 @@ function Pagination({ currentPage, totalPages, onPageChange }) {
     prev = page;
   }
   return (
-    <div className="flex justify-center items-center gap-1.5 mt-8">
-      <button className="px-3 py-1.5 rounded-[10px] text-xs font-semibold bg-white dark:bg-[#1C1C1E] border border-black/[0.08] dark:border-white/[0.10] text-slate-700 dark:text-slate-300 disabled:opacity-40 transition-all hover:bg-slate-50 dark:hover:bg-white/[0.06] active:scale-95 shadow-xs" onClick={() => onPageChange(currentPage - 1)} disabled={currentPage === 1}>
+    <div className="flex justify-center items-center gap-2 mt-8">
+      <button 
+        className="h-11 min-h-[44px] px-4 rounded-[12px] apple-squircle apple-touch-target apple-spring-press apple-dual-bevel text-xs font-semibold bg-white dark:bg-[#1C1C1E] border border-black/[0.08] dark:border-white/[0.10] text-slate-700 dark:text-slate-300 disabled:opacity-30 disabled:pointer-events-none transition-all hover:bg-slate-50 dark:hover:bg-white/[0.06] shadow-xs cursor-pointer" 
+        onClick={() => onPageChange(currentPage - 1)} 
+        disabled={currentPage === 1}
+      >
         Previous
       </button>
       {withEllipsis.map((item, i) =>
         item === '...'
           ? <span key={`e-${i}`} className="px-2 text-slate-400 dark:text-slate-500 text-xs">…</span>
-          : <button key={item} className={`w-8 h-8 rounded-[10px] text-xs font-semibold flex items-center justify-center transition-all active:scale-95 ${currentPage === item ? 'bg-[#007AFF] text-white shadow-xs' : 'bg-white dark:bg-[#1C1C1E] border border-black/[0.08] dark:border-white/[0.10] text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/[0.06]'}`} onClick={() => onPageChange(item)}>{item}</button>
+          : <button 
+              key={item} 
+              className={`w-11 h-11 min-h-[44px] min-w-[44px] rounded-[12px] apple-squircle apple-touch-target apple-spring-press apple-dual-bevel text-xs font-semibold flex items-center justify-center transition-all cursor-pointer ${
+                currentPage === item 
+                  ? 'bg-[#007AFF] text-white shadow-xs font-bold' 
+                  : 'bg-white dark:bg-[#1C1C1E] border border-black/[0.08] dark:border-white/[0.10] text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/[0.06]'
+              }`} 
+              onClick={() => onPageChange(item)}
+            >
+              {item}
+            </button>
       )}
-      <button className="px-3 py-1.5 rounded-[10px] text-xs font-semibold bg-white dark:bg-[#1C1C1E] border border-black/[0.08] dark:border-white/[0.10] text-slate-700 dark:text-slate-300 disabled:opacity-40 transition-all hover:bg-slate-50 dark:hover:bg-white/[0.06] active:scale-95 shadow-xs" onClick={() => onPageChange(currentPage + 1)} disabled={currentPage === totalPages}>
+      <button 
+        className="h-11 min-h-[44px] px-4 rounded-[12px] apple-squircle apple-touch-target apple-spring-press apple-dual-bevel text-xs font-semibold bg-white dark:bg-[#1C1C1E] border border-black/[0.08] dark:border-white/[0.10] text-slate-700 dark:text-slate-300 disabled:opacity-30 disabled:pointer-events-none transition-all hover:bg-slate-50 dark:hover:bg-white/[0.06] shadow-xs cursor-pointer" 
+        onClick={() => onPageChange(currentPage + 1)} 
+        disabled={currentPage === totalPages}
+      >
         Next
       </button>
     </div>
@@ -226,9 +244,56 @@ function App() {
   const featuresRef        = useRef(null);
   const eventsRef          = useRef(null);
   const aboutRef           = useRef(null);
+  const queryCacheRef      = useRef(new Map());
   const abortControllerRef = useRef(null);
   const coldStartTimerRef  = useRef(null);
   const intervalRef        = useRef(null);
+
+  const buildQueryParams = useCallback((params) => {
+    const {
+      page = 1,
+      limit = PAGE_SIZE,
+      category = 'All',
+      sort = 'deadline',
+      tab = 'upcoming',
+      search = '',
+      lat = '',
+      lng = '',
+    } = params;
+    return `?page=${page}&limit=${limit}&category=${encodeURIComponent(category)}&sort=${sort}&tab=${tab}${search ? `&search=${encodeURIComponent(search)}` : ''}${lat && lng ? `&lat=${lat}&lng=${lng}` : ''}`;
+  }, []);
+
+  const getCacheKey = useCallback((params) => {
+    return `${params.category || 'All'}|${params.sort || 'deadline'}|${params.tab || 'upcoming'}|${params.page || 1}|${params.search || ''}|${params.lat || ''}|${params.lng || ''}`;
+  }, []);
+
+  const prefetchQuery = useCallback(async (params) => {
+    const key = getCacheKey(params);
+    if (queryCacheRef.current.has(key)) return;
+    const qParams = buildQueryParams(params);
+    const url = `${DEFAULT_API_URL}${qParams}`;
+    try {
+      let res;
+      try {
+        res = await fetch(url);
+      } catch {
+        if (!url.startsWith(PROD_API_URL)) {
+          res = await fetch(`${PROD_API_URL}${qParams}`);
+        } else {
+          return;
+        }
+      }
+      if (res && res.ok) {
+        const etag = res.headers.get('ETag');
+        const result = await res.json();
+        if (result.success) {
+          queryCacheRef.current.set(key, { ...result, etag, cachedAt: Date.now() });
+        }
+      }
+    } catch {
+      // Quiet fail for idle background prefetch
+    }
+  }, [buildQueryParams, getCacheKey]);
 
   useEffect(() => {
     const h = setTimeout(() => { setDebouncedSearch(searchQuery); setCurrentPage(1); }, 350);
@@ -239,49 +304,101 @@ function App() {
     if (abortControllerRef.current) abortControllerRef.current.abort();
     abortControllerRef.current = new AbortController();
 
-    if (!isAutoRefresh) {
+    const currentParams = {
+      page: currentPage,
+      limit: PAGE_SIZE,
+      category: activeCategory,
+      sort: sortBy,
+      tab: activeTab,
+      search: debouncedSearch,
+      lat: userLocation?.lat ?? '',
+      lng: userLocation?.lng ?? '',
+    };
+    const cacheKey = getCacheKey(currentParams);
+    const cachedEntry = queryCacheRef.current.get(cacheKey);
+
+    // 0ms Perceived Latency: SWR Instant Hit
+    if (cachedEntry) {
+      setHackathons(cachedEntry.data || []);
+      if (cachedEntry.stats) setStats(cachedEntry.stats);
+      const ut = cachedEntry.upcoming_total || 0;
+      const mt = cachedEntry.missed_total   || 0;
+      setUpcomingTotal(ut); setMissedTotal(mt);
+      const countForTab = activeTab === 'upcoming' ? ut : mt;
+      setTotalPages(Math.max(1, Math.ceil(countForTab / PAGE_SIZE)));
+      setLoading(false);
+      setError(null);
+      setClientLatency(0);
+    } else if (!isAutoRefresh) {
       setLoading(true); setError(null); setShowColdStartBanner(false);
       coldStartTimerRef.current = setTimeout(() => setShowColdStartBanner(true), COLD_START_WARN_MS);
     }
 
     try {
-      const lat = userLocation?.lat ?? ''; const lng = userLocation?.lng ?? '';
-      const queryParams = `?page=${currentPage}&limit=${PAGE_SIZE}&category=${encodeURIComponent(activeCategory)}&sort=${sortBy}&tab=${activeTab}${debouncedSearch ? `&search=${encodeURIComponent(debouncedSearch)}` : ''}${lat && lng ? `&lat=${lat}&lng=${lng}` : ''}`;
-      
+      const queryParams = buildQueryParams(currentParams);
       let url = `${DEFAULT_API_URL}${queryParams}`;
       const t0 = performance.now();
+      const headers = {};
+      if (cachedEntry?.etag) {
+        headers['If-None-Match'] = cachedEntry.etag;
+      }
+
       let res;
-      try { res = await fetch(url, { signal: abortControllerRef.current.signal }); } 
+      try { 
+        res = await fetch(url, { signal: abortControllerRef.current.signal, headers }); 
+      } 
       catch (networkErr) {
         if (networkErr.name === 'AbortError') return;
         if (!url.startsWith(PROD_API_URL)) {
           const fallbackUrl = `${PROD_API_URL}${queryParams}`;
-          res = await fetch(fallbackUrl, { signal: abortControllerRef.current.signal });
+          res = await fetch(fallbackUrl, { signal: abortControllerRef.current.signal, headers });
         } else { throw networkErr; }
       }
 
+      // 304 Not Modified: Cache is fresh
+      if (res.status === 304) {
+        const durationMs = Math.round(performance.now() - t0);
+        setClientLatency(durationMs);
+        return;
+      }
+
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const etag = res.headers.get('ETag');
       const result = await res.json();
       const durationMs = Math.round(performance.now() - t0);
       setClientLatency(durationMs);
+
       if (result.success) {
+        queryCacheRef.current.set(cacheKey, { ...result, etag, cachedAt: Date.now() });
         setHackathons(result.data || []);
         if (result.stats) setStats(result.stats);
         const ut = result.upcoming_total || 0;
         const mt = result.missed_total   || 0;
         setUpcomingTotal(ut); setMissedTotal(mt);
         const countForTab = activeTab === 'upcoming' ? ut : mt;
-        setTotalPages(Math.max(1, Math.ceil(countForTab / PAGE_SIZE)));
+        const newTotalPages = Math.max(1, Math.ceil(countForTab / PAGE_SIZE));
+        setTotalPages(newTotalPages);
+
+        // Background idle prefetching: opposite tab & next page
+        const idleCallback = window.requestIdleCallback || ((cb) => setTimeout(cb, 200));
+        idleCallback(() => {
+          prefetchQuery({ ...currentParams, tab: activeTab === 'upcoming' ? 'missed' : 'upcoming', page: 1 });
+          if (currentPage < newTotalPages) {
+            prefetchQuery({ ...currentParams, page: currentPage + 1 });
+          }
+        });
       } else { throw new Error(result.error || 'Unknown API error'); }
     } catch (e) {
       if (e.name === 'AbortError') return;
-      setError('Could not connect to the API. Connecting to cloud pipeline…');
+      if (!cachedEntry) {
+        setError('Could not connect to the API. Connecting to cloud pipeline…');
+      }
     } finally {
       clearTimeout(coldStartTimerRef.current);
       setShowColdStartBanner(false);
       setLoading(false);
     }
-  }, [activeCategory, sortBy, debouncedSearch, activeTab, currentPage, userLocation]);
+  }, [activeCategory, sortBy, debouncedSearch, activeTab, currentPage, userLocation, buildQueryParams, getCacheKey, prefetchQuery]);
 
   useEffect(() => {
     fetchHackathons();
@@ -427,17 +544,27 @@ function App() {
              <div className="flex items-center gap-2 ml-4 border-l border-black/[0.08] dark:border-white/[0.12] pl-4">
                 <button 
                   onClick={toggleDarkMode} 
-                  className="p-2 rounded-[10px] bg-black/[0.04] text-slate-700 hover:bg-black/[0.08] dark:bg-white/[0.08] dark:text-slate-300 dark:hover:bg-white/[0.14] transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] active:scale-90 hover:scale-105 apple-touch-layer cursor-pointer" 
+                  className="w-10 h-10 min-h-[40px] min-w-[40px] rounded-[12px] apple-squircle apple-touch-target apple-spring-press apple-dual-bevel bg-black/[0.04] text-slate-700 hover:bg-black/[0.08] dark:bg-white/[0.08] dark:text-slate-300 dark:hover:bg-white/[0.14] transition-all flex items-center justify-center cursor-pointer shadow-xs" 
                   title="Toggle Theme"
                 >
                   <div className="transition-transform duration-500 ease-[cubic-bezier(0.34,1.56,0.64,1)] transform hover:rotate-12 active:rotate-45">
                     {isDarkMode ? <SunIcon /> : <MoonIcon />}
                   </div>
                 </button>
-                <button className={`hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-[10px] text-xs font-semibold transition-all active:scale-95 apple-touch-layer cursor-pointer ${userLocation ? 'bg-[#007AFF]/15 text-[#007AFF] dark:bg-[#0A84FF]/20 dark:text-[#0A84FF]' : 'bg-black/[0.04] text-slate-700 hover:bg-black/[0.08] dark:bg-white/[0.08] dark:text-slate-300 dark:hover:bg-white/[0.14]'}`} onClick={() => requestLocation()}>
+                <button 
+                  className={`hidden sm:flex items-center gap-1.5 px-3.5 h-10 min-h-[40px] rounded-[12px] apple-squircle apple-touch-target apple-spring-press apple-dual-bevel text-xs font-semibold transition-all cursor-pointer shadow-xs ${
+                    userLocation 
+                      ? 'bg-[#007AFF]/15 text-[#007AFF] dark:bg-[#0A84FF]/20 dark:text-[#0A84FF] border border-[#007AFF]/30' 
+                      : 'bg-black/[0.04] text-slate-700 hover:bg-black/[0.08] dark:bg-white/[0.08] dark:text-slate-300 dark:hover:bg-white/[0.14] border border-black/[0.06] dark:border-white/[0.08]'
+                  }`} 
+                  onClick={() => requestLocation()}
+                >
                    <PinIcon /> {isLocating ? 'Locating...' : 'Near Me'}
                 </button>
-                <button className="hidden sm:flex items-center gap-1.5 px-3.5 py-1.5 rounded-[10px] text-xs font-bold bg-[#007AFF] hover:bg-[#0066D6] dark:bg-[#0A84FF] dark:hover:bg-[#0077ED] text-white shadow-xs hover:shadow-md hover:shadow-[#007AFF]/25 transition-all active:scale-95 apple-touch-layer cursor-pointer" onClick={() => fetchHackathons()}>
+                <button 
+                  className="hidden sm:flex items-center gap-1.5 px-4 h-10 min-h-[40px] rounded-[12px] apple-squircle apple-touch-target apple-spring-press apple-dual-bevel text-xs font-bold bg-[#007AFF] hover:bg-[#0066D6] dark:bg-[#0A84FF] dark:hover:bg-[#0077ED] text-white shadow-xs hover:shadow-md hover:shadow-[#007AFF]/25 transition-all cursor-pointer" 
+                  onClick={() => fetchHackathons()}
+                >
                    Sync
                 </button>
                 <button className="md:hidden p-2 text-slate-600 dark:text-slate-300" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
@@ -493,11 +620,19 @@ function App() {
             </p>
             
             <div className="flex flex-wrap items-center gap-3 pt-2">
-              <button className="px-5 py-2.5 rounded-[14px] bg-[#007AFF] hover:bg-[#0066D6] dark:bg-[#0A84FF] dark:hover:bg-[#0077ED] text-white text-sm font-semibold shadow-xs hover:shadow-md hover:shadow-[#007AFF]/25 transition-all duration-200 flex items-center gap-2 active:scale-[0.96] apple-touch-layer cursor-pointer" onClick={() => scrollToSection('events')}>
+              <button 
+                className="h-12 min-h-[44px] px-6 rounded-[14px] apple-squircle apple-touch-target apple-spring-press apple-dual-bevel bg-[#007AFF] hover:bg-[#0066D6] dark:bg-[#0A84FF] dark:hover:bg-[#0077ED] text-white text-sm font-semibold shadow-xs hover:shadow-md hover:shadow-[#007AFF]/25 transition-all duration-200 flex items-center gap-2 cursor-pointer" 
+                onClick={() => scrollToSection('events')}
+              >
                 Explore Live Hacks
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
               </button>
-              <a href="https://t.me/Pranavhakathon_bot" target="_blank" rel="noreferrer" className="px-5 py-2.5 rounded-[14px] bg-white dark:bg-[#1C1C1E] border border-black/[0.08] dark:border-white/[0.12] hover:bg-slate-50 dark:hover:bg-white/[0.06] text-slate-800 dark:text-slate-200 text-sm font-semibold flex items-center gap-2 shadow-xs hover:shadow-md transition-all duration-200 active:scale-[0.96] apple-touch-layer cursor-pointer">
+              <a 
+                href="https://t.me/Pranavhakathon_bot" 
+                target="_blank" 
+                rel="noreferrer" 
+                className="h-12 min-h-[44px] px-6 rounded-[14px] apple-squircle apple-touch-target apple-spring-press apple-dual-bevel bg-white dark:bg-[#1C1C1E] border border-black/[0.08] dark:border-white/[0.12] hover:bg-slate-50 dark:hover:bg-white/[0.06] text-slate-800 dark:text-slate-200 text-sm font-semibold flex items-center gap-2 shadow-xs hover:shadow-md transition-all duration-200 cursor-pointer"
+              >
                 <TelegramIcon /> Telegram Alerts
               </a>
             </div>
@@ -507,7 +642,7 @@ function App() {
               <button 
                 type="button" 
                 onClick={() => handleQuickFilter('prizes')}
-                className="text-left bg-white/95 dark:bg-[#1C1C1E]/95 backdrop-blur-xl p-3.5 rounded-[16px] border border-black/[0.08] dark:border-white/[0.10] shadow-[0_2px_10px_rgba(0,0,0,0.03)] dark:shadow-[0_4px_16px_rgba(0,0,0,0.30)] hover:border-[#007AFF]/40 dark:hover:border-[#0A84FF]/40 hover:-translate-y-1 hover:shadow-lg dark:hover:shadow-[0_8px_24px_rgba(0,0,0,0.45)] transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] group cursor-pointer active:scale-[0.97] crystal-chamfer crystal-sheen"
+                className="text-left bg-white/95 dark:bg-[#1C1C1E]/95 backdrop-blur-xl p-3.5 rounded-[16px] apple-squircle apple-dual-bevel apple-spring-press border border-black/[0.08] dark:border-white/[0.10] shadow-[0_2px_10px_rgba(0,0,0,0.03)] dark:shadow-[0_4px_16px_rgba(0,0,0,0.30)] hover:border-[#007AFF]/40 dark:hover:border-[#0A84FF]/40 hover:-translate-y-1 hover:shadow-lg dark:hover:shadow-[0_8px_24px_rgba(0,0,0,0.45)] transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] group cursor-pointer crystal-chamfer crystal-sheen"
                 title="Filter highest cash prize pools"
               >
                 <div className="text-lg sm:text-xl font-bold text-slate-900 dark:text-white tracking-tight group-hover:text-[#007AFF] dark:group-hover:text-[#0A84FF] transition-colors">
@@ -521,7 +656,7 @@ function App() {
               <button 
                 type="button" 
                 onClick={() => handleQuickFilter('college')}
-                className="text-left bg-white/95 dark:bg-[#1C1C1E]/95 backdrop-blur-xl p-3.5 rounded-[16px] border border-black/[0.08] dark:border-white/[0.10] shadow-[0_2px_10px_rgba(0,0,0,0.03)] dark:shadow-[0_4px_16px_rgba(0,0,0,0.30)] hover:border-[#34C759]/40 dark:hover:border-[#30D158]/40 hover:-translate-y-1 hover:shadow-lg dark:hover:shadow-[0_8px_24px_rgba(0,0,0,0.45)] transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] group cursor-pointer active:scale-[0.97] crystal-chamfer crystal-sheen"
+                className="text-left bg-white/95 dark:bg-[#1C1C1E]/95 backdrop-blur-xl p-3.5 rounded-[16px] apple-squircle apple-dual-bevel apple-spring-press border border-black/[0.08] dark:border-white/[0.10] shadow-[0_2px_10px_rgba(0,0,0,0.03)] dark:shadow-[0_4px_16px_rgba(0,0,0,0.30)] hover:border-[#34C759]/40 dark:hover:border-[#30D158]/40 hover:-translate-y-1 hover:shadow-lg dark:hover:shadow-[0_8px_24px_rgba(0,0,0,0.45)] transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] group cursor-pointer crystal-chamfer crystal-sheen"
                 title="Filter premier IIT/NIT college hackathons"
               >
                 <div className="text-lg sm:text-xl font-bold text-[#34C759] dark:text-[#30D158] tracking-tight">
@@ -535,7 +670,7 @@ function App() {
               <button 
                 type="button" 
                 onClick={() => { scrollToSection('dashboard'); showToast('⚡ Telemetry: Live sub-second radar active'); }}
-                className="text-left bg-white/95 dark:bg-[#1C1C1E]/95 backdrop-blur-xl p-3.5 rounded-[16px] border border-black/[0.08] dark:border-white/[0.10] shadow-[0_2px_10px_rgba(0,0,0,0.03)] dark:shadow-[0_4px_16px_rgba(0,0,0,0.30)] hover:border-[#007AFF]/40 dark:hover:border-[#0A84FF]/40 hover:-translate-y-1 hover:shadow-lg dark:hover:shadow-[0_8px_24px_rgba(0,0,0,0.45)] transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] group cursor-pointer active:scale-[0.97] crystal-chamfer crystal-sheen"
+                className="text-left bg-white/95 dark:bg-[#1C1C1E]/95 backdrop-blur-xl p-3.5 rounded-[16px] apple-squircle apple-dual-bevel apple-spring-press border border-black/[0.08] dark:border-white/[0.10] shadow-[0_2px_10px_rgba(0,0,0,0.03)] dark:shadow-[0_4px_16px_rgba(0,0,0,0.30)] hover:border-[#007AFF]/40 dark:hover:border-[#0A84FF]/40 hover:-translate-y-1 hover:shadow-lg dark:hover:shadow-[0_8px_24px_rgba(0,0,0,0.45)] transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] group cursor-pointer crystal-chamfer crystal-sheen"
                 title="View live broadcast telemetry"
               >
                 <div className="text-lg sm:text-xl font-bold text-[#007AFF] dark:text-[#0A84FF] tracking-tight">
@@ -619,13 +754,13 @@ function App() {
             
             {/* Apple Inset Search Field */}
             <div className="relative group w-full sm:w-80">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400 dark:text-slate-500 group-focus-within:text-[#007AFF] dark:group-focus-within:text-[#0A84FF] group-focus-within:scale-110 transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]">
+              <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400 dark:text-slate-500 group-focus-within:text-[#007AFF] dark:group-focus-within:text-[#0A84FF] group-focus-within:scale-110 transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]">
                 <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
               </div>
               <input 
                 type="text" 
                 placeholder="Search hacks (e.g., AI, Web3)..." 
-                className="w-full pl-9 pr-8 py-2 bg-black/[0.05] dark:bg-white/[0.08] border border-transparent focus:border-[#007AFF]/40 focus:bg-white dark:focus:bg-[#1C1C1E] rounded-[12px] text-xs sm:text-sm text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-[#007AFF]/25 focus:shadow-[0_0_24px_rgba(0,122,255,0.12)] transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] shadow-xs crystal-search crystal-chamfer"
+                className="w-full pl-10 pr-9 h-11 min-h-[44px] bg-black/[0.05] dark:bg-white/[0.08] border border-transparent focus:border-[#007AFF]/40 focus:bg-white dark:focus:bg-[#1C1C1E] rounded-[14px] apple-squircle text-xs sm:text-sm text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-[#007AFF]/25 focus:shadow-[0_0_24px_rgba(0,122,255,0.12)] transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] shadow-xs crystal-search crystal-chamfer"
                 value={searchQuery}
                 onChange={handleSearchChange}
               />
@@ -633,7 +768,7 @@ function App() {
                 <button
                   type="button"
                   onClick={() => setSearchQuery('')}
-                  className="absolute inset-y-0 right-0 pr-2.5 flex items-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-all duration-200 active:scale-85"
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-all duration-200 active:scale-85 cursor-pointer"
                   title="Clear search"
                   aria-label="Clear search"
                 >
@@ -649,10 +784,10 @@ function App() {
                <button
                  key={cat.key}
                  onClick={() => handleCategoryChange(cat.key)}
-                 className={`px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] active:scale-95 hover:scale-[1.02] cursor-pointer crystal-pill crystal-chamfer ${
+                 className={`px-4 py-2 min-h-[38px] sm:min-h-[40px] rounded-full apple-touch-target apple-spring-press apple-dual-bevel text-xs font-semibold transition-all duration-200 cursor-pointer crystal-chamfer ${
                    activeCategory === cat.key
                      ? 'bg-[#007AFF] text-white shadow-xs shadow-[#007AFF]/25 scale-[1.02]'
-                     : 'bg-white/90 dark:bg-[#1C1C1E]/90 border border-black/[0.08] dark:border-white/[0.10] text-slate-700 dark:text-slate-300 hover:bg-black/[0.03] dark:hover:bg-white/[0.06] hover:border-black/[0.15] dark:hover:border-white/[0.20]'
+                     : 'bg-white/90 dark:bg-[#1C1C1E]/90 border border-black/[0.08] dark:border-white/[0.10] text-slate-700 dark:text-slate-300 hover:bg-black/[0.03] dark:hover:bg-white/[0.06] hover:border-black/[0.15] dark:border-white/[0.20]'
                  }`}
                >
                  {cat.label} <span className="opacity-70 ml-1">({cat.count})</span>
@@ -664,7 +799,7 @@ function App() {
                 <select 
                   value={sortBy} 
                   onChange={handleSortChange}
-                  className="bg-white/95 dark:bg-[#1C1C1E]/95 border border-black/[0.08] dark:border-white/[0.10] text-slate-700 dark:text-slate-300 text-xs font-semibold rounded-[10px] px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-[#007AFF] cursor-pointer shadow-xs transition-all duration-200 crystal-chamfer"
+                  className="h-10 sm:h-11 min-h-[40px] sm:min-h-[44px] bg-white/95 dark:bg-[#1C1C1E]/95 border border-black/[0.08] dark:border-white/[0.10] text-slate-700 dark:text-slate-300 text-xs font-semibold rounded-[12px] apple-squircle apple-touch-target apple-dual-bevel px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#007AFF] cursor-pointer shadow-xs transition-all duration-200 crystal-chamfer"
                 >
                   <option value="deadline">⏳ Deadline (Soonest)</option>
                   <option value="newest">✨ Recently Added</option>
@@ -693,10 +828,10 @@ function App() {
           {/* Subtabs (Upcoming/Missed) — Apple iOS Segmented Control with Fluid Sliding Capsule */}
           {!loading && !error && (upcomingTotal > 0 || missedTotal > 0) && (
             <div className="flex items-center">
-              <div className="relative p-1 rounded-[14px] bg-black/[0.05] dark:bg-white/[0.08] backdrop-blur-md inline-flex items-center shadow-inner border border-black/[0.04] dark:border-white/[0.04] w-fit crystal-pill crystal-chamfer">
+              <div className="relative p-1 rounded-[16px] apple-squircle bg-black/[0.05] dark:bg-white/[0.08] backdrop-blur-md inline-flex items-center shadow-inner border border-black/[0.04] dark:border-white/[0.04] w-fit min-h-[44px] crystal-pill crystal-chamfer">
                 {/* Fluid Spring Sliding Thumb */}
                 <div 
-                  className={`absolute top-1 bottom-1 rounded-[10px] bg-white dark:bg-[#2C2C2E] shadow-sm transition-all duration-350 ease-[cubic-bezier(0.16,1,0.3,1)] crystal-chamfer ${
+                  className={`absolute top-1 bottom-1 rounded-[12px] apple-squircle apple-dual-bevel bg-white dark:bg-[#2C2C2E] shadow-sm transition-all duration-350 ease-[cubic-bezier(0.16,1,0.3,1)] crystal-chamfer ${
                     activeTab === 'upcoming' 
                       ? 'left-1 w-[calc(50%-4px)]' 
                       : 'left-[calc(50%)] w-[calc(50%-4px)]'
@@ -705,7 +840,7 @@ function App() {
                 />
                 <button
                   type="button"
-                  className={`relative z-10 px-4 py-1.5 text-xs sm:text-sm font-semibold rounded-[10px] transition-colors duration-200 flex items-center justify-center gap-2 cursor-pointer select-none active:scale-[0.98] ${
+                  className={`relative z-10 px-5 py-2 min-h-[38px] text-xs sm:text-sm font-semibold rounded-[12px] apple-squircle apple-touch-target apple-spring-press transition-colors duration-200 flex items-center justify-center gap-2 cursor-pointer select-none ${
                     activeTab === 'upcoming'
                       ? 'text-slate-950 dark:text-white font-bold'
                       : 'text-slate-500 dark:text-slate-400 hover:text-black dark:hover:text-white'
@@ -723,7 +858,7 @@ function App() {
                 </button>
                 <button
                   type="button"
-                  className={`relative z-10 px-4 py-1.5 text-xs sm:text-sm font-semibold rounded-[10px] transition-colors duration-200 flex items-center justify-center gap-2 cursor-pointer select-none active:scale-[0.98] ${
+                  className={`relative z-10 px-5 py-2 min-h-[38px] text-xs sm:text-sm font-semibold rounded-[12px] apple-squircle apple-touch-target apple-spring-press transition-colors duration-200 flex items-center justify-center gap-2 cursor-pointer select-none ${
                     activeTab === 'missed'
                       ? 'text-slate-950 dark:text-white font-bold'
                       : 'text-slate-500 dark:text-slate-400 hover:text-black dark:hover:text-white'
@@ -786,7 +921,7 @@ function App() {
                     : 'The scraper pipeline runs autonomous hourly sweeps across Unstop, Devfolio, HackerEarth and Devpost.'}
                 </p>
                 <button 
-                  className="mt-5 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-[12px] text-xs font-bold shadow-md shadow-blue-600/20 transition-all active:scale-95 cursor-pointer" 
+                  className="mt-5 px-6 h-11 min-h-[44px] apple-squircle apple-touch-target apple-spring-press apple-dual-bevel bg-[#007AFF] hover:bg-[#0066D6] dark:bg-[#0A84FF] text-white rounded-[12px] text-xs font-bold shadow-md shadow-blue-600/20 transition-all cursor-pointer" 
                   onClick={() => { setSearchQuery(''); setActiveCategory('All'); }}
                 >
                   Reset All Filters
@@ -833,7 +968,12 @@ function App() {
                     Direct notifications with sub-second radar ({clientLatency ? `${clientLatency}ms` : (stats.p50_latency_ms ? `${Math.round(stats.p50_latency_ms)}ms` : '32ms')}) of registration openings.
                   </div>
                 </div>
-                <a href="https://t.me/Pranavhakathon_bot" target="_blank" rel="noreferrer" className="px-4 py-2.5 rounded-[12px] bg-white text-[#007AFF] text-xs sm:text-sm font-bold hover:bg-slate-50 transition shadow-sm whitespace-nowrap flex items-center gap-2 active:scale-95 crystal-chamfer">
+                <a 
+                  href="https://t.me/Pranavhakathon_bot" 
+                  target="_blank" 
+                  rel="noreferrer" 
+                  className="h-11 min-h-[44px] px-5 rounded-[12px] apple-squircle apple-touch-target apple-spring-press apple-dual-bevel bg-white text-[#007AFF] text-xs sm:text-sm font-bold hover:bg-slate-50 transition shadow-sm whitespace-nowrap flex items-center gap-2 cursor-pointer"
+                >
                   <TelegramIcon /> Join @Pranavhakathon_bot
                 </a>
               </div>

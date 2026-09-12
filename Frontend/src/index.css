@@ -135,6 +135,109 @@
     box-shadow: inset 0 1px 1.5px 0 rgba(255, 255, 255, 0.25);
   }
 
+  /* ── APPLE G2 CONTINUOUS SQUIRCLE & DUAL-LIP BEVEL ── */
+  .apple-squircle {
+    border-radius: 16px;
+    corner-smoothing: 60%;
+    -webkit-corner-smoothing: 60%;
+  }
+
+  .apple-dual-bevel {
+    box-shadow: 
+      inset 0 1px 0.5px 0 rgba(255, 255, 255, 0.40),
+      inset 0 -1px 0.5px 0 rgba(0, 0, 0, 0.12),
+      0 2px 6px -1px rgba(0, 0, 0, 0.08);
+  }
+  .dark .apple-dual-bevel {
+    box-shadow: 
+      inset 0 1px 0.5px 0 rgba(255, 255, 255, 0.22),
+      inset 0 -1px 0.5px 0 rgba(0, 0, 0, 0.35),
+      0 2px 8px -1px rgba(0, 0, 0, 0.40);
+  }
+
+  /* Strict Apple HIG 44pt Touch Standard */
+  .apple-touch-target {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* ── APPLE CASPRING ANIMATION SYSTEM ── */
+  .apple-spring-press {
+    will-change: transform;
+    transform: translateZ(0);
+    transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .apple-spring-press:active {
+    transform: scale(0.96) translateZ(0);
+    transition: transform 0.1s cubic-bezier(0.2, 0, 0, 1);
+  }
+
+  /* ── 4-TIER APPLE HIG GLASS MATERIALS ── */
+  .apple-material-ultrathin {
+    background: rgba(255, 255, 255, 0.65);
+    backdrop-filter: blur(10px) saturate(160%);
+    -webkit-backdrop-filter: blur(10px) saturate(160%);
+  }
+  .dark .apple-material-ultrathin {
+    background: rgba(28, 28, 30, 0.55);
+    backdrop-filter: blur(10px) saturate(160%);
+    -webkit-backdrop-filter: blur(10px) saturate(160%);
+  }
+
+  .apple-material-thin {
+    background: rgba(255, 255, 255, 0.78);
+    backdrop-filter: blur(18px) saturate(175%);
+    -webkit-backdrop-filter: blur(18px) saturate(175%);
+  }
+  .dark .apple-material-thin {
+    background: rgba(28, 28, 30, 0.68);
+    backdrop-filter: blur(18px) saturate(175%);
+    -webkit-backdrop-filter: blur(18px) saturate(175%);
+  }
+
+  .apple-material-regular {
+    background: rgba(255, 255, 255, 0.88);
+    backdrop-filter: blur(28px) saturate(190%);
+    -webkit-backdrop-filter: blur(28px) saturate(190%);
+  }
+  .dark .apple-material-regular {
+    background: rgba(28, 28, 30, 0.78);
+    backdrop-filter: blur(28px) saturate(190%);
+    -webkit-backdrop-filter: blur(28px) saturate(190%);
+  }
+
+  .apple-material-thick {
+    background: rgba(255, 255, 255, 0.94);
+    backdrop-filter: blur(40px) saturate(210%);
+    -webkit-backdrop-filter: blur(40px) saturate(210%);
+  }
+  .dark .apple-material-thick {
+    background: rgba(18, 18, 20, 0.90);
+    backdrop-filter: blur(40px) saturate(210%);
+    -webkit-backdrop-filter: blur(40px) saturate(210%);
+  }
+
+  /* ── SF PRO OPTICAL TYPOGRAPHY HIERARCHY ── */
+  .apple-headline {
+    letter-spacing: -0.024em;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+  .apple-subhead {
+    letter-spacing: -0.011em;
+  }
+  .apple-caption {
+    letter-spacing: 0.04em;
+  }
+
+  /* ── 120FPS GPU CONTAINMENT (Offscreen Layout Savings) ── */
+  .apple-card-contain {
+    content-visibility: auto;
+    contain-intrinsic-size: 0 340px;
+    contain: layout style paint;
+  }
+
   /* Hide scrollbars for clean presentation */
   .no-scrollbar::-webkit-scrollbar {
     display: none;
