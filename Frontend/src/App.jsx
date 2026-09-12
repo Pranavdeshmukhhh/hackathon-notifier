@@ -575,7 +575,7 @@ function App() {
               <div className="hero-stat-label">Active &amp; Open</div>
             </div>
             <div className="hero-stat-box">
-              <div className="hero-stat-value" style={{ color: '#f59e0b' }}>{stats.top_college_count || 0}</div>
+              <div className="hero-stat-value" style={{ color: '#818cf8' }}>{stats.top_college_count || 0}</div>
               <div className="hero-stat-label">IIT / NIT / BITS</div>
             </div>
             <div className="hero-stat-box">
