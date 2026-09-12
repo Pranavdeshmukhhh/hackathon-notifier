@@ -17,12 +17,14 @@ __pycache__/
 dist/
 build/
 
-# ── IDE / Editor ──
+# ── IDE / Editor & Backups ──
 .vscode/
 .idea/
 *.swp
 *.swo
 *~
+*.backup
+*.bak
 
 # ── Node (Frontend) ──
 node_modules/

@@ -92,13 +92,17 @@ def _run_scrapers() -> dict:
 
 # ── Geocoding ─────────────────────────────────────────────────────────────────
 import ssl
+import certifi
 import geopy.geocoders
-ctx = ssl.create_default_context()
-ctx.check_hostname = False
-ctx.verify_mode = ssl.CERT_NONE
-geopy.geocoders.options.default_ssl_context = ctx
 
-geolocator = Nominatim(user_agent="hackathon-notifier")
+try:
+    ctx = ssl.create_default_context(cafile=certifi.where())
+    geopy.geocoders.options.default_ssl_context = ctx
+except Exception:
+    ctx = ssl.create_default_context()
+    geopy.geocoders.options.default_ssl_context = ctx
+
+geolocator = Nominatim(user_agent="hackathon-notifier/1.0")
 _location_cache = {}
 
 def _geocode_locations(hackathons: list[dict]):

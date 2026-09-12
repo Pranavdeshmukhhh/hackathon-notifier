@@ -844,7 +844,9 @@ def start_polling():
 
     # ── Admin Tools ───────────────────────────────────────────────────────────
     def _is_admin(chat_id: str) -> bool:
-        return str(chat_id) == str(TELEGRAM_CHAT_ID)
+        if not TELEGRAM_CHAT_ID:
+            return False
+        return str(chat_id).strip() == str(TELEGRAM_CHAT_ID).strip()
 
     @bot.message_handler(commands=["scrape_now"])
     def handle_admin_scrape(message):
@@ -879,7 +881,12 @@ def start_polling():
             bot.reply_to(message, "Usage: <code>/broadcast &lt;message&gt;</code>", parse_mode="HTML")
             return
 
-        broadcast_text = f"📢 <b>Announcement:</b>\n\n{_escape_html(parts[1].strip())}"
+        body = parts[1].strip()
+        if len(body) > 3800:
+            bot.reply_to(message, "⚠️ Broadcast message exceeds maximum allowed length (3800 characters).")
+            return
+
+        broadcast_text = f"📢 <b>Announcement:</b>\n\n{_escape_html(body)}"
         try:
             from db.mongo_client import get_active_subscribers
             subs = get_active_subscribers()
