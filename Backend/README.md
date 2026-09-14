@@ -213,6 +213,7 @@ Render detects the `Procfile` automatically. Required environment variables must
 
 ## Security Notes
 
+- For our full security policy and vulnerability reporting guidelines, see [**SECURITY.md**](../SECURITY.md).
 - `ADMIN_SECRET` is compared using `secrets.compare_digest` (constant-time) — safe against timing attacks.
 - Rate limiting is enforced per validated client IP. Cloudflare `CF-Connecting-IP` and `X-Forwarded-For` headers are validated against IPv4/IPv6 format before use.
 - All Telegram message content is HTML-escaped before sending to prevent injection.

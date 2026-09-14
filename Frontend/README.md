@@ -99,6 +99,8 @@ Key tokens:
 
 ## Security Headers
 
+For our full security policy and vulnerability reporting guidelines, see [**SECURITY.md**](../SECURITY.md).
+
 `vercel.json` sets the following security headers on every response:
 
 | Header | Value |

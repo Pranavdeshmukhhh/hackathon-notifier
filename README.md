@@ -305,7 +305,7 @@ The bot responds to these commands (also available as a tap-able reply keyboard)
 
 ## 🔒 Security
 
-For our full security policy, vulnerability reporting guidelines, and disclosure process, please see [**SECURITY.md**](.github/SECURITY.md).
+For our full security policy, vulnerability reporting guidelines, and disclosure process, please see [**SECURITY.md**](SECURITY.md).
 
 ### Backend
 
