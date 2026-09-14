@@ -1,33 +1,36 @@
 # Frontend — Hackathon Notifier
 
-React + Vite frontend for the [Hackathon Notifier](https://hackathon-notifier.vercel.app) project.
+React 19 + Vite frontend for the [Hackathon Notifier](https://hackathon-notifier.vercel.app) platform.
 
-Deployed to **Vercel** at: [https://hackathon-notifier.vercel.app](https://hackathon-notifier.vercel.app)
+**Live URL:** [https://hackathon-notifier.vercel.app](https://hackathon-notifier.vercel.app)  
+**Backend API:** [https://hackathon-notifier.onrender.com](https://hackathon-notifier.onrender.com)
 
 ---
 
-## Stack
+## Tech Stack
 
-| | |
-|---|---|
-| **Framework** | React 18 |
-| **Bundler** | Vite |
-| **Styling** | Vanilla CSS with CSS custom properties (no Tailwind) |
-| **Font** | Inter (Google Fonts) |
-| **Icons** | Inline SVG |
+| | Library | Version | Purpose |
+|---|---|---|---|
+| ⚛️ | React | 19 | UI component framework |
+| ⚡ | Vite | 8 | Build tool + dev server with HMR |
+| 🎨 | Tailwind CSS | 4 | Utility-first styling |
+| 🔤 | Inter (Google Fonts) | — | Primary typeface |
+| ✏️ | Lucide React | — | SVG icon set |
+| 🔍 | oxlint | — | Fast Rust-based JavaScript linter |
 
 ---
 
 ## Features
 
-- **Light / dark mode** — auto-switches via `@media (prefers-color-scheme: dark)`, no JS toggle
-- **Server-side pagination** — 12 cards/page, fetched from backend
-- **Debounced search** — 400 ms delay, no over-fetching
-- **Location-aware sorting** — requests GPS, calculates distance via Haversine on the backend
-- **Category tabs** — All / Online / Offline / Top College / Internship / Hackathons / Curated
-- **Upcoming / Missed tabs** — separate views for live and expired events
-- **Cold-start banner** — warns the user when the Render backend is waking up
-- **Dashboard popup** — live stats (total, sources, mode breakdown)
+- **Auto dark / light mode** — `@media (prefers-color-scheme: dark)`, zero JS for theming
+- **Server-side pagination** — 12 cards/page fetched from the FastAPI backend
+- **Debounced search** — 400 ms delay, minimises redundant API calls
+- **Location-aware sorting** — requests device GPS, sends coordinates to backend for Haversine distance sort
+- **Category tabs** — All / Online / Offline / Top College / Internship / Curated
+- **Upcoming / Missed tabs** — separate views for live and already-expired events
+- **Cold-start banner** — notifies users when the Render free-tier backend is waking up
+- **Stats dashboard popup** — live platform stats (total hackathons, per-source breakdown, mode split)
+- **Inline "Open App" Telegram button** — links directly to the Telegram bot
 
 ---
 
@@ -38,7 +41,7 @@ Deployed to **Vercel** at: [https://hackathon-notifier.vercel.app](https://hacka
 cd Frontend
 npm install
 
-# Point at local backend
+# Point the app at your local backend
 echo "VITE_API_URL=http://localhost:8000" > .env.local
 
 npm run dev
@@ -47,13 +50,11 @@ npm run dev
 
 ### Environment Variables
 
-| Variable | Description |
-|---|---|
-| `VITE_API_URL` | Base URL of the FastAPI backend (no trailing slash) |
+| Variable | Required | Default | Description |
+|---|---|---|---|
+| `VITE_API_URL` | No | `https://hackathon-notifier.onrender.com` | Base URL of the FastAPI backend (no trailing slash) |
 
-If `VITE_API_URL` is not set, the app falls back to:
-- `https://hackathon-notifier.onrender.com` in production
-- `http://localhost:8000` in development
+In production (Vercel), set `VITE_API_URL` in **Project → Settings → Environment Variables** in the Vercel dashboard.
 
 ---
 
@@ -62,13 +63,14 @@ If `VITE_API_URL` is not set, the app falls back to:
 ```
 Frontend/
 ├── src/
-│   ├── App.jsx          # Root component — state, filters, pagination, modals
-│   ├── index.css        # Design system: tokens, layout, components, dark mode
-│   └── main.jsx         # React entry point
+│   ├── App.jsx          # Root component — state, filters, pagination, modals, API calls
+│   ├── index.css        # Design system: CSS tokens, layout, components, dark mode
+│   └── main.jsx         # React entry point (ReactDOM.createRoot)
 ├── Components/
-│   └── hakathoncard.jsx # Card component for each hackathon listing
-├── index.html
-├── vite.config.js
+│   └── hakathoncard.jsx # Individual card for each hackathon listing
+├── index.html           # HTML shell with meta tags and Vite entry
+├── vite.config.js       # Vite + @vitejs/plugin-react config
+├── vercel.json          # SPA rewrites + security response headers
 └── package.json
 ```
 
@@ -76,31 +78,59 @@ Frontend/
 
 ## Design System
 
-All colors, shadows, and borders are CSS custom properties on `:root`, overridden inside `@media (prefers-color-scheme: dark)`. This means **zero JS for theming** — the browser handles it at parse time.
+All colors, shadows, and spacing are CSS custom properties on `:root`, overridden inside `@media (prefers-color-scheme: dark)`. **Zero JavaScript is needed for theming** — the browser applies it at parse time.
 
 Key tokens:
 
 ```css
---bg-base         /* page background     */
---bg-surface      /* subtle sections     */
---bg-elevated     /* cards, modals       */
---text-primary    /* headings            */
---text-secondary  /* body copy           */
---text-muted      /* labels, captions    */
---accent          /* indigo #6366f1      */
---accent-hover    /* darker indigo       */
---border          /* dividers            */
---card-shadow     /* card elevation      */
+--bg-base           /* page background */
+--bg-surface        /* subtle section backgrounds */
+--bg-elevated       /* cards, modals, dropdowns */
+--text-primary      /* headings and important labels */
+--text-secondary    /* body copy */
+--text-muted        /* captions and timestamps */
+--accent            /* primary indigo action color */
+--accent-hover      /* darker indigo for hover states */
+--border            /* dividers and outlines */
+--card-shadow       /* card elevation shadow */
 ```
+
+---
+
+## Security Headers
+
+`vercel.json` sets the following security headers on every response:
+
+| Header | Value |
+|---|---|
+| `Content-Security-Policy` | Restricts scripts, styles, fonts, and connections to known origins |
+| `Strict-Transport-Security` | 2-year HSTS with subdomain coverage and preload |
+| `X-Frame-Options` | `DENY` — prevents clickjacking |
+| `X-Content-Type-Options` | `nosniff` — prevents MIME-type sniffing |
+| `Referrer-Policy` | `strict-origin-when-cross-origin` |
+| `Permissions-Policy` | Blocks access to camera, microphone, payment, USB |
 
 ---
 
 ## Build & Deploy
 
 ```bash
-npm run build        # outputs to dist/
-npm run preview      # preview production build locally
+# Production build (outputs to dist/)
+npm run build
+
+# Preview production build locally
+npm run preview
+
+# Lint
+npm run lint
 ```
 
-Vercel auto-deploys on every push to `main`.
-Set `VITE_API_URL` in the Vercel dashboard under **Project → Settings → Environment Variables**.
+Vercel auto-deploys on every push to `main`. No manual build step needed.
+
+---
+
+## Notes
+
+- The `dist/` directory is git-ignored and not committed to the repository.
+- The app gracefully shows a loading skeleton and cold-start warning while the Render backend wakes from sleep.
+- Geolocation is only requested when the user explicitly clicks "Sort by nearest" — never automatically on page load.
