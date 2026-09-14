@@ -158,3 +158,60 @@ async def test_production_unconfigured_admin_secret():
         status, _, body = await asgi_request("POST", "/api/refresh")
         assert status == 403
         assert json.loads(body)["success"] is False
+
+
+def test_user_agent_parsing():
+    """Verify user-agent parsing categorizes device, os, and browser accurately."""
+    from api import _parse_user_agent
+
+    # Mobile iPhone Safari
+    ua_iphone = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1"
+    info = _parse_user_agent(ua_iphone)
+    assert info["device"] == "Mobile"
+    assert info["os"] == "iOS"
+    assert info["browser"] == "Safari"
+
+    # Desktop Windows Chrome
+    ua_chrome = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
+    info = _parse_user_agent(ua_chrome)
+    assert info["device"] == "Desktop"
+    assert info["os"] == "Windows"
+    assert info["browser"] == "Chrome"
+
+    # Empty / fallback
+    info_empty = _parse_user_agent("")
+    assert info_empty["device"] == "Unknown"
+
+
+def test_visitor_telemetry_recording():
+    """Verify visitor recording inserts into MongoDB and triggers debounced alerts."""
+    from api import _record_visitor, _visitor_alert_cache, _visitor_db_cache
+
+    mock_col = MagicMock()
+    _visitor_alert_cache.clear()
+    _visitor_db_cache.clear()
+
+    with patch("api.get_collection", return_value=mock_col), \
+         patch.dict(os.environ, {"TELEGRAM_BOT_TOKEN": "mock_token", "TELEGRAM_CHAT_ID": "123456"}), \
+         patch("requests.post") as mock_post:
+        
+        # 1. Localhost should be skipped
+        _record_visitor("127.0.0.1", "Chrome", "https://google.com", "/api/hackathons", "IN")
+        assert mock_col.insert_one.call_count == 0
+        assert mock_post.call_count == 0
+
+        # 2. Real visitor IP should record in Mongo and trigger Telegram
+        _record_visitor("203.0.113.55", "Chrome on Windows", "https://linkedin.com", "/api/hackathons", "IN")
+        assert mock_col.insert_one.call_count == 1
+        assert mock_post.call_count == 1
+        assert "203.0.113.55" in _visitor_alert_cache
+
+        # 3. Rapid repeat visit from same IP debounces BOTH Mongo write and Telegram
+        _record_visitor("203.0.113.55", "Chrome on Windows", "https://linkedin.com", "/api/hackathons", "IN")
+        assert mock_col.insert_one.call_count == 1  # Debounced, protects DB from floods!
+        assert mock_post.call_count == 1  # Debounced, protects Telegram!
+
+        # 4. Visit from another IP records in Mongo
+        _record_visitor("198.51.100.88", "Firefox on Linux", "https://github.com", "/api/hackathons", "US")
+        assert mock_col.insert_one.call_count == 2
+

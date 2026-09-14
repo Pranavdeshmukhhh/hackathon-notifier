@@ -206,12 +206,12 @@ def scrape_devnovate() -> list[dict]:
         raw_items = _fetch_events()
     except Exception as e:
         logger.error("Devnovate: API fetch failed: %s", e)
-        print("[DEBUG] scrape_devnovate() total: 0 events (fetch error).")
+        logger.debug("scrape_devnovate() total: 0 events (fetch error).")
         return []
 
     if not isinstance(raw_items, list):
         logger.warning("Devnovate: unexpected API response type: %s", type(raw_items))
-        print("[DEBUG] scrape_devnovate() total: 0 events (bad response).")
+        logger.debug("scrape_devnovate() total: 0 events (bad response).")
         return []
 
     results = []
@@ -224,7 +224,7 @@ def scrape_devnovate() -> list[dict]:
             logger.warning("Devnovate: failed to normalise item '%s': %s", item.get("name", "?"), e)
 
     logger.info("Devnovate scraper complete: %d event(s) found.", len(results))
-    print(f"[DEBUG] scrape_devnovate() total: {len(results)} event(s).")
+    logger.debug("scrape_devnovate() total: %d event(s).", len(results))
     return results
 
 

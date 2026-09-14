@@ -11,7 +11,8 @@ from datetime import datetime, timezone
 import math
 import hashlib
 from typing import Optional
-from fastapi import FastAPI, Request, Query, Response
+import requests
+from fastapi import FastAPI, Request, Query, Response, BackgroundTasks
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
@@ -125,7 +126,10 @@ async def security_headers_middleware(request: Request, call_next):
 # CORS – restrict to validated frontend origins; explicit allowed methods and headers
 _raw_frontends = os.getenv("FRONTEND_URL", "https://hackathon-notifier.vercel.app")
 _frontend_origins = [o.strip() for o in _raw_frontends.split(",") if o.strip()]
-_allowed_origins = list(set(_frontend_origins + ["http://localhost:5173", "http://127.0.0.1:5173"]))
+_allowed_origins = list(set(_frontend_origins))
+if not _is_prod:
+    _allowed_origins.extend(["http://localhost:5173", "http://127.0.0.1:5173"])
+_allowed_origins = list(set(_allowed_origins))
 
 app.add_middleware(
     CORSMiddleware,
@@ -213,6 +217,116 @@ def _sort_hackathons(docs: list[dict]) -> list[dict]:
     return upcoming + no_date + past
 
 
+# ── Visitor Telemetry & Debounced Telegram Alerts ─────────────────────────────
+_visitor_alert_cache: TTLCache = TTLCache(maxsize=2048, ttl=6 * 3600)
+_visitor_db_cache: TTLCache = TTLCache(maxsize=4096, ttl=300)  # Max 1 DB write per IP every 5 min
+_last_visitor_alert_time: float = 0.0
+_GLOBAL_ALERT_COOLDOWN_SEC: float = 15.0  # Max 1 Telegram visitor alert every 15 seconds globally
+
+def _parse_user_agent(ua: str) -> dict:
+    """Parse device, OS, and browser from user-agent string without external dependencies."""
+    if not ua:
+        return {"device": "Unknown", "os": "Unknown", "browser": "Unknown"}
+    ua_lower = ua.lower()
+
+    # Device
+    if any(k in ua_lower for k in ("mobile", "android", "iphone", "ipod")):
+        device = "Mobile"
+    elif "ipad" in ua_lower or "tablet" in ua_lower:
+        device = "Tablet"
+    else:
+        device = "Desktop"
+
+    # Operating System
+    if "iphone" in ua_lower or "ipad" in ua_lower:
+        os_name = "iOS"
+    elif "android" in ua_lower:
+        os_name = "Android"
+    elif "windows" in ua_lower:
+        os_name = "Windows"
+    elif "mac os" in ua_lower or "macintosh" in ua_lower:
+        os_name = "macOS"
+    elif "linux" in ua_lower:
+        os_name = "Linux"
+    else:
+        os_name = "Other"
+
+    # Browser
+    if "edg/" in ua_lower:
+        browser = "Edge"
+    elif "chrome/" in ua_lower and "safari/" in ua_lower:
+        browser = "Chrome"
+    elif "firefox/" in ua_lower:
+        browser = "Firefox"
+    elif "safari/" in ua_lower and "chrome/" not in ua_lower:
+        browser = "Safari"
+    else:
+        browser = "Other"
+
+    return {"device": device, "os": os_name, "browser": browser}
+
+
+def _record_visitor(ip: str, user_agent: str, referer: str, path: str, country: str):
+    """Save visitor telemetry to MongoDB and dispatch debounced Telegram alert."""
+    if not ip or ip in ("127.0.0.1", "localhost", "testclient"):
+        return
+
+    now_utc = datetime.now(timezone.utc)
+    ua_info = _parse_user_agent(user_agent)
+
+    # 1. Store visitor in MongoDB collection "visitors" (debounced 5m per IP)
+    if ip not in _visitor_db_cache:
+        _visitor_db_cache[ip] = True
+        try:
+            col = get_collection("visitors")
+            if col is not None:
+                col.insert_one({
+                    "ip": ip,
+                    "country": country,
+                    "device": ua_info["device"],
+                    "os": ua_info["os"],
+                    "browser": ua_info["browser"],
+                    "user_agent": user_agent[:300],
+                    "referer": referer[:300],
+                    "path": path,
+                    "visited_at": now_utc,
+                })
+        except Exception as e:
+            logger.debug("Failed to record visitor in MongoDB: %s", e)
+
+    # 2. Debounced Telegram Alert (per-IP 6-hour cache + 15-second global throttle)
+    global _last_visitor_alert_time
+    now_ts = time.time()
+    if ip not in _visitor_alert_cache and (now_ts - _last_visitor_alert_time) >= _GLOBAL_ALERT_COOLDOWN_SEC:
+        _visitor_alert_cache[ip] = True
+        _last_visitor_alert_time = now_ts
+        bot_token = os.getenv("TELEGRAM_BOT_TOKEN", "").strip()
+        admin_chat_id = os.getenv("TELEGRAM_CHAT_ID", "").strip()
+        api_base = os.getenv("TELEGRAM_API_BASE", "https://api.telegram.org").rstrip("/")
+
+        if bot_token and admin_chat_id:
+            try:
+                ref_display = referer.strip() if referer and referer.strip() else "Direct / Bookmark"
+                msg = (
+                    "👀 <b>New Visitor on Hackathon Tracker!</b>\n\n"
+                    f"🌐 <b>IP:</b> <code>{ip}</code>\n"
+                    f"🌍 <b>Country:</b> {country}\n"
+                    f"💻 <b>Device:</b> {ua_info['browser']} on {ua_info['os']} ({ua_info['device']})\n"
+                    f"🔗 <b>Referer:</b> {ref_display[:80]}\n"
+                    f"⏰ <b>Time:</b> <code>{now_utc.strftime('%Y-%m-%d %H:%M:%S UTC')}</code>"
+                )
+                url = f"{api_base}/bot{bot_token}/sendMessage"
+                payload = {
+                    "chat_id": admin_chat_id,
+                    "text": msg,
+                    "parse_mode": "HTML",
+                    "disable_web_page_preview": True,
+                }
+                requests.post(url, json=payload, timeout=4)
+            except Exception as ex:
+                logger.debug("Failed to send visitor alert to Telegram: %s", ex)
+
+
 @app.get("/")
 @app.head("/")
 def read_root():
@@ -222,6 +336,7 @@ def read_root():
 @limiter.limit("60/minute")
 def get_hackathons(
     request: Request, 
+    background_tasks: BackgroundTasks = BackgroundTasks(),
     lat: Optional[float] = Query(default=None, ge=-90.0, le=90.0), 
     lng: Optional[float] = Query(default=None, ge=-180.0, le=180.0),
     page: int = Query(default=1, ge=1, le=1000),
@@ -231,13 +346,17 @@ def get_hackathons(
     sort: str = Query(default="deadline", max_length=20),
     tab: str = Query(default="upcoming", max_length=20)
 ):
+    # Enqueue visitor tracking in background (zero latency added to response)
+    if request is not None and background_tasks is not None:
+        client_ip = get_client_ip(request)
+        ua = request.headers.get("user-agent", "")
+        ref = request.headers.get("referer", "")
+        country = request.headers.get("cf-ipcountry", "Unknown")
+        background_tasks.add_task(_record_visitor, client_ip, ua, ref, request.url.path, country)
+
     # --- cache hit → skip Mongo entirely ---
-    # Round coordinates to 2 decimal places (~1.1km radius) to group requests safely and avoid cache thrashing attacks
-    if lat is not None and lng is not None:
-        cache_key = f"{_CACHE_KEY}_{round(lat, 2)}_{round(lng, 2)}"
-    else:
-        cache_key = _CACHE_KEY
-    cached = _cache.get(cache_key)
+    # Store base dataset in _cache[_CACHE_KEY]; compute distance dynamically to prevent cache thrashing attacks
+    cached = _cache.get(_CACHE_KEY)
     
     if cached is None:
         logger.info("Cache MISS — querying MongoDB")
@@ -256,26 +375,9 @@ def get_hackathons(
             docs = []
             for doc in cursor:
                 doc["_id"] = str(doc["_id"])
-                # Calculate distance if we have coords
-                if lat is not None and lng is not None and "lat" in doc and "lng" in doc:
-                    try:
-                        d_lat = math.radians(doc["lat"] - lat)
-                        d_lng = math.radians(doc["lng"] - lng)
-                        a = math.sin(d_lat/2) * math.sin(d_lat/2) + \
-                            math.cos(math.radians(lat)) * math.cos(math.radians(doc["lat"])) * \
-                            math.sin(d_lng/2) * math.sin(d_lng/2)
-                        c = 2 * math.atan2(math.sqrt(a), math.sqrt(1-a))
-                        distance_km = 6371 * c
-                        doc["distance_km"] = round(distance_km, 1)
-                    except Exception:
-                        pass
                 docs.append(doc)
 
             sorted_docs = _sort_hackathons(docs)
-            
-            # If lat/lng is provided, sort upcoming offline events by distance default in cache
-            if lat is not None and lng is not None:
-                sorted_docs.sort(key=lambda x: (x.get("is_past", False), x.get("distance_km", 999999)))
 
             # Collect stats
             all_tags = set()
@@ -343,13 +445,32 @@ def get_hackathons(
             }
 
             cached = {"docs": sorted_docs, "stats": stats}
-            _cache[cache_key] = cached
+            _cache[_CACHE_KEY] = cached
         except Exception as e:
             logger.error("Error fetching hackathons", exc_info=True)
             return {"success": False, "error": "Internal server error", "data": [], "stats": {}}
 
-    # Apply filters dynamically in Python
-    filtered = cached["docs"]
+    # Dynamic distance enrichment & proximity sorting on cached in-memory data
+    if lat is not None and lng is not None:
+        docs_with_distance = []
+        for d in cached["docs"]:
+            item = dict(d)
+            if "lat" in item and "lng" in item and item["lat"] is not None and item["lng"] is not None:
+                try:
+                    d_lat = math.radians(item["lat"] - lat)
+                    d_lng = math.radians(item["lng"] - lng)
+                    a = math.sin(d_lat/2) * math.sin(d_lat/2) + \
+                        math.cos(math.radians(lat)) * math.cos(math.radians(item["lat"])) * \
+                        math.sin(d_lng/2) * math.sin(d_lng/2)
+                    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1-a))
+                    item["distance_km"] = round(6371 * c, 1)
+                except Exception:
+                    pass
+            docs_with_distance.append(item)
+        docs_with_distance.sort(key=lambda x: (x.get("is_past", False), x.get("distance_km", 999999)))
+        filtered = docs_with_distance
+    else:
+        filtered = cached["docs"]
     
     if category == 'Top College':
         filtered = [d for d in filtered if d.get('is_top_college')]
@@ -404,7 +525,7 @@ def get_hackathons(
 
     # High-Performance HTTP Caching & ETag Validation
     etag_seed = f"{cached['stats'].get('last_scraped', '')}_{len(target_list)}_{page}_{limit}_{category}_{sort}_{tab}_{search}"
-    etag = f'"{hashlib.md5(etag_seed.encode("utf-8")).hexdigest()}"'
+    etag = f'"{hashlib.md5(etag_seed.encode("utf-8"), usedforsecurity=False).hexdigest()}"'
 
     if_none_match = request.headers.get("if-none-match")
     if if_none_match and if_none_match.strip() == etag:

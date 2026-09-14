@@ -174,7 +174,7 @@ def scrape_devpost() -> list[dict]:
     session = _get_session()
     all_results: list[dict] = []
 
-    for page in range(1, 51):
+    for page in range(1, MAX_PAGES + 1):
         try:
             params = {
                 "status[]": ["upcoming", "open"],
@@ -207,7 +207,7 @@ def scrape_devpost() -> list[dict]:
             break
 
     logger.info("Devpost scraper: %d total hackathons collected.", len(all_results))
-    print(f"[DEBUG] scrape_devpost() total: {len(all_results)} hackathon(s).")
+    logger.debug("scrape_devpost() total: %d hackathon(s).", len(all_results))
     return all_results
 
 

@@ -13,5 +13,4 @@ pytest
 pytest-cov
 responses
 mongomock
-geopy
 certifi

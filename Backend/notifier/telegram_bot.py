@@ -22,6 +22,7 @@ Key Capabilities:
 • Tenacity exponential backoff with 429 rate limit handling.
 """
 
+import html
 import json
 import logging
 import math
@@ -72,10 +73,10 @@ PAGE_SIZE           = 3      # Number of hackathon cards per interactive page
 # ── Formatting & Escape Helpers ───────────────────────────────────────────────
 
 def _escape_html(text) -> str:
-    """Escape &, < and > for Telegram HTML parse mode. Handles non-string input safely."""
+    """Escape &, <, >, " and ' for Telegram HTML parse mode. Handles non-string input safely."""
     if text is None:
         return ""
-    return str(text).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+    return html.escape(str(text), quote=True)
 
 
 # Alias for backward compatibility
@@ -421,8 +422,12 @@ def start_polling():
     def _get_data(**kwargs):
         """Fetch hackathons from the API layer without network overhead."""
         try:
-            import api
-            return api.get_hackathons(request=None, **kwargs)
+            import api as _api_module
+            # Build a minimal scope dict that FastAPI/Starlette Request needs
+            from starlette.requests import Request as StarletteRequest
+            scope = {"type": "http", "method": "GET", "path": "/", "query_string": b"", "headers": []}
+            dummy_request = StarletteRequest(scope)
+            return _api_module.get_hackathons(request=dummy_request, **kwargs)
         except Exception as e:
             logger.exception("Error calling api.get_hackathons: %s", e)
             return {"data": [], "stats": {}, "total": 0}
@@ -848,10 +853,16 @@ def start_polling():
             return False
         return str(chat_id).strip() == str(TELEGRAM_CHAT_ID).strip()
 
+    _scrape_lock = threading.Lock()
+
     @bot.message_handler(commands=["scrape_now"])
     def handle_admin_scrape(message):
         if not _is_admin(str(message.chat.id)):
             bot.reply_to(message, "⛔ Admin-only command.")
+            return
+
+        if not _scrape_lock.acquire(blocking=False):
+            bot.reply_to(message, "⚠️ A scrape job is already in progress. Please wait for it to finish.")
             return
 
         bot.reply_to(message, "🔄 <b>Starting scrape pipeline in background…</b>", parse_mode="HTML")
@@ -867,6 +878,8 @@ def start_polling():
                 )
             except Exception as ex:
                 bot.send_message(message.chat.id, f"❌ Scrape failed: {ex}")
+            finally:
+                _scrape_lock.release()
 
         threading.Thread(target=_worker, daemon=True).start()
 

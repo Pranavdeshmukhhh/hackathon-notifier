@@ -163,7 +163,7 @@ def scrape_hackerearth() -> list[dict]:
                 results.append(parsed)
 
         logger.info("HackerEarth scraper: %d hackathons collected.", len(results))
-        print(f"[DEBUG] scrape_hackerearth() total: {len(results)} hackathon(s).")
+        logger.debug("scrape_hackerearth() total: %d hackathon(s).", len(results))
         return results
 
     except requests.exceptions.RequestException as e:

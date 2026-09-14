@@ -5,7 +5,7 @@ import random
 from datetime import datetime
 from curl_cffi import requests
 from tenacity import retry, stop_after_attempt, wait_exponential, before_sleep_log
-from scrapers.geocoder import geocode
+from .geocoder import geocode
 
 logger = logging.getLogger(__name__)
 
@@ -256,10 +256,10 @@ def scrape_unstop() -> list[dict]:
 
     results = _fetch_via_api()
     if results:
-        print(f"[DEBUG] scrape_unstop() total: {len(results)} hackathon(s) from API.")
+        logger.debug("scrape_unstop() total: %d hackathon(s) from API.", len(results))
     else:
         logger.warning("Unstop API returned 0 results. Cloudflare may be blocking requests.")
-        print("[DEBUG] scrape_unstop() total: 0 hackathons.")
+        logger.debug("scrape_unstop() total: 0 hackathons.")
         
     return results
 
