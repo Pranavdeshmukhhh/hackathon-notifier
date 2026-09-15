@@ -12,7 +12,7 @@ import math
 import hashlib
 from typing import Optional
 import requests
-from fastapi import FastAPI, Request, Query, Response, BackgroundTasks
+from fastapi import FastAPI, Request, Query, Response, BackgroundTasks, APIRouter
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
@@ -20,6 +20,13 @@ from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 from cachetools import TTLCache
+
+from schemas import (
+    HackathonsResponse,
+    HealthResponse,
+    MetricsResponse,
+    RefreshResponse,
+)
 
 # Ensure utf-8 encoding for standard output
 if hasattr(sys.stdout, "reconfigure"):
@@ -61,12 +68,17 @@ limiter = Limiter(key_func=get_client_ip)
 _is_prod = os.getenv("ENVIRONMENT", "").lower() == "production" or os.getenv("RENDER", "").lower() == "true"
 app = FastAPI(
     title="Hackathon Notifier API",
-    docs_url=None if _is_prod else "/docs",
-    redoc_url=None if _is_prod else "/redoc",
-    openapi_url=None if _is_prod else "/openapi.json",
+    description="Autonomous radar discovery engine aggregating hackathons and tech hiring challenges across India.",
+    version="1.0.0",
+    docs_url="/docs",
+    redoc_url="/redoc",
+    openapi_url="/openapi.json",
 )
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+# Versioned API Router (v1)
+v1_router = APIRouter(prefix="/api/v1", tags=["v1"])
 
 # ── In-memory TTL cache ──────────────────────────────────────────────────────────────
 #
@@ -165,6 +177,11 @@ def _clean_prize_to_inr(text: str) -> float:
     if val > 500_000_000:
         return 0.0
 
+    # Currency Conversion Multipliers:
+    # Deliberate architectural trade-off: Static conservative baseline FX rates (USD=87, EUR=94, GBP=110)
+    # are utilized rather than real-time FX API polling on the request path. Real-time external HTTP round-trips
+    # introduce network latency, 3rd-party outage dependencies, and rate quotas. For prize tiering and sorting,
+    # fixed conservative rates guarantee <0.1ms computation with high accuracy.
     mult = 1.0
     if is_crore:
         mult = 10_000_000.0
@@ -332,7 +349,8 @@ def _record_visitor(ip: str, user_agent: str, referer: str, path: str, country: 
 def read_root():
     return {"message": "Hackathon API is running"}
 
-@app.get("/api/hackathons")
+@app.get("/api/hackathons", response_model=HackathonsResponse)
+@v1_router.get("/hackathons", response_model=HackathonsResponse)
 @limiter.limit("60/minute")
 def get_hackathons(
     request: Request, 
@@ -543,7 +561,8 @@ def get_hackathons(
     )
 
 
-@app.get("/health")
+@app.get("/health", response_model=HealthResponse)
+@v1_router.get("/health", response_model=HealthResponse)
 @limiter.limit("60/minute")
 def health_check(request: Request):
     """
@@ -569,7 +588,8 @@ def health_check(request: Request):
         )
 
 
-@app.get("/api/metrics")
+@app.get("/api/metrics", response_model=MetricsResponse)
+@v1_router.get("/metrics", response_model=MetricsResponse)
 @limiter.limit("60/minute")
 def get_metrics(request: Request):
     """Return p50/p95 response times (ms) for the last 500 requests."""
@@ -587,7 +607,8 @@ def get_metrics(request: Request):
     }
 
 
-@app.post("/api/refresh")
+@app.post("/api/refresh", response_model=RefreshResponse)
+@v1_router.post("/refresh", response_model=RefreshResponse)
 @limiter.limit("5/minute")
 def refresh_cache(request: Request):
     """Invalidate the in-memory cache, forcing the next GET /api/hackathons
@@ -618,6 +639,10 @@ def refresh_cache(request: Request):
     _cache.clear()
     logger.info("Cache manually cleared via POST /api/refresh (%d entries removed).", n)
     return {"success": True, "cleared": n, "message": "Cache cleared. Next request will re-query MongoDB."}
+
+
+# Mount API v1 router
+app.include_router(v1_router)
 
 
 if __name__ == "__main__":

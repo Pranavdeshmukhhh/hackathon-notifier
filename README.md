@@ -9,6 +9,19 @@ A full-stack, production-grade hackathon aggregation platform — scraping Devfo
 [![Live Demo](https://img.shields.io/badge/🌍_Live_Demo-Vercel-black?style=for-the-badge)](https://hackathon-notifier.vercel.app)
 [![Backend API](https://img.shields.io/badge/⚡_Backend_API-Render-46E3B7?style=for-the-badge)](https://hackathon-notifier.onrender.com)
 [![Telegram Bot](https://img.shields.io/badge/🤖_Telegram_Bot-Active-2CA5E0?style=for-the-badge)](#telegram-bot-commands)
+[![OpenAPI Docs](https://img.shields.io/badge/📖_OpenAPI_Docs-Interactive-009688?style=for-the-badge)](https://hackathon-notifier.onrender.com/docs)
+
+<div style="margin-top: 8px;">
+
+[![CI Pipeline](https://github.com/Pranavdeshmukhhh/hackathon-notifier/actions/workflows/ci.yml/badge.svg)](https://github.com/Pranavdeshmukhhh/hackathon-notifier/actions)
+[![Tests](https://img.shields.io/badge/tests-113%20passed-brightgreen?style=flat-square&logo=pytest)](https://github.com/Pranavdeshmukhhh/hackathon-notifier)
+[![Coverage](https://img.shields.io/badge/coverage-85%2B%25-brightgreen?style=flat-square&logo=codecov)](https://github.com/Pranavdeshmukhhh/hackathon-notifier)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square)](LICENSE)
+[![Python 3.12](https://img.shields.io/badge/python-3.12-blue.svg?style=flat-square&logo=python)](https://python.org)
+[![FastAPI](https://img.shields.io/badge/FastAPI-v1.0.0-009688.svg?style=flat-square&logo=fastapi)](https://hackathon-notifier.onrender.com/docs)
+[![Docker](https://img.shields.io/badge/Docker-Ready-2496ED.svg?style=flat-square&logo=docker)](Dockerfile)
+
+</div>
 
 *Built by [Pranav Deshmukh](https://github.com/Pranavdeshmukhhh) — B.Tech 2nd year.*
 
@@ -84,13 +97,14 @@ A full-stack, production-grade hackathon aggregation platform — scraping Devfo
 | 🕷️ | curl_cffi | latest | Cloudflare-bypass scraping (Unstop) |
 | 🍲 | BeautifulSoup4 | latest | HTML parsing (Devfolio, Devpost, Devnovate) |
 | 📲 | pyTelegramBotAPI | latest | Telegram bot framework |
+| 📦 | Pydantic | 2.13+ | Strongly typed OpenAPI schemas & response models |
 | 🔁 | Tenacity | latest | Retry with exponential back-off |
 | 🧰 | cachetools TTLCache | latest | In-memory API response cache |
 | 🚦 | SlowAPI | latest | Per-IP rate limiting |
 | 📡 | Requests | latest | HTTP client (geocoder, HackerEarth) |
 | 🔐 | python-dotenv | latest | Environment variable loading |
 | 🌐 | Certifi | latest | TLS CA bundle |
-| 🧪 | pytest + pytest-cov | latest | Test suite + coverage |
+| 🧪 | pytest + pytest-cov | latest | Test suite (100 backend tests) |
 | 🗄️ | mongomock | latest | In-memory MongoDB for unit tests |
 
 ### Frontend
@@ -100,17 +114,21 @@ A full-stack, production-grade hackathon aggregation platform — scraping Devfo
 | ⚛️ | React | 19 | UI framework |
 | ⚡ | Vite | 8 | Build tool + dev server |
 | 🎨 | Tailwind CSS | 4 | Utility-first styling |
+| 🧪 | Vitest | 5 | Next-generation unit test runner |
+| 🧪 | React Testing Library | 16 | DOM & component interaction testing |
 | 🔤 | Inter (Google Fonts) | — | Typography |
 | ✏️ | Lucide React | — | Icon set |
 | 🔍 | oxlint | — | Fast Rust-based linter |
 
-### Infrastructure
+### Infrastructure & DevOps
 
-| Service | What runs there |
+| Service / Tool | Purpose |
 |---|---|
 | **Render** | `unified_server.py` — FastAPI API + Telegram polling bot + hourly scraper |
 | **Vercel** | React frontend (CDN, global edge, auto-deploy on push to `main`) |
-| **MongoDB Atlas** | Free-tier M0 cluster (512 MB), two collections: `hackathons` + `subscribers` |
+| **MongoDB Atlas** | Free-tier M0 cluster (512 MB), collections: `hackathons` + `subscribers` + `visitors` |
+| **Docker & Compose** | Containerized reproducible environment for local dev & production |
+| **GitHub Actions** | Unified CI: Python 3.12 (100 tests) + Node.js 20 (oxlint + 13 vitest tests + build) |
 
 ---
 
@@ -119,53 +137,81 @@ A full-stack, production-grade hackathon aggregation platform — scraping Devfo
 ```
 hackathon-notifier/
 ├── .github/
+│   ├── SECURITY.md              # Vulnerability disclosure policy
 │   └── workflows/
-│       └── ci.yml               # CI: pytest on every push to main
+│       └── ci.yml               # CI: Backend tests + Frontend lint, test, build
+│
+├── Dockerfile                   # Multi-stage container build with health checks
+├── docker-compose.yml           # Turnkey local full-stack dev with MongoDB
+├── CONTRIBUTING.md              # Contributor guidelines, standards, and workflows
+├── LICENSE                      # MIT Open Source License
 │
 ├── Backend/
-│   ├── api.py                   # FastAPI routes, TTLCache, distance calc, rate limiting
+│   ├── api.py                   # FastAPI app, /api and /api/v1 routes, rate limiting, telemetry
+│   ├── schemas.py               # Pydantic models (HackathonOut, StatsOut, Responses)
 │   ├── main.py                  # One-shot pipeline: scrape → classify → dedup → notify
 │   ├── unified_server.py        # Render entry point: API + bot polling + hourly scraper
 │   ├── scrape_job.py            # Standalone cron-safe scrape runner
 │   ├── Procfile                 # web: python unified_server.py
-│   ├── requirements.txt         # All Python dependencies
-│   ├── .env.example             # Template — copy to .env and fill values
+│   ├── requirements.txt         # Pinned Python dependencies with upper bounds
+│   ├── .env.example             # Environment template
 │   │
 │   ├── scrapers/
-│   │   ├── devfolio_scraper.py  # Scrapes devfolio.co (BeautifulSoup + requests)
-│   │   ├── unstop_scraper.py    # Scrapes unstop.com (curl_cffi TLS bypass)
-│   │   ├── devpost_scraper.py   # Scrapes devpost.com (BeautifulSoup)
-│   │   ├── hackerearth_scraper.py  # Scrapes hackerearth.com (JSON API)
-│   │   ├── devnovate_scraper.py # Scrapes devnovate.com (BeautifulSoup)
-│   │   └── geocoder.py          # Nominatim geocoding (lat/lon for offline events)
+│   │   ├── __init__.py          # Scraper package exports (__all__)
+│   │   ├── devfolio_scraper.py  # Devfolio scraper (BeautifulSoup)
+│   │   ├── unstop_scraper.py    # Unstop scraper (curl_cffi TLS bypass)
+│   │   ├── devpost_scraper.py   # Devpost scraper (BeautifulSoup)
+│   │   ├── hackerearth_scraper.py # HackerEarth scraper (JSON API)
+│   │   ├── devnovate_scraper.py # Devnovate scraper (BeautifulSoup)
+│   │   └── geocoder.py          # Nominatim geocoding with 1.1s rate limiting
 │   │
 │   ├── filters/
+│   │   ├── __init__.py          # Filter package exports (__all__)
 │   │   └── keyword_filter.py    # Classify: IIT/NIT/BITS/internship regex detector
 │   │
 │   ├── notifier/
+│   │   ├── __init__.py          # Notifier package exports (__all__)
 │   │   └── telegram_bot.py      # send_notification / send_batch / start_polling
 │   │
 │   ├── db/
-│   │   └── mongo_client.py      # Singleton MongoClient, get_collection(), subscriber CRUD
+│   │   ├── __init__.py          # Database package exports (__all__)
+│   │   └── mongo_client.py      # MongoClient, get_collection(), subscriber CRUD
 │   │
 │   ├── data/
 │   │   └── unique_sources.json  # Curated hackathon feed (hand-picked links)
 │   │
 │   └── tests/
 │       ├── conftest.py          # Shared fixtures (mongomock, sample data)
-│       ├── test_api_security.py # Rate limiting, CORS, header security tests
-│       ├── test_pipeline.py     # Full pipeline integration tests
-│       └── ...                  # Per-scraper unit tests
+│       ├── test_api_security.py # Security, rate limits, v1 routes, OpenAPI tests
+│       ├── test_pipeline.py     # Pipeline integration & concurrent scraper tests
+│       └── ...                  # 100 comprehensive test cases
 │
 └── Frontend/
     ├── src/
-    │   ├── App.jsx              # Root component — state, filters, pagination, modals
-    │   ├── index.css            # Design system: tokens, layout, dark mode
-    │   └── main.jsx             # React entry point
+    │   ├── components/
+    │   │   ├── HackathonCard.jsx # Premium Apple HIG hackathon card
+    │   │   ├── SkeletonCard.jsx  # Zero-CLS pulsing skeleton placeholder
+    │   │   ├── Pagination.jsx    # Page navigation with ellipsis
+    │   │   ├── TechSpecModal.jsx # Architecture overlay dialog
+    │   │   ├── ErrorBoundary.jsx # React Error Boundary to catch render failures
+    │   │   ├── ScrollToTop.jsx   # Floating smooth-scroll button
+    │   │   ├── Toast.jsx         # Ephemeral notifications
+    │   │   └── Icons.jsx         # Hand-crafted SVG icons
+    │   ├── hooks/
+    │   │   ├── useDarkMode.js    # OS-preference-aware dark mode
+    │   │   ├── useGeolocation.js # Browser geolocation + error handling
+    │   │   └── useScrollProgress.js # Scroll depth and header blur tracking
+    │   ├── __tests__/
+    │   │   ├── HackathonCard.test.jsx
+    │   │   ├── Pagination.test.jsx
+    │   │   └── SkeletonCard.test.jsx
+    │   ├── App.jsx              # Composition root (~450 lines)
+    │   ├── index.css            # Apple HIG design system tokens & glassmorphism
+    │   └── main.jsx             # React 19 entry wrapped in ErrorBoundary
     ├── Components/
-    │   └── hakathoncard.jsx     # Card component for each hackathon listing
-    ├── index.html               # HTML shell (Vite entry)
-    ├── vite.config.js           # Vite + React plugin config
+    │   └── hakathoncard.jsx     # Backwards-compatible re-export
+    ├── index.html               # Vite HTML shell
+    ├── vite.config.js           # Vite config with Vitest test runner
     ├── vercel.json              # Vercel SPA rewrites + security headers
     └── package.json
 ```

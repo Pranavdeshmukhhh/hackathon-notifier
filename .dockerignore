@@ -1,0 +1,32 @@
+# Git
+.git
+.github
+
+# Python
+__pycache__
+*.pyc
+*.pyo
+.venv
+.pytest_cache
+
+# Environment
+.env
+*.env
+!.env.example
+
+# Frontend (not needed in backend image)
+Frontend/node_modules
+Frontend/dist
+
+# IDE
+.vscode
+.idea
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docs
+*.md
+!Backend/README.md
+LICENSE

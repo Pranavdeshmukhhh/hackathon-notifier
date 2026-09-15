@@ -215,3 +215,44 @@ def test_visitor_telemetry_recording():
         _record_visitor("198.51.100.88", "Firefox on Linux", "https://github.com", "/api/hackathons", "US")
         assert mock_col.insert_one.call_count == 2
 
+
+@pytest.mark.anyio
+async def test_api_v1_versioned_routes():
+    """Verify /api/v1 versioned routes are active and functional."""
+    # Test v1 health
+    mock_col = MagicMock()
+    with patch("api.get_collection", return_value=mock_col):
+        status, _, body = await asgi_request("GET", "/api/v1/health")
+        assert status == 200
+        data = json.loads(body.decode("utf-8"))
+        assert data.get("status") == "healthy"
+
+    # Test v1 metrics
+    status, _, body = await asgi_request("GET", "/api/v1/metrics")
+    assert status == 200
+
+    # Test v1 hackathons
+    with patch("api.get_collection", return_value=mock_col):
+        status, _, body = await asgi_request("GET", "/api/v1/hackathons")
+        assert status == 200
+        data = json.loads(body.decode("utf-8"))
+        assert "data" in data
+        assert "stats" in data
+
+
+@pytest.mark.anyio
+async def test_openapi_schema_contains_pydantic_models():
+    """Verify OpenAPI 3.1 specification contains strongly typed schemas."""
+    status, _, body = await asgi_request("GET", "/openapi.json")
+    assert status == 200
+    schema = json.loads(body.decode("utf-8"))
+    assert "components" in schema
+    assert "schemas" in schema["components"]
+    schemas = schema["components"]["schemas"]
+    assert "HackathonsResponse" in schemas
+    assert "HackathonOut" in schemas
+    assert "StatsOut" in schemas
+    assert "HealthResponse" in schemas
+    assert "MetricsResponse" in schemas
+
+
