@@ -309,13 +309,7 @@ function App() {
         <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
           <div className="flex items-center gap-3 cursor-pointer" onClick={() => scrollToSection('home')}>
             <div className="w-8 h-8 rounded-[10px] bg-gradient-to-br from-[#007AFF] to-[#0055D4] flex items-center justify-center shadow-sm shrink-0"><LogoIcon /></div>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="font-semibold text-sm tracking-tight text-slate-900 dark:text-white">Hackathon Notifier</span>
-                <span className="text-[10px] uppercase font-mono px-2 py-0.5 rounded-[6px] bg-[#007AFF]/10 text-[#007AFF] dark:bg-[#0A84FF]/15 dark:text-[#0A84FF] border border-[#007AFF]/20 font-bold hidden sm:inline-block">Universal System</span>
-              </div>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400 hidden sm:block">Human Interface System Standard • Telemetry: {latencyDisplay}</p>
-            </div>
+            <span className="font-semibold text-sm tracking-tight text-slate-900 dark:text-white">Hackathon Notifier</span>
           </div>
 
           <div className="flex items-center gap-3">
