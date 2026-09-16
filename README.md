@@ -180,6 +180,9 @@ hackathon-notifier/
 │   ├── data/
 │   │   └── unique_sources.json  # Curated hackathon feed (hand-picked links)
 │   │
+│   ├── scripts/
+│   │   └── import_unique_sources.py # Seed curated hackathons into MongoDB
+│   │
 │   └── tests/
 │       ├── conftest.py          # Shared fixtures (mongomock, sample data)
 │       ├── test_api_security.py # Security, rate limits, v1 routes, OpenAPI tests
@@ -201,6 +204,8 @@ hackathon-notifier/
     │   │   ├── useDarkMode.js    # OS-preference-aware dark mode
     │   │   ├── useGeolocation.js # Browser geolocation + error handling
     │   │   └── useScrollProgress.js # Scroll depth and header blur tracking
+    │   ├── test/
+    │   │   └── setup.js          # Vitest and Testing Library matchers setup
     │   ├── __tests__/
     │   │   ├── HackathonCard.test.jsx
     │   │   ├── Pagination.test.jsx
@@ -382,19 +387,19 @@ For our full security policy, vulnerability reporting guidelines, and disclosure
 ## 🧪 Tests
 
 ```bash
+# Backend tests (100 test cases)
 cd Backend
-
-# Run all tests
 pytest tests/ -v
 
 # Run with coverage report
 pytest tests/ -v --cov=. --cov-report=term-missing
 
-# Run a specific test file
-pytest tests/test_pipeline.py -v
+# Frontend tests (13 test cases)
+cd ../Frontend
+npm test
 ```
 
-All 98 tests pass on every push (enforced by GitHub Actions CI — see `.github/workflows/ci.yml`).
+All 113 tests (100 backend + 13 frontend) pass on every push (enforced by GitHub Actions CI — see `.github/workflows/ci.yml`).
 
 ---
 

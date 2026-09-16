@@ -124,28 +124,30 @@ Exit code: 0 on success, 1 on fatal error.
 
 ## API Endpoints
 
-All endpoints return JSON. Rate limits apply per IP.
+All endpoints return JSON and are rate-limited per IP. All routes are also mirrored under the `/api/v1` prefix.
 
-| Method | Endpoint | Description |
-|---|---|---|
-| `GET` | `/health` | Health check — always returns `{"status": "ok"}` |
-| `GET` | `/api/hackathons` | Paginated hackathon list with optional filters |
-| `GET` | `/api/stats` | Platform statistics |
-| `POST` | `/api/refresh` | Clear TTL cache (requires `X-Admin-Secret` header) |
+| Method | Endpoint | Rate Limit | Description |
+|---|---|---|---|
+| `GET` | `/` | — | Root health check: `{"message": "Hackathon API is running"}` |
+| `GET` | `/health` | 60/min | Liveness & readiness probe (verifies MongoDB ping) |
+| `GET` | `/api/hackathons` | 60/min | Paginated hackathon listings, filterable by category, mode, tab, search & GPS |
+| `GET` | `/api/metrics` | 60/min | API telemetry: p50/p95 response latencies, request count, cache size |
+| `POST` | `/api/refresh` | 5/min | Invalidate TTLCache (requires `X-Admin-Secret` header or Bearer token) |
+
+> ℹ️ **Note:** Platform statistics (total counts, sources, mode breakdown) are embedded directly within each `/api/hackathons` response under the `stats` key to avoid round-trip overhead.
 
 ### `/api/hackathons` Query Parameters
 
-| Parameter | Type | Description |
-|---|---|---|
-| `page` | int | Page number (default: 1) |
-| `page_size` | int | Items per page (default: 12, max: 50) |
-| `mode` | string | `online` \| `offline` \| `all` |
-| `category` | string | `top_college` \| `internship` \| `curated` \| `all` |
-| `search` | string | Keyword search across title, tags, and description |
-| `sort` | string | `latest` \| `nearest` (requires lat/lon) |
-| `lat` | float | User latitude for nearest sort |
-| `lon` | float | User longitude for nearest sort |
-| `status` | string | `upcoming` \| `missed` |
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `page` | int | `1` | Page number (min: 1, max: 1000) |
+| `limit` | int | `12` | Items per page (min: 1, max: 100) |
+| `category` | string | `All` | Filter: `All`, `Top College`, `Internship`, `Hackathon`, `Online`, `Offline`, `Unique Sources` |
+| `search` | string | `""` | Search query matching title, location, or tags (max length: 100) |
+| `sort` | string | `deadline` | Sort order: `deadline` (soonest), `distance` (nearest km), `name` (A-Z), `newest` (latest scraped) |
+| `tab` | string | `upcoming` | Tab view: `upcoming` (active events) or `missed` (ended/past events) |
+| `lat` | float | `None` | User latitude for distance sorting (-90.0 to 90.0) |
+| `lng` | float | `None` | User longitude for distance sorting (-180.0 to 180.0) |
 
 ---
 
@@ -153,39 +155,41 @@ All endpoints return JSON. Rate limits apply per IP.
 
 | File | Responsibility |
 |---|---|
-| `api.py` | FastAPI app, all HTTP routes, TTLCache, rate limiting, CORS |
+| `api.py` | FastAPI application, all HTTP routes, TTLCache, rate limiting, CORS, telemetry |
+| `schemas.py` | Pydantic v2 models for OpenAPI validation (`HackathonOut`, `StatsOut`, `HackathonsResponse`, `HealthResponse`, `MetricsResponse`, `RefreshResponse`) |
 | `main.py` | One-shot pipeline orchestrator (scrape → classify → dedup → notify) |
-| `unified_server.py` | Render entry point (API + bot + scheduler in one process) |
+| `unified_server.py` | Render entry point (API + Telegram bot polling + scheduler in one process) |
 | `scrape_job.py` | Standalone cron-friendly scraper runner |
 | `scrapers/devfolio_scraper.py` | Devfolio scraper (requests + BeautifulSoup) |
-| `scrapers/unstop_scraper.py` | Unstop scraper (curl_cffi for Cloudflare bypass) |
+| `scrapers/unstop_scraper.py` | Unstop scraper (curl_cffi for Cloudflare TLS fingerprint bypass) |
 | `scrapers/devpost_scraper.py` | Devpost scraper (requests + BeautifulSoup) |
 | `scrapers/hackerearth_scraper.py` | HackerEarth scraper (JSON API) |
 | `scrapers/devnovate_scraper.py` | Devnovate scraper (requests + BeautifulSoup) |
-| `scrapers/geocoder.py` | Nominatim geocoding (1 req/s rate limit enforced) |
-| `filters/keyword_filter.py` | College and internship regex classifier |
-| `notifier/telegram_bot.py` | Full Telegram bot: send, batch, polling, commands |
-| `db/mongo_client.py` | Singleton MongoClient, get_collection(), subscriber CRUD |
-| `data/unique_sources.json` | Curated hackathon feed (manually maintained) |
+| `scrapers/geocoder.py` | Nominatim geocoding (1.1s rate-limited with cache) |
+| `filters/keyword_filter.py` | College (IIT/NIT/IIIT/BITS/IISc/IIM/CFTI) and internship regex classifier |
+| `notifier/telegram_bot.py` | Full Telegram bot: send, batch notifications, polling, interactive commands |
+| `db/mongo_client.py` | Singleton MongoClient, collection getters, subscriber CRUD |
+| `data/unique_sources.json` | Curated hackathon feed (manually maintained opportunity links) |
+| `scripts/import_unique_sources.py` | Script to populate MongoDB with curated hackathon opportunities |
 
 ---
 
 ## Tests
 
 ```bash
-# Run full test suite
+# Run full test suite (100 tests)
 pytest tests/ -v
 
-# With coverage
+# With coverage report
 pytest tests/ -v --cov=. --cov-report=term-missing
 
-# Run a specific file
+# Run a specific test suite
 pytest tests/test_pipeline.py -v
 ```
 
 Tests use `mongomock` for in-memory MongoDB — no real Atlas connection required to run them.
 
-CI runs `pytest tests/ -v` automatically on every push to `main` via GitHub Actions.
+All 100 backend tests pass on every push to `main` via GitHub Actions CI.
 
 ---
 
