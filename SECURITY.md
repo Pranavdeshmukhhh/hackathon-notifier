@@ -101,22 +101,31 @@ Here is a plain-English explanation of how Hackathon Notifier protects users and
 - Production secrets are stored securely in Vercel and Render encrypted environment stores.
 
 ### 2. Frontend Hardening (`Frontend/vercel.json`)
-- **Content Security Policy (CSP)**: Ensures the browser only loads scripts, styles, fonts, and API requests from trusted, whitelisted origins.
-- **Clickjacking Protection (`X-Frame-Options: DENY`)**: Prevents other websites from embedding our web app inside hidden iframes.
+- **Content Security Policy (CSP)**: Restricts scripts, styles, fonts, and API requests exclusively to self and trusted origins (`https://fonts.googleapis.com`, `https://fonts.gstatic.com`, Render API). Blocks unauthorized object embeds (`object-src 'none'`) and framing (`frame-ancestors 'none'`).
+- **Clickjacking Protection (`X-Frame-Options: DENY`)**: Prevents external sites from embedding the application inside hidden iframes.
 - **MIME Sniffing Block (`X-Content-Type-Options: nosniff`)**: Forces browsers to strictly adhere to declared content types.
-- **HSTS (Strict-Transport-Security)**: Automatically upgrades all incoming web connections to secure HTTPS.
-- **Permissions Policy**: Completely turns off unnecessary browser hardware access (camera, microphone, payments, USB).
+- **XSS Protection (`X-XSS-Protection: 1; mode=block`)**: Enables browser-level cross-site scripting filtering and blocking.
+- **HSTS (Strict-Transport-Security)**: Enforces TLS encryption with a 2-year duration (`max-age=63072000; includeSubDomains; preload`).
+- **Permissions Policy**: Completely turns off unnecessary browser hardware access (`camera=()`, `microphone=()`, `payment=()`, `usb=()`).
+- **Cross-Domain Restrictions (`X-Permitted-Cross-Domain-Policies: none`)**: Prevents cross-domain data policy leaks.
 
-### 3. Backend & API Defense (`Backend/unified_server.py`)
-- **Rate Limiting**: Uses SlowAPI to prevent bots or scrapers from spamming our endpoints or overwhelming Render.
-- **Constant-Time Admin Authentication**: Admin actions require an `ADMIN_SECRET` checked via `secrets.compare_digest` to prevent timing attacks.
-- **Strict Payload Validation**: All API inputs and filter queries are validated with Pydantic schemas to reject malformed requests.
-- **Polite Scraping**: Web scrapers include random delays, rotating user-agents, and backoff logic to prevent overwhelming upstream hackathon sites.
+### 3. Backend & API Defense (`Backend/api.py`)
+- **OWASP Security Response Headers**: Automatically injected on every API response (`X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, `X-XSS-Protection`, `Permissions-Policy`, `X-Permitted-Cross-Domain-Policies`).
+- **Per-IP Rate Limiting**: SlowAPI restricts incoming requests (60 req/min for hackathons, health, and metrics; 5 req/min for cache clear) to safeguard the server from spam and abusive traffic.
+- **Client IP Verification**: Proxy and Cloudflare headers (`CF-Connecting-IP`, `X-Forwarded-For`) are validated against IPv4/IPv6 syntax with Python's `ipaddress` module before trusting for rate limiting.
+- **Constant-Time Admin Authentication**: Admin actions require an `ADMIN_SECRET` checked via `secrets.compare_digest` to prevent side-channel timing attacks.
+- **Strict Query & Payload Validation**: All API inputs enforce boundary constraints (`page` 1–1000, `limit` 1–100, `lat`/`lng` geographical limits, string length caps on search/category) to reject malformed requests before database query execution.
+- **Database Error Sanitization**: `/health` verifies database connectivity with a live ping, but swallows error details into a generic JSON status to prevent exposing database strings, credentials, or internal stack traces.
+- **Production Documentation Shielding**: Swagger and ReDoc documentation (`/docs`, `/redoc`) can be dynamically disabled in production via `ENVIRONMENT=production`.
+- **Database Unique Indexing**: MongoDB enforces unique indices on `link` to guarantee duplicate elimination even under concurrent race conditions.
+- **Polite Scraping**: Web scrapers incorporate randomized delays, modern TLS fingerprints (`curl_cffi`), and backoff logic to prevent overwhelming upstream platforms.
 
-### 4. User Privacy First
-- **No Accounts Required**: No passwords, usernames, or sensitive personal data are ever stored in our database.
-- **Minimal Telegram Data**: We only store user chat IDs to send opt-in hackathon alerts.
-- **Private Geolocation**: Location queries for "Nearest Hackathons" happen purely in your browser for distance calculations — your coordinates are never saved to a database.
+### 4. User Privacy & Telemetry
+- **No User Accounts Required**: Zero passwords, sessions, or personal user profiles are stored in the database.
+- **Zero Third-Party Trackers**: Completely free of Google Analytics, tracking pixels, or marketing cookies.
+- **Minimal Telegram Data**: Telegram subscribers are stored solely as chat IDs associated with opt-in notification settings.
+- **Private Geolocation**: Location queries for "Nearest Hackathons" occur client-side for distance calculation — user coordinates are never persisted to a database.
+- **Server-Side Anonymized Telemetry**: Basic visitor metrics (anonymized IP, country, device type) are processed server-side with strict in-memory debouncing (max 1 alert per IP every 6 hours; max 1 globally every 15s) purely for uptime monitoring and admin traffic notifications.
 
 ---
 

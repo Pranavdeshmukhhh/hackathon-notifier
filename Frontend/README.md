@@ -130,20 +130,27 @@ Key tokens:
 
 ---
 
-## Security Headers
+## Security & Privacy Headers
 
-For our full security policy and vulnerability reporting guidelines, see [**SECURITY.md**](../SECURITY.md).
+For our full security policy, vulnerability reporting, and coordinated disclosure guidelines, see [**SECURITY.md**](../SECURITY.md).
 
-`vercel.json` sets the following security headers on every response:
+`vercel.json` sets strict OWASP security headers on every response:
 
-| Header | Value |
-|---|---|
-| `Content-Security-Policy` | Restricts scripts, styles, fonts, and connections to known origins |
-| `Strict-Transport-Security` | 2-year HSTS with subdomain coverage and preload |
-| `X-Frame-Options` | `DENY` — prevents clickjacking |
-| `X-Content-Type-Options` | `nosniff` — prevents MIME-type sniffing |
-| `Referrer-Policy` | `strict-origin-when-cross-origin` |
-| `Permissions-Policy` | Blocks access to camera, microphone, payment, USB |
+| Header | Value | Purpose |
+|---|---|---|
+| `Content-Security-Policy` | Restricts origins for scripts, styles, fonts, and API requests (`object-src 'none'`, `frame-ancestors 'none'`) | Mitigates XSS and data injection |
+| `Strict-Transport-Security` | `max-age=63072000; includeSubDomains; preload` | Enforces HTTPS with 2-year HSTS |
+| `X-Frame-Options` | `DENY` | Prevents clickjacking attacks |
+| `X-Content-Type-Options` | `nosniff` | Prevents MIME-type sniffing |
+| `X-XSS-Protection` | `1; mode=block` | Enables legacy browser XSS filters |
+| `Referrer-Policy` | `strict-origin-when-cross-origin` | Protects referrer leakage |
+| `Permissions-Policy` | `geolocation=(self), camera=(), microphone=(), payment=(), usb=()` | Blocks camera, mic, payments, and USB APIs |
+| `X-Permitted-Cross-Domain-Policies` | `none` | Prevents cross-domain policy file leaks |
+
+### Client-Side Privacy
+
+- **On-Demand Geolocation**: Location permissions are requested only when the user explicitly clicks "Sort by nearest" — never on page load. Coordinates are held in browser memory for distance sorting and are never persisted to a database or sent to external trackers.
+- **Zero Third-Party Scripts**: No tracking cookies, Google Analytics, or third-party pixels are loaded.
 
 ---
 

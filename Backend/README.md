@@ -217,9 +217,14 @@ Render detects the `Procfile` automatically. Required environment variables must
 
 ## Security Notes
 
-- For our full security policy and vulnerability reporting guidelines, see [**SECURITY.md**](../SECURITY.md).
-- `ADMIN_SECRET` is compared using `secrets.compare_digest` (constant-time) — safe against timing attacks.
-- Rate limiting is enforced per validated client IP. Cloudflare `CF-Connecting-IP` and `X-Forwarded-For` headers are validated against IPv4/IPv6 format before use.
-- All Telegram message content is HTML-escaped before sending to prevent injection.
-- MongoDB `link` field has a unique index — duplicate inserts are rejected at the database level.
-- The `.env` file is git-ignored. Credentials are never stored in source code.
+- For our full security policy, vulnerability reporting, and coordinated disclosure guidelines, see [**SECURITY.md**](../SECURITY.md).
+- **OWASP Response Headers**: Injects `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: strict-origin-when-cross-origin`, `X-XSS-Protection: 1; mode=block`, `Permissions-Policy: geolocation=(self)`, and `X-Permitted-Cross-Domain-Policies: none`.
+- **Per-IP Rate Limiting**: SlowAPI restricts incoming requests (60 req/min for hackathons, health, and metrics; 5 req/min for cache refresh) to protect against DoS and scraper exhaustion.
+- **Client IP Validation**: `CF-Connecting-IP` and `X-Forwarded-For` proxy headers are validated against IPv4/IPv6 address syntax using Python's `ipaddress` library before being trusted.
+- **Constant-Time Authentication**: `ADMIN_SECRET` tokens are checked with `secrets.compare_digest` to prevent side-channel timing attacks.
+- **Strict Query Bounds**: Query parameters (`page` 1–1000, `limit` 1–100, `lat` ±90.0, `lng` ±180.0, string length caps on search/category) enforce strict limits, rejecting malformed requests before DB execution.
+- **Error Sanitization**: `/health` swallows connection exceptions into generic JSON (`{"status": "unhealthy", "reason": "database unavailable"}`) to avoid leaking database URIs, credentials, or internal stack traces.
+- **Production Swagger Protection**: API documentation (`/docs`, `/redoc`, `/openapi.json`) can be disabled in production via `ENVIRONMENT=production`.
+- **Database Unique Indexing**: MongoDB enforces a unique index on `link`, preventing duplicate entries even during concurrent scraper execution.
+- **HTML Message Escaping**: All Telegram alerts and interactive bot responses are escaped with `html.escape` to prevent markup injection.
+- **Zero Credentials in Code**: The `.env` file is git-ignored. All tokens and URIs are loaded from environment variables.

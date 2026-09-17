@@ -356,31 +356,37 @@ The bot responds to these commands (also available as a tap-able reply keyboard)
 
 ## 🔒 Security
 
-For our full security policy, vulnerability reporting guidelines, and disclosure process, please see [**SECURITY.md**](SECURITY.md).
+For our full security policy, vulnerability reporting guidelines, and coordinated disclosure process, please see [**SECURITY.md**](SECURITY.md).
 
-### Backend
+### Backend (`Backend/api.py`)
 
-- **Per-IP rate limiting** — SlowAPI enforces request limits, with Cloudflare `CF-Connecting-IP` and `X-Forwarded-For` header validation.
-- **Admin endpoints** protected by `ADMIN_SECRET` checked with `secrets.compare_digest` (constant-time comparison prevents timing attacks).
-- **No credentials in code** — all secrets loaded from `.env` / environment variables; `.env` is git-ignored.
-- **MongoDB unique index** on `link` field prevents duplicate inserts even under race conditions.
-- **Tenacity retries** prevent Telegram API hammering; respects `retry_after` on 429 responses.
-- **Input sanitisation** — all Telegram message text is HTML-escaped before sending.
+- **OWASP Security Response Headers** — All API responses automatically include `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: strict-origin-when-cross-origin`, `X-XSS-Protection: 1; mode=block`, `Permissions-Policy: geolocation=(self)`, and `X-Permitted-Cross-Domain-Policies: none`.
+- **Per-IP Rate Limiting** — SlowAPI enforces strict limits (60 req/min for hackathons, health, and metrics; 5 req/min for cache refresh) to prevent scraping spam and DoS attacks.
+- **Client IP Verification** — Reverse-proxy headers (`CF-Connecting-IP`, `X-Forwarded-For`) are strictly validated against IPv4/IPv6 address syntax using Python's `ipaddress` standard library before being trusted.
+- **Pydantic Bounds & Query Sanitization** — Query parameters are strongly typed and validated: pagination bounds (`page` 1–1000, `limit` 1–100), coordinate ranges (`lat` ±90.0, `lng` ±180.0), and string length caps (`search` ≤ 100 chars, `category` ≤ 30 chars).
+- **Constant-Time Admin Authentication** — Protected admin actions (such as `POST /api/refresh`) require an `ADMIN_SECRET` validated using `secrets.compare_digest` to prevent side-channel timing attacks.
+- **Database Error Masking** — The `/health` probe verifies live database connectivity via an admin ping, but swallows exceptions into a generic JSON error (`{"status": "unhealthy", "reason": "database unavailable"}`) to prevent database URI, credential, or stack-trace leakage.
+- **Production API Protection** — Swagger UI (`/docs`) and ReDoc (`/redoc`) documentation endpoints can be completely disabled in production environments via `ENVIRONMENT=production`.
+- **Database Unique Indexing** — MongoDB enforces a unique compound index on the `link` field, guaranteeing idempotence and eliminating race-condition duplicate inserts.
+- **Tenacity Back-off & Rate-Limit Handling** — Telegram notifications use exponential back-off retries with full jitter and honor HTTP 429 `retry_after` headers.
+- **Message Content Escaping** — All Telegram notifications and bot responses undergo HTML escaping (`html.escape`) prior to dispatch to prevent injection.
+- **Zero Hardcoded Secrets** — All API tokens, chat IDs, and database strings are loaded from `.env` or container environment variables; `.env` is blocked by `.gitignore`.
 
-### Frontend
+### Frontend (`Frontend/vercel.json`)
 
-- **Content Security Policy (CSP)** enforced via `vercel.json` headers.
-- **HSTS** (`Strict-Transport-Security`) with 2-year max-age and preload.
-- **`X-Frame-Options: DENY`** — prevents clickjacking.
-- **`X-Content-Type-Options: nosniff`** — prevents MIME sniffing.
-- **Permissions Policy** restricts access to camera, microphone, payment, and USB APIs.
-- **Geolocation** is only requested when the user explicitly clicks "Sort by nearest" — never on page load.
+- **Strict Content Security Policy (CSP)** — Whitelists trusted script, font, and style origins (`https://fonts.googleapis.com`, `https://fonts.gstatic.com`), while locking down `object-src 'none'`, `frame-ancestors 'none'`, and restricting API endpoints to self, Render, and local dev.
+- **HSTS (`Strict-Transport-Security`)** — Enforces TLS encryption with a 2-year duration (`max-age=63072000; includeSubDomains; preload`).
+- **Clickjacking Defense** — `X-Frame-Options: DENY` and CSP `frame-ancestors 'none'` prevent embedding within external iframes.
+- **MIME-Type Sniffing Protection** — `X-Content-Type-Options: nosniff` forces modern browsers to strictly adhere to declared content types.
+- **Hardware & API Isolation** — `Permissions-Policy` completely disables unauthorized browser hardware APIs (`camera=()`, `microphone=()`, `payment=()`, `usb=()`).
+- **On-Demand Geolocation** — Geolocation permissions are requested only when the user clicks "Sort by nearest" — never on initial page load, and coordinates are never persisted to a database.
 
-### What the app does NOT collect
+### Privacy & Data Stewardship
 
-- No user accounts or login system.
-- No analytics or tracking scripts.
-- Telegram subscribers are stored only as chat IDs with notification preferences.
+- **No User Accounts** — Zero passwords, sessions, or personal user profiles are stored in any database.
+- **Zero Third-Party Trackers** — Completely free of Google Analytics, tracking pixels, marketing beacons, and third-party advertising cookies.
+- **Telegram Notification Privacy** — Telegram subscribers are stored solely as numeric chat IDs associated with notification preferences.
+- **Server-Side Telemetry** — Lightweight visitor telemetry (anonymized IP, country, user-agent device info) is processed server-side with strict in-memory debouncing (max 1 alert per IP every 6 hours; max 1 globally every 15s) purely for uptime monitoring and traffic spike notifications.
 
 ---
 
