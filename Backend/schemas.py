@@ -102,3 +102,41 @@ class RefreshResponse(BaseModel):
     cleared: Optional[int] = Field(default=None, description="Number of cache slots evicted")
     message: Optional[str] = Field(default=None, description="Operational summary message")
     error: Optional[str] = Field(default=None, description="Error reason on rejection")
+
+
+class HackathonAutoListRequest(BaseModel):
+    link: str = Field(..., description="Target hackathon URL or registration link")
+    title: Optional[str] = Field(default=None, description="Title (auto-extracted from page if omitted)")
+    desc: Optional[str] = Field(default=None, description="Description or themes")
+    mode: Optional[str] = Field(default="Virtual", description="Event format (Online, Offline, Hybrid)")
+    location: Optional[str] = Field(default=None, description="Physical city or venue if offline")
+    deadline: Optional[str] = Field(default=None, description="Human-readable or ISO deadline")
+    deadline_iso: Optional[str] = Field(default=None, description="ISO-8601 formatted date (YYYY-MM-DD)")
+    prize: Optional[str] = Field(default=None, description="Prize pool information")
+    tags: Optional[list[str]] = Field(default_factory=list, description="Categorization or technology tags")
+    source: Optional[str] = Field(default=None, description="Origin platform or organization")
+    fetch_metadata: Optional[bool] = Field(default=True, description="Whether to scrape OpenGraph/HTML metadata if missing")
+
+
+class HackathonAutoListResponse(BaseModel):
+    success: bool = Field(..., description="Whether hackathon was auto-listed successfully")
+    message: str = Field(..., description="Status summary or operational details")
+    is_new: bool = Field(default=True, description="True if new insert, False if updated existing")
+    data: Optional[HackathonOut] = Field(default=None, description="Enriched hackathon document")
+
+
+class HackathonPreviewRequest(BaseModel):
+    link: str = Field(..., description="Target URL to fetch preview metadata for")
+
+
+class HackathonPreviewResponse(BaseModel):
+    success: bool = Field(..., description="Whether preview metadata was successfully scraped")
+    title: Optional[str] = None
+    desc: Optional[str] = None
+    source: Optional[str] = None
+    mode: Optional[str] = None
+    location: Optional[str] = None
+    tags: list[str] = Field(default_factory=list)
+    image: Optional[str] = None
+    message: Optional[str] = None
+

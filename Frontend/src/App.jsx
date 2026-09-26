@@ -14,6 +14,7 @@ import './index.css';
 // ── Extracted Components ────────────────────────────────────────────────────
 import Pagination         from './components/Pagination';
 import TechSpecModal      from './components/TechSpecModal';
+import AutoListModal      from './components/AutoListModal';
 import Toast              from './components/Toast';
 import ScrollToTop        from './components/ScrollToTop';
 import TermsAndConditions from './components/TermsAndConditions';
@@ -76,6 +77,7 @@ function App() {
   const [mobileMenuOpen, setMobileMenuOpen]   = useState(false);
   const [showColdStartBanner, setShowColdStartBanner] = useState(false);
   const [showTechSpecModal, setShowTechSpecModal] = useState(false);
+  const [showAutoListModal, setShowAutoListModal] = useState(false);
   const [activeTab, setActiveTab]             = useState('upcoming'); // 'upcoming' | 'all' | 'missed'
   const [currentPage, setCurrentPage]         = useState(1);
   const [totalPages, setTotalPages]           = useState(1);
@@ -333,8 +335,19 @@ function App() {
   const handleQuickFilter = (type) => {
     if (type === 'prizes')   { setSortBy('newest'); setActiveCategory('All'); setActiveSource('All'); setSearchQuery(''); showToast('⚡ Filter: Highest Cash Pools'); }
     if (type === 'college')  { setSearchQuery('IIT'); setActiveCategory('All'); setActiveSource('All'); showToast('🎓 Filter: Premier Colleges (IIT/NIT/BITS)'); }
+    if (type === 'faang')    { setSearchQuery('faang'); setActiveCategory('All'); setActiveSource('All'); showToast('🔥 Filter: FAANG & MANGO Global Hackathons'); }
+    if (type === 'pune')     { setSearchQuery('pune'); setActiveCategory('All'); setActiveSource('All'); showToast('🏙️ Filter: Pune Engineering Hackathons (COEP/PICT)'); }
+    if (type === 'iiit')     { setSearchQuery('iiit'); setActiveCategory('All'); setActiveSource('All'); showToast('🏛️ Filter: IIIT Premier Hackathons'); }
     if (type === 'inperson') { setActiveCategory('Offline'); setActiveSource('All'); setSearchQuery(''); showToast('📍 Filter: In-Person Hackathons Near You'); }
     if (type === 'online')   { setActiveCategory('Online'); setActiveSource('All'); setSearchQuery(''); showToast('🌐 Filter: 100% Online & Global Hackathons'); }
+    if (currentView === 'terms') navigateToRadar('events');
+    else scrollToSection('events');
+  };
+
+  const handleHackathonListed = (newHackathon) => {
+    showToast(`⚡ Successfully listed "${newHackathon?.title || 'Hackathon'}" into radar!`);
+    queryCacheRef.current.clear();
+    fetchHackathons(true);
     if (currentView === 'terms') navigateToRadar('events');
     else scrollToSection('events');
   };
@@ -379,6 +392,13 @@ function App() {
       </div>
 
       {showTechSpecModal && <TechSpecModal onClose={() => setShowTechSpecModal(false)} />}
+      {showAutoListModal && (
+        <AutoListModal
+          onClose={() => setShowAutoListModal(false)}
+          onSuccess={handleHackathonListed}
+          apiBase={DEFAULT_API_URL}
+        />
+      )}
 
       {/* ── MOBILE BACKDROP OVERLAY ── */}
       {mobileMenuOpen && (
@@ -429,6 +449,13 @@ function App() {
               <button className={`hidden sm:flex items-center gap-1.5 px-3.5 h-10 min-h-[40px] rounded-[12px] apple-squircle apple-touch-target apple-spring-press apple-dual-bevel text-xs font-semibold transition-all cursor-pointer shadow-xs ${
                 userLocation ? 'bg-[#007AFF]/15 text-[#007AFF] dark:bg-[#0A84FF]/20 dark:text-[#0A84FF] border border-[#007AFF]/30' : 'bg-black/[0.04] text-slate-700 hover:bg-black/[0.08] dark:bg-white/[0.08] dark:text-slate-300 dark:hover:bg-white/[0.14] border border-black/[0.06] dark:border-white/[0.08]'
               }`} onClick={() => { if (currentView === 'terms') navigateToRadar('events'); requestLocation(); }}><PinIcon /> {isLocating ? 'Locating...' : 'Near Me'}</button>
+              <button
+                onClick={() => setShowAutoListModal(true)}
+                className="hidden sm:flex items-center gap-1.5 px-3.5 h-10 min-h-[40px] rounded-[12px] apple-squircle apple-touch-target apple-spring-press apple-dual-bevel text-xs font-bold bg-gradient-to-r from-amber-500/15 to-orange-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30 hover:border-amber-500/50 shadow-xs hover:shadow-md transition-all cursor-pointer"
+                title="Auto-List or submit a hackathon into live radar"
+              >
+                ⚡ Auto-List
+              </button>
               <button className="hidden sm:flex items-center gap-1.5 px-4 h-10 min-h-[40px] rounded-[12px] apple-squircle apple-touch-target apple-spring-press apple-dual-bevel text-xs font-bold bg-[#007AFF] hover:bg-[#0066D6] dark:bg-[#0A84FF] dark:hover:bg-[#0077ED] text-white shadow-xs hover:shadow-md hover:shadow-[#007AFF]/25 transition-all cursor-pointer" onClick={() => { if (currentView === 'terms') navigateToRadar('events'); fetchHackathons(); }}>Sync</button>
               <button className="md:hidden p-2 text-slate-600 dark:text-slate-300" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}><HamburgerIcon /></button>
             </div>
@@ -460,6 +487,7 @@ function App() {
               </a>
             ))}
             <div className="h-px bg-black/[0.06] dark:bg-white/[0.08] my-1"></div>
+            <button className="flex items-center justify-center gap-2 py-2.5 rounded-[12px] bg-gradient-to-r from-amber-500/20 to-orange-500/20 text-amber-800 dark:text-amber-200 border border-amber-500/30 text-sm font-bold cursor-pointer" onClick={() => { setMobileMenuOpen(false); setShowAutoListModal(true); }}>⚡ Auto-List Hackathon</button>
             <button className="flex items-center justify-center gap-2 py-2.5 rounded-[12px] bg-black/[0.04] dark:bg-white/[0.08] text-sm font-semibold" onClick={() => { if (currentView === 'terms') navigateToRadar('events'); requestLocation(); }}><PinIcon /> Use GPS Location</button>
             <button className="flex items-center justify-center gap-2 py-2.5 rounded-[12px] bg-[#007AFF] text-white text-sm font-semibold" onClick={() => { if (currentView === 'terms') navigateToRadar('events'); fetchHackathons(); }}>Force Sync Now</button>
           </div>
@@ -548,17 +576,75 @@ function App() {
                   <h2 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-2"><span className="w-3 h-3 rounded-full bg-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.6)]"></span>Verified Hackathon Radar</h2>
                   <p className="text-sm text-slate-600 dark:text-slate-400 mt-1 font-medium">Zero scam portals • Direct API links • All platforms aggregated across India & globally</p>
                 </div>
-                <div className="relative group w-full sm:w-80">
-                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400 dark:text-slate-500 group-focus-within:text-[#007AFF] dark:group-focus-within:text-[#0A84FF] group-focus-within:scale-110 transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]">
-                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                <div className="flex items-center gap-2.5 w-full sm:w-auto">
+                  <div className="relative group w-full sm:w-72">
+                    <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400 dark:text-slate-500 group-focus-within:text-[#007AFF] dark:group-focus-within:text-[#0A84FF] group-focus-within:scale-110 transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]">
+                      <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                    </div>
+                    <input type="text" placeholder="Search hacks (e.g., AI, Pune, IIIT, FAANG)..." className="w-full pl-10 pr-9 h-11 min-h-[44px] bg-black/[0.05] dark:bg-white/[0.08] border border-transparent focus:border-[#007AFF]/40 focus:bg-white dark:focus:bg-[#1C1C1E] rounded-[14px] apple-squircle text-xs sm:text-sm text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-[#007AFF]/25 focus:shadow-[0_0_24px_rgba(0,122,255,0.12)] transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] shadow-xs crystal-search crystal-chamfer" value={searchQuery} onChange={handleSearchChange} />
+                    {searchQuery && (
+                      <button type="button" onClick={() => setSearchQuery('')} className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-all duration-200 active:scale-85 cursor-pointer" title="Clear search" aria-label="Clear search">
+                        <span className="w-4 h-4 rounded-full bg-black/10 dark:bg-white/20 flex items-center justify-center text-[10px] leading-none">✕</span>
+                      </button>
+                    )}
                   </div>
-                  <input type="text" placeholder="Search hacks (e.g., AI, Web3, IIT)..." className="w-full pl-10 pr-9 h-11 min-h-[44px] bg-black/[0.05] dark:bg-white/[0.08] border border-transparent focus:border-[#007AFF]/40 focus:bg-white dark:focus:bg-[#1C1C1E] rounded-[14px] apple-squircle text-xs sm:text-sm text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-[#007AFF]/25 focus:shadow-[0_0_24px_rgba(0,122,255,0.12)] transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] shadow-xs crystal-search crystal-chamfer" value={searchQuery} onChange={handleSearchChange} />
-                  {searchQuery && (
-                    <button type="button" onClick={() => setSearchQuery('')} className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-all duration-200 active:scale-85 cursor-pointer" title="Clear search" aria-label="Clear search">
-                      <span className="w-4 h-4 rounded-full bg-black/10 dark:bg-white/20 flex items-center justify-center text-[10px] leading-none">✕</span>
-                    </button>
-                  )}
+                  <button
+                    onClick={() => setShowAutoListModal(true)}
+                    className="shrink-0 flex items-center gap-1.5 px-3.5 h-11 min-h-[44px] rounded-[14px] bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white font-bold text-xs shadow-md hover:shadow-amber-500/25 transition-all cursor-pointer"
+                    title="Auto-List or submit a hackathon into live radar"
+                  >
+                    ⚡ Auto-List
+                  </button>
                 </div>
+              </div>
+
+              {/* ── QUICK FOCUS SHORTCUTS ── */}
+              <div className="flex flex-wrap items-center gap-1.5">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mr-1">Quick Focus:</span>
+                <button
+                  type="button"
+                  onClick={() => handleQuickFilter('faang')}
+                  className={`px-2.5 py-1 rounded-[8px] text-[11px] font-bold tracking-tight transition-all cursor-pointer ${
+                    searchQuery.toLowerCase() === 'faang'
+                      ? 'bg-amber-500 text-white shadow-xs'
+                      : 'bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/20 hover:bg-amber-500/20'
+                  }`}
+                >
+                  🔥 FAANG / MANGO
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleQuickFilter('pune')}
+                  className={`px-2.5 py-1 rounded-[8px] text-[11px] font-bold tracking-tight transition-all cursor-pointer ${
+                    searchQuery.toLowerCase() === 'pune'
+                      ? 'bg-[#007AFF] text-white shadow-xs'
+                      : 'bg-[#007AFF]/10 text-[#007AFF] dark:text-[#0A84FF] border border-[#007AFF]/20 hover:bg-[#007AFF]/20'
+                  }`}
+                >
+                  🏙️ Pune Tech (COEP/PICT)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleQuickFilter('iiit')}
+                  className={`px-2.5 py-1 rounded-[8px] text-[11px] font-bold tracking-tight transition-all cursor-pointer ${
+                    searchQuery.toLowerCase() === 'iiit'
+                      ? 'bg-purple-600 text-white shadow-xs'
+                      : 'bg-purple-500/10 text-purple-700 dark:text-purple-300 border border-purple-500/20 hover:bg-purple-500/20'
+                  }`}
+                >
+                  🏛️ IIIT Hyderabad
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleQuickFilter('college')}
+                  className={`px-2.5 py-1 rounded-[8px] text-[11px] font-bold tracking-tight transition-all cursor-pointer ${
+                    searchQuery.toLowerCase() === 'iit'
+                      ? 'bg-emerald-600 text-white shadow-xs'
+                      : 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/20'
+                  }`}
+                >
+                  🎓 Premier IITs
+                </button>
               </div>
 
               {/* ── PLATFORM SOURCE FILTER BAR ── */}

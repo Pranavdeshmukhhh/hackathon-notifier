@@ -73,9 +73,12 @@ _COLLEGE_PATTERNS: list[tuple[re.Pattern, str]] = [
         r"\b(?:iim\b|iims\b|indian\s+institute\s+of\s+management)",
         re.IGNORECASE,
     ), "IIM"),
-    # DTU / NSUT / DCE (Delhi CFTIs)
+    # Top Tier State & CFTI Colleges (COEP Pune, PICT Pune, VJTI Mumbai, DTU, NSUT, DCE)
     (re.compile(
-        r"\b(?:dtu\b|delhi\s+technological\s+university|"
+        r"\b(?:coep\b|college\s+of\s+engineering\s+pune|"
+        r"pict\b|pune\s+institute\s+of\s+computer\s+technology|"
+        r"vjti\b|veermata\s+jijabai|"
+        r"dtu\b|delhi\s+technological\s+university|"
         r"nsut\b|netaji\s+subhas\s+(?:university|institute)|"
         r"dce\b|delhi\s+college\s+of\s+engineering)",
         re.IGNORECASE,
@@ -86,6 +89,11 @@ _COLLEGE_PATTERNS: list[tuple[re.Pattern, str]] = [
 _INTERNSHIP_PATTERN = re.compile(
     r"\b(?:internship|intern\b|hiring\s+challenge|placement|job\s+offer|"
     r"ppo\b|ppi\b|stipend|career\s+track|hiring|recruit)",
+    re.IGNORECASE,
+)
+
+_FAANG_PATTERN = re.compile(
+    r"\b(?:faang|mango|meta\b|google|apple\b|amazon\b|aws\b|netflix|microsoft)\b",
     re.IGNORECASE,
 )
 
@@ -146,6 +154,16 @@ def classify_hackathon(hackathon: dict) -> dict:
     hackathon["college_name"] = college_name
     hackathon["is_internship"] = is_internship
     hackathon["opportunity_type"] = opportunity_type
+
+    # ── FAANG / MANGO Tag Enrichment ─────────────────────────────────────
+    if _FAANG_PATTERN.search(haystack):
+        curr_tags = list(hackathon.get("tags") or [])
+        curr_tags_lower = [t.lower() for t in curr_tags]
+        if "faang" not in curr_tags_lower:
+            curr_tags.append("faang")
+        if "mango" not in curr_tags_lower:
+            curr_tags.append("mango")
+        hackathon["tags"] = curr_tags
 
     return hackathon
 

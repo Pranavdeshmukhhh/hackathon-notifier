@@ -11,7 +11,9 @@ from datetime import datetime, timezone
 import math
 import hashlib
 from typing import Optional
+from urllib.parse import urlparse
 import requests
+from bs4 import BeautifulSoup
 from fastapi import FastAPI, Request, Query, Response, BackgroundTasks, APIRouter
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -26,7 +28,14 @@ from schemas import (
     HealthResponse,
     MetricsResponse,
     RefreshResponse,
+    HackathonAutoListRequest,
+    HackathonAutoListResponse,
+    HackathonPreviewRequest,
+    HackathonPreviewResponse,
+    HackathonOut,
 )
+from filters.keyword_filter import classify_hackathon
+from scrapers.geocoder import geocode
 
 # Ensure utf-8 encoding for standard output
 if hasattr(sys.stdout, "reconfigure"):
@@ -685,6 +694,241 @@ def refresh_cache(request: Request):
     _cache.clear()
     logger.info("Cache manually cleared via POST /api/refresh (%d entries removed).", n)
     return {"success": True, "cleared": n, "message": "Cache cleared. Next request will re-query MongoDB."}
+
+
+def _extract_url_metadata(url: str) -> dict:
+    """Safely scrape and infer metadata, tags, mode, and platform from a hackathon URL."""
+    url = url.strip()
+    if not url.startswith(("http://", "https://")):
+        url = "https://" + url
+
+    result = {
+        "title": None,
+        "desc": None,
+        "source": "Community / Direct",
+        "mode": "Virtual",
+        "location": None,
+        "tags": [],
+        "image": None,
+    }
+
+    try:
+        parsed = urlparse(url)
+        domain = parsed.netloc.lower()
+        if domain.startswith("www."):
+            domain = domain[4:]
+
+        # Infer source from domain
+        if "devfolio.co" in domain:
+            result["source"] = "Devfolio"
+        elif "unstop.com" in domain:
+            result["source"] = "Unstop"
+        elif "devpost.com" in domain:
+            result["source"] = "Devpost"
+        elif "hackerearth.com" in domain:
+            result["source"] = "HackerEarth"
+        elif "mlh.io" in domain:
+            result["source"] = "MLH"
+        elif "kaggle.com" in domain:
+            result["source"] = "Kaggle"
+        elif "github.com" in domain:
+            result["source"] = "GitHub"
+        elif "codeforces.com" in domain:
+            result["source"] = "Codeforces"
+        elif "leetcode.com" in domain:
+            result["source"] = "LeetCode"
+        elif domain:
+            base_name = domain.split(".")[0].capitalize()
+            result["source"] = f"{base_name} Direct"
+
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+            "Accept-Language": "en-US,en;q=0.9",
+        }
+        resp = requests.get(url, headers=headers, timeout=6)
+        if resp.status_code == 200:
+            soup = BeautifulSoup(resp.text, "html.parser")
+
+            # Extract Title
+            og_title = soup.find("meta", property="og:title") or soup.find("meta", attrs={"name": "twitter:title"})
+            if og_title and og_title.get("content"):
+                result["title"] = og_title["content"].strip()
+            elif soup.title and soup.title.string:
+                result["title"] = soup.title.string.strip()
+
+            if result["title"]:
+                result["title"] = re.split(r"[\-|–—:]\s*(?:Devfolio|Unstop|Devpost|HackerEarth|MLH)", result["title"], flags=re.IGNORECASE)[0].strip()
+
+            # Extract Description
+            og_desc = soup.find("meta", property="og:description") or soup.find("meta", attrs={"name": "description"}) or soup.find("meta", attrs={"name": "twitter:description"})
+            if og_desc and og_desc.get("content"):
+                result["desc"] = og_desc["content"].strip()[:400]
+
+            # Extract Image
+            og_img = soup.find("meta", property="og:image") or soup.find("meta", attrs={"name": "twitter:image"})
+            if og_img and og_img.get("content"):
+                result["image"] = og_img["content"].strip()
+
+            combined_text = f"{result['title'] or ''} {result['desc'] or ''} {resp.text[:5000]}".lower()
+
+            # Infer tags
+            detected_tags = set()
+            tag_keywords = {
+                "ai": ["ai", "artificial intelligence"],
+                "ml": ["ml", "machine learning"],
+                "web3": ["web3", "crypto", "blockchain", "solana", "ethereum"],
+                "fintech": ["fintech", "finance", "banking"],
+                "iot": ["iot", "hardware", "arduino", "raspberry"],
+                "cloud": ["cloud", "aws", "azure", "gcp"],
+                "faang": ["meta", "google", "apple", "amazon", "netflix", "microsoft", "faang", "mango"],
+                "mango": ["meta", "google", "apple", "amazon", "netflix", "microsoft", "mango"],
+                "open-source": ["open-source", "open source", "foss", "github"],
+                "cybersecurity": ["cybersecurity", "security", "infosec", "ctf"],
+                "pune": ["pune", "coep", "pict", "vit pune", "mit pune", "pccoe"],
+                "hyderabad": ["hyderabad", "iiit hyderabad", "iiit-h", "telangana"],
+                "iit": ["iit", "indian institute of technology"],
+                "nit": ["nit", "national institute of technology"],
+                "iiit": ["iiit", "indian institute of information technology"],
+            }
+            for tag, kws in tag_keywords.items():
+                if any(re.search(rf"\b{kw}\b", combined_text) for kw in kws):
+                    detected_tags.add(tag)
+            result["tags"] = sorted(list(detected_tags))
+
+            # Infer mode & location
+            if any(term in combined_text for term in ["offline", "in-person", "campus", "venue", "on-site"]):
+                result["mode"] = "Offline"
+                if "pune" in combined_text:
+                    result["location"] = "Pune, Maharashtra, India"
+                elif "hyderabad" in combined_text:
+                    result["location"] = "Hyderabad, Telangana, India"
+                elif "bangalore" in combined_text or "bengaluru" in combined_text:
+                    result["location"] = "Bengaluru, Karnataka, India"
+                elif "mumbai" in combined_text:
+                    result["location"] = "Mumbai, Maharashtra, India"
+                elif "delhi" in combined_text:
+                    result["location"] = "New Delhi, Delhi, India"
+            elif any(term in combined_text for term in ["hybrid"]):
+                result["mode"] = "Hybrid"
+            else:
+                result["mode"] = "Virtual"
+                result["location"] = "Online"
+
+    except Exception as e:
+        logger.warning("Error fetching URL metadata for %s: %s", url, e)
+
+    return result
+
+
+@app.post("/api/hackathons/preview-url", response_model=HackathonPreviewResponse)
+@v1_router.post("/hackathons/preview-url", response_model=HackathonPreviewResponse)
+@limiter.limit("30/minute")
+def preview_hackathon_url(request: Request, body: HackathonPreviewRequest):
+    """Fetch live metadata preview for a given hackathon URL."""
+    link = body.link.strip()
+    if not link:
+        return JSONResponse(status_code=400, content={"success": False, "message": "Link URL cannot be empty."})
+
+    meta = _extract_url_metadata(link)
+    return {
+        "success": True,
+        "title": meta.get("title"),
+        "desc": meta.get("desc"),
+        "source": meta.get("source"),
+        "mode": meta.get("mode"),
+        "location": meta.get("location"),
+        "tags": meta.get("tags") or [],
+        "image": meta.get("image"),
+        "message": "Metadata extracted successfully",
+    }
+
+
+@app.post("/api/hackathons/auto-list", response_model=HackathonAutoListResponse)
+@v1_router.post("/hackathons/auto-list", response_model=HackathonAutoListResponse)
+@limiter.limit("20/minute")
+def auto_list_hackathon(request: Request, body: HackathonAutoListRequest):
+    """Auto-list or manually submit a hackathon into the live radar database."""
+    link = body.link.strip()
+    if not link:
+        return JSONResponse(status_code=400, content={"success": False, "message": "Link URL is required.", "is_new": False, "data": None})
+
+    meta = {}
+    if body.fetch_metadata or not body.title or not body.desc:
+        meta = _extract_url_metadata(link)
+
+    title = (body.title or meta.get("title") or "Community Hackathon").strip()
+    source = (body.source or meta.get("source") or "Community / Auto-Listed").strip()
+    mode = (body.mode or meta.get("mode") or "Virtual").strip().capitalize()
+    location = body.location if body.location is not None else meta.get("location")
+    desc = (body.desc or meta.get("desc") or "").strip()
+
+    # Merge tags
+    tag_set = set(t.lower().strip() for t in (body.tags or []) if t and t.strip())
+    for t in (meta.get("tags") or []):
+        tag_set.add(t.lower().strip())
+
+    now_iso = datetime.now(timezone.utc).isoformat()
+    doc = {
+        "title": title,
+        "link": link,
+        "source": source,
+        "mode": mode,
+        "location": location or ("Online" if mode == "Virtual" else "TBA"),
+        "deadline": body.deadline or "TBA",
+        "deadline_iso": body.deadline_iso,
+        "prize": body.prize or "TBA",
+        "tags": sorted(list(tag_set)),
+        "desc": desc,
+        "status": "Open",
+        "is_past": False,
+        "scraped_at": now_iso,
+    }
+
+    # Enrich with college / internship / FAANG classification
+    classify_hackathon(doc)
+
+    # Geocode if offline and coords missing
+    if doc.get("mode", "").lower() == "offline" and doc.get("location"):
+        loc = doc["location"]
+        if loc.lower() not in {"online", "virtual", "remote", "tba"}:
+            lat, lng = geocode(loc)
+            if lat and lng:
+                doc["lat"] = lat
+                doc["lng"] = lng
+
+    # Upsert to MongoDB
+    try:
+        col = get_collection()
+        if col is None:
+            return JSONResponse(
+                status_code=503,
+                content={"success": False, "message": "Database unavailable", "is_new": False, "data": None}
+            )
+        res = col.update_one({"link": link}, {"$set": doc}, upsert=True)
+        is_new = bool(res.upserted_id)
+
+        # Clear API in-memory cache so newly listed hackathon is immediately visible
+        _cache.clear()
+        logger.info("Auto-listed hackathon '%s' (is_new=%s)", title, is_new)
+
+        # Fetch inserted/updated doc with _id stringified
+        saved = col.find_one({"link": link})
+        if saved and "_id" in saved:
+            saved["_id"] = str(saved["_id"])
+
+        return {
+            "success": True,
+            "message": f"Hackathon '{title}' {'listed successfully' if is_new else 'updated successfully'}!",
+            "is_new": is_new,
+            "data": saved or doc,
+        }
+    except Exception as e:
+        logger.error("Failed to auto-list hackathon: %s", e)
+        return JSONResponse(
+            status_code=500,
+            content={"success": False, "message": f"Server error: {str(e)}", "is_new": False, "data": None}
+        )
 
 
 # Mount API v1 router

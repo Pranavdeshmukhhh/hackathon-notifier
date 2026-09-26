@@ -21,6 +21,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from db.mongo_client import get_collection
 from scrapers.geocoder import geocode
+from filters.keyword_filter import classify_hackathon
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger(__name__)
@@ -45,6 +46,7 @@ def run():
     now_iso = datetime.now(timezone.utc).isoformat()
 
     inserted = 0
+    updated = 0
     skipped = 0
     geocoded = 0
 
@@ -55,17 +57,10 @@ def run():
             skipped += 1
             continue
 
-        # Check for duplicate
-        existing = collection.find_one({"link": link})
-        if existing:
-            logger.info("Skipping duplicate: %s", h.get("title"))
-            skipped += 1
-            continue
-
-        # Geocode offline events
+        # Geocode offline events if lat/lng missing
         location = h.get("location", "")
         mode = h.get("mode", "").lower()
-        if mode == "offline" and should_geocode(location):
+        if mode == "offline" and should_geocode(location) and (not h.get("lat") or not h.get("lng")):
             lat, lng = geocode(location)
             if lat and lng:
                 h["lat"] = lat
@@ -75,15 +70,20 @@ def run():
             else:
                 logger.warning("Could not geocode: '%s'", location)
 
-        # Add metadata
-        h["scraped_at"] = now_iso
-        h["source"] = "Unique Sources"
+        # Add metadata and classification
+        h["scraped_at"] = h.get("scraped_at") or now_iso
+        h["source"] = h.get("source") or "Unique Sources"
+        classify_hackathon(h)
 
-        collection.insert_one(h)
-        inserted += 1
-        logger.info("Inserted: %s", h.get("title"))
+        res = collection.update_one({"link": link}, {"$set": h}, upsert=True)
+        if res.upserted_id:
+            inserted += 1
+            logger.info("Inserted: %s", h.get("title"))
+        else:
+            updated += 1
+            logger.info("Updated existing: %s", h.get("title"))
 
-    logger.info("Done! Inserted=%d  Skipped(duplicates)=%d  Geocoded=%d", inserted, skipped, geocoded)
+    logger.info("Done! Inserted=%d  Updated=%d  Skipped=%d  Geocoded=%d", inserted, updated, skipped, geocoded)
 
 
 if __name__ == "__main__":
