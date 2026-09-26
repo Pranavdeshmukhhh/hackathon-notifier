@@ -22,39 +22,62 @@ def test_scanner_initial_status():
 
 
 def test_scan_single_keyword_with_mock():
-    mock_gh = [
+    mock_unstop = [
         {
-            "title": "HackPune Techathon 2026",
-            "link": "https://github.com/coep/hackpune",
-            "source": "GitHub Web Discovery",
+            "title": "HackPune Techathon 2026 (COEP Pune)",
+            "link": "https://unstop.com/hackathons/hackpune-techathon-coep-1751374",
+            "source": "Unstop",
             "mode": "Offline",
             "location": "Pune, Maharashtra, India",
-            "deadline": "Open Season 2026",
-            "prize": "Swag",
-            "tags": ["pune"],
-            "desc": "Annual Pune hackathon",
+            "deadline": "2026-10-15",
+            "prize": "₹2,50,000",
+            "tags": ["pune", "coep"],
+            "desc": "Annual Pune hackathon on Unstop",
         }
     ]
 
-    with patch("scrapers.internet_scanner._scrape_github_hackathons", return_value=mock_gh), \
+    with patch("scrapers.internet_scanner._scrape_unstop_feed", return_value=mock_unstop), \
          patch("scrapers.internet_scanner._scrape_devpost_feed", return_value=[]), \
          patch("scrapers.internet_scanner._scrape_hackerearth_feed", return_value=[]):
         res = scan_single_keyword("pune")
         assert len(res) == 1
-        assert res[0]["title"] == "HackPune Techathon 2026"
+        assert res[0]["title"] == "HackPune Techathon 2026 (COEP Pune)"
         assert res[0]["location"] == "Pune, Maharashtra, India"
+        assert "unstop.com" in res[0]["link"]
+
+
+def test_scan_single_keyword_filters_github_repos():
+    mock_mixed = [
+        {
+            "title": "Real Hackathon",
+            "link": "https://unstop.com/hackathons/real-hack",
+            "source": "Unstop",
+        },
+        {
+            "title": "Fake Student Project Repo",
+            "link": "https://github.com/student/my-hackathon-project",
+            "source": "Unstop",
+        },
+    ]
+
+    with patch("scrapers.internet_scanner._scrape_unstop_feed", return_value=mock_mixed), \
+         patch("scrapers.internet_scanner._scrape_devpost_feed", return_value=[]), \
+         patch("scrapers.internet_scanner._scrape_hackerearth_feed", return_value=[]):
+        res = scan_single_keyword("pune")
+        assert len(res) == 1
+        assert res[0]["title"] == "Real Hackathon"
 
 
 def test_run_internet_scan_upsert():
     mock_items = [
         {
             "title": "IIIT Hyderabad Felicity Hackathon",
-            "link": "https://felicity.iiit.ac.in",
-            "source": "GitHub Web Discovery",
+            "link": "https://unstop.com/hackathons/iiit-hyderabad-felicity-1761263",
+            "source": "Unstop",
             "mode": "Virtual",
             "location": "Online",
-            "deadline": "Open Season 2026",
-            "prize": "Swag",
+            "deadline": "2026-11-20",
+            "prize": "₹1,00,000",
             "tags": ["iiit", "hyderabad"],
             "desc": "Flagship tech fest",
         }

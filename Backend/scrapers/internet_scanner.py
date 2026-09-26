@@ -73,71 +73,82 @@ def _clean_text(s: str) -> str:
     return re.sub(r"\s+", " ", str(s)).strip()
 
 
-def _scrape_github_hackathons(keyword: str) -> list[dict]:
-    """Scan GitHub search API for real hackathons matching the keyword."""
+def _scrape_unstop_feed(keyword: str) -> list[dict]:
+    """Scan Unstop live public API for authentic hackathon opportunities matching keyword."""
     discovered = []
     try:
-        url = f"https://api.github.com/search/repositories?q=hackathon+{keyword}&sort=updated&per_page=15"
-        headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko)",
-            "Accept": "application/vnd.github.v3+json",
-        }
-        res = requests.get(url, headers=headers, timeout=8)
+        from curl_cffi import requests as cffi_requests
+        url = f"https://unstop.com/api/public/opportunity/search-result?opportunity=hackathons&size=20&status=open&searchTerm={keyword}"
+        res = cffi_requests.get(url, impersonate="chrome107", timeout=10)
         if res.status_code == 200:
             data = res.json()
-            for repo in data.get("items", []):
-                name = repo.get("name", "").replace("-", " ").replace("_", " ")
-                desc = repo.get("description") or ""
-                homepage = repo.get("homepage") or ""
-                html_url = repo.get("html_url") or ""
-
-                # Prefer official homepage link if present, else GitHub repo link
-                dest_url = homepage if (homepage and homepage.startswith("http")) else html_url
-                if not dest_url:
+            items = data.get("data", {}).get("data", [])
+            for item in items:
+                title = item.get("title") or item.get("organisation", {}).get("name", "")
+                link = item.get("seo_url")
+                if not link:
+                    slug = item.get("public_url") or item.get("short_url")
+                    link = f"https://unstop.com/{slug}" if slug else ""
+                if not title or not link:
                     continue
 
-                full_text = f"{name} {desc} {keyword}".lower()
-                if "hackathon" not in full_text and "challenge" not in full_text:
+                if link.startswith("/"):
+                    link = f"https://unstop.com{link}"
+
+                # Strict rejection of any non-registration or raw code repos
+                if "github.com" in link.lower():
                     continue
 
-                topics = repo.get("topics") or []
-                tags = set([keyword.lower()] + [t.lower() for t in topics])
+                tags = [keyword.lower()]
+                for t in item.get("filters", []):
+                    if isinstance(t, dict) and t.get("name"):
+                        tags.append(t["name"].lower())
 
-                # Determine mode
-                mode = "Virtual"
-                loc = "Online"
-                if any(c in full_text for c in ["pune", "coep", "pict"]):
+                # Location & mode
+                regn_req = item.get("regnRequirements", {}) or {}
+                raw_loc = regn_req.get("location") or ""
+                region_type = (item.get("region") or "").lower()
+                if "online" in region_type or not raw_loc or raw_loc.lower() == "online":
+                    mode = "Virtual"
+                    loc = "Online"
+                else:
                     mode = "Offline"
-                    loc = "Pune, Maharashtra, India"
-                elif any(c in full_text for c in ["hyderabad", "iiit-h", "iiit hyderabad"]):
-                    mode = "Offline"
-                    loc = "Hyderabad, Telangana, India"
-                elif "mumbai" in full_text:
-                    mode = "Offline"
-                    loc = "Mumbai, Maharashtra, India"
-                elif "bengaluru" in full_text or "bangalore" in full_text:
-                    mode = "Offline"
-                    loc = "Bengaluru, Karnataka, India"
+                    loc = raw_loc
 
-                title = f"{name.title()} Hackathon" if "hackathon" not in name.lower() else name.title()
+                # Prize
+                prizes = item.get("prizes", [])
+                prize_str = "TBA"
+                if prizes and isinstance(prizes, list):
+                    first_p = prizes[0]
+                    if isinstance(first_p, dict) and first_p.get("cash"):
+                        prize_str = f"₹{first_p.get('cash'):,}"
+
+                # End date
+                end_date = item.get("end_date") or item.get("register_end_date") or "TBA"
+                deadline_iso = None
+                if end_date and end_date != "TBA":
+                    try:
+                        deadline_iso = datetime.fromisoformat(end_date.replace("Z", "+00:00")).date().isoformat()
+                    except Exception:
+                        deadline_iso = None
 
                 discovered.append({
                     "title": _clean_text(title),
-                    "link": dest_url,
-                    "source": "GitHub Web Discovery",
+                    "link": link,
+                    "source": "Unstop",
                     "mode": mode,
                     "location": loc,
-                    "deadline": "Open Season 2026",
-                    "deadline_iso": None,
-                    "prize": "Mentorship & Swag",
-                    "tags": sorted(list(tags)),
-                    "desc": _clean_text(desc or f"Open hackathon challenge discovered on GitHub for {keyword}."),
+                    "deadline": end_date[:10] if end_date != "TBA" else "TBA",
+                    "deadline_iso": deadline_iso,
+                    "prize": prize_str,
+                    "tags": sorted(list(set(tags))),
+                    "desc": _clean_text(item.get("raw_description") or f"Hackathon challenge hosted on Unstop for {keyword}."),
                     "status": "Open",
                     "is_past": False,
                     "scraped_at": datetime.now(timezone.utc).isoformat(),
                 })
     except Exception as e:
-        logger.warning("GitHub scan error for keyword '%s': %s", keyword, e)
+        logger.warning("Unstop scan error for keyword '%s': %s", keyword, e)
 
     return discovered
 
@@ -277,8 +288,8 @@ def scan_single_keyword(keyword: str) -> list[dict]:
     logger.info("Scanning internet for keyword: '%s'...", keyword)
     results = []
 
-    # 1. GitHub event repos
-    results.extend(_scrape_github_hackathons(keyword))
+    # 1. Unstop Hackathons (India #1 for IIT, NIT, IIIT, Pune, FAANG)
+    results.extend(_scrape_unstop_feed(keyword))
 
     # 2. Devpost search
     results.extend(_scrape_devpost_feed(keyword))
@@ -286,7 +297,15 @@ def scan_single_keyword(keyword: str) -> list[dict]:
     # 3. HackerEarth
     results.extend(_scrape_hackerearth_feed(keyword))
 
-    return results
+    # Strict guarantee: filter out any code repository links
+    cleaned = []
+    for r in results:
+        lnk = (r.get("link") or "").lower()
+        if not lnk or "github.com" in lnk or lnk.endswith(".git"):
+            continue
+        cleaned.append(r)
+
+    return cleaned
 
 
 def run_internet_scan(keywords: list[str] = None) -> dict:

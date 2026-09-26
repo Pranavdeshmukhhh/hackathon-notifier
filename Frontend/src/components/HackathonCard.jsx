@@ -341,7 +341,7 @@ const HackathonCard = ({ hackathon, onShare }) => {
           }}
           className="h-11 min-h-[44px] flex-1 apple-touch-target apple-squircle inline-flex items-center justify-center gap-2 px-4 rounded-[14px] bg-[#007AFF] hover:bg-[#0066D6] dark:bg-[#0A84FF] dark:hover:bg-[#0077ED] text-white font-semibold text-xs sm:text-sm shadow-xs hover:shadow-md hover:shadow-[#007AFF]/25 transition-all duration-250 ease-[cubic-bezier(0.16,1,0.3,1)] apple-spring-press apple-touch-layer cursor-pointer crystal-chamfer apple-dual-bevel"
         >
-          <span>Register Now</span>
+          <span>{safeLink.includes('github.com') ? 'View Project Repo' : 'Register Now'}</span>
           <span className="transition-transform duration-200 group-hover:translate-x-0.5"><ExternalLinkIcon /></span>
         </a>
         <button
