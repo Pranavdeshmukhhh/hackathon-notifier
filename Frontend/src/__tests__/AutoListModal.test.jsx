@@ -3,13 +3,14 @@ import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import AutoListModal from '../components/AutoListModal';
 
-describe('AutoListModal Component', () => {
-  it('renders modal header, inputs, and preset tag buttons', () => {
+describe('AutoListModal Component (Autonomous Internet Scanner)', () => {
+  it('renders modal header, telemetry stats, and monitored channels', () => {
     render(<AutoListModal onClose={() => {}} onSuccess={() => {}} />);
 
-    expect(screen.getByRole('dialog', { name: /auto-list hackathon/i })).toBeInTheDocument();
-    expect(screen.getByText(/⚡ 1-Click URL Auto-Extractor/i)).toBeInTheDocument();
-    expect(screen.getByPlaceholderText(/paste url/i)).toBeInTheDocument();
+    expect(screen.getByRole('dialog', { name: /autonomous internet scanner/i })).toBeInTheDocument();
+    expect(screen.getByText(/Continuous \(2h Loop\)/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /scan internet now/i })).toBeInTheDocument();
+    expect(screen.getByPlaceholderText(/enter college or city/i)).toBeInTheDocument();
     expect(screen.getByText(/🔥 FAANG \/ MANGO/i)).toBeInTheDocument();
     expect(screen.getByText(/🏛️ IIIT Hyderabad/i)).toBeInTheDocument();
     expect(screen.getByText(/🏙️ Pune Tech/i)).toBeInTheDocument();
@@ -24,35 +25,19 @@ describe('AutoListModal Component', () => {
     expect(handleClose).toHaveBeenCalledTimes(1);
   });
 
-  it('toggles tag chips when clicked', () => {
+  it('updates target keyword input on change', () => {
     render(<AutoListModal onClose={() => {}} onSuccess={() => {}} />);
 
-    const faangBtn = screen.getByText(/🔥 FAANG \/ MANGO/i);
-    fireEvent.click(faangBtn);
-    expect(screen.getByText(/#faang/i)).toBeInTheDocument();
-
-    // Click again to untoggle
-    fireEvent.click(faangBtn);
-    expect(screen.queryByText(/#faang/i)).not.toBeInTheDocument();
+    const input = screen.getByPlaceholderText(/enter college or city/i);
+    fireEvent.change(input, { target: { value: 'COEP Pune' } });
+    expect(input.value).toBe('COEP Pune');
   });
 
-  it('selects quick location presets correctly', () => {
+  it('toggles direct url accordion when clicked', () => {
     render(<AutoListModal onClose={() => {}} onSuccess={() => {}} />);
 
-    const punePreset = screen.getByText(/^Pune$/);
-    fireEvent.click(punePreset);
-
-    const locationInput = screen.getByPlaceholderText(/e\.g\. Pune, Maharashtra/i);
-    expect(locationInput.value).toBe('Pune, Maharashtra, India');
-  });
-
-  it('shows error if submitted with empty URL', async () => {
-    render(<AutoListModal onClose={() => {}} onSuccess={() => {}} />);
-
-    const submitBtn = screen.getByRole('button', { name: /⚡ Auto-List Hackathon Now/i });
-    fireEvent.click(submitBtn);
-
-    // HTML5 required or state validation
-    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    const accordionBtn = screen.getByText(/Have an exact hackathon link\?/i);
+    fireEvent.click(accordionBtn);
+    expect(screen.getByPlaceholderText(/https:\/\/unstop\.com/i)).toBeInTheDocument();
   });
 });

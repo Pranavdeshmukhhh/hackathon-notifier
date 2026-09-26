@@ -37,6 +37,7 @@ from scrapers.unstop_scraper import scrape_unstop
 from scrapers.devpost_scraper import scrape_devpost
 from scrapers.hackerearth_scraper import scrape_hackerearth
 from scrapers.devnovate_scraper import scrape_devnovate
+from scrapers.internet_scanner import scan_single_keyword
 
 # ── Logging — configured ONCE here, all other modules use getLogger(__name__) ─
 logging.basicConfig(
@@ -63,17 +64,24 @@ def _run_scrapers() -> dict:
         This separation lets run_pipeline() log exactly how many hackathons
         each source contributed to the RUN_SUMMARY line.
     """
+    def _run_internet_scanner():
+        items = []
+        for kw in ["iit", "iiit", "pune", "hyderabad", "faang"]:
+            items.extend(scan_single_keyword(kw))
+        return items
+
     scrapers = {
-        "Devfolio":     scrape_devfolio,
-        "Unstop":       scrape_unstop,
-        "Devpost":      scrape_devpost,
-        "HackerEarth":  scrape_hackerearth,
-        "Devnovate":    scrape_devnovate,
+        "Devfolio":        scrape_devfolio,
+        "Unstop":          scrape_unstop,
+        "Devpost":         scrape_devpost,
+        "HackerEarth":     scrape_hackerearth,
+        "Devnovate":       scrape_devnovate,
+        "InternetScanner": _run_internet_scanner,
     }
     combined: list[dict] = []
     counts: dict[str, int] = {}
 
-    with ThreadPoolExecutor(max_workers=5, thread_name_prefix="scraper") as pool:
+    with ThreadPoolExecutor(max_workers=6, thread_name_prefix="scraper") as pool:
         futures = {pool.submit(fn): name for name, fn in scrapers.items()}
         for future in as_completed(futures):
             name = futures[future]

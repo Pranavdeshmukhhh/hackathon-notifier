@@ -140,3 +140,26 @@ class HackathonPreviewResponse(BaseModel):
     image: Optional[str] = None
     message: Optional[str] = None
 
+
+class ScannerTriggerRequest(BaseModel):
+    keywords: Optional[list[str]] = Field(default=None, description="Keywords to scan (e.g. ['iit', 'pune', 'iiit hyderabad']). If omitted, scans all defaults.")
+
+
+class ScannerTriggerResponse(BaseModel):
+    success: bool = Field(..., description="Scan execution status")
+    message: str = Field(..., description="Summary message")
+    total_found: int = Field(default=0, description="Total opportunities discovered across web")
+    new_indexed: int = Field(default=0, description="Count of newly indexed unique hackathons")
+    keywords_scanned: list[str] = Field(default_factory=list, description="List of keywords processed")
+    elapsed_seconds: Optional[float] = Field(default=None, description="Time taken to scan in seconds")
+
+
+class ScannerStatusResponse(BaseModel):
+    is_scanning: bool = Field(default=False)
+    last_scanned_at: Optional[str] = None
+    total_scans_run: int = Field(default=0)
+    total_new_indexed: int = Field(default=0)
+    active_keywords: dict[str, list[str]] = Field(default_factory=dict)
+    last_scan_logs: list[str] = Field(default_factory=list)
+
+

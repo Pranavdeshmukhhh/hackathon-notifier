@@ -21,6 +21,14 @@ _SEARCH_QUERIES = [
     "&searchTerm=internship",    # internship / hiring challenges
     "&searchTerm=IIT",           # IIT specific
     "&searchTerm=NIT",           # NIT specific
+    "&searchTerm=IIIT",          # IIIT specific (IIIT Hyderabad, etc.)
+    "&searchTerm=BITS",          # BITS Pilani specific
+    "&searchTerm=COEP",          # COEP Pune specific
+    "&searchTerm=PICT",          # PICT Pune specific
+    "&searchTerm=Pune",          # Pune tech hub
+    "&searchTerm=Hyderabad",     # Hyderabad tech hub
+    "&searchTerm=Bengaluru",     # Bengaluru tech hub
+    "&searchTerm=FAANG",         # FAANG/MANGO challenges
 ]
 
 REQUEST_TIMEOUT = 15

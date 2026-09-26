@@ -1,27 +1,36 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 
 /**
- * AutoListModal — Interactive submission and auto-discovery modal.
- * Allows organizers, developers, and students to auto-extract and list any hackathon
- * directly into the live radar database with automated classification & geocoding.
+ * Autonomous Internet Scanner Hub (formerly AutoListModal).
+ * Continuously and autonomously sweeps the internet for hackathons matching
+ * Premier Colleges (IIT, NIT, IIIT, BITS, COEP, PICT), City Tech Hubs (Pune, Hyderabad, Bengaluru),
+ * and FAANG/MANGO feeds, deduplicating and indexing directly into MongoDB.
  */
 export default function AutoListModal({ onClose, onSuccess, apiBase }) {
-  const [link, setLink] = useState('');
-  const [title, setTitle] = useState('');
-  const [desc, setDesc] = useState('');
-  const [source, setSource] = useState('');
-  const [mode, setMode] = useState('Virtual');
-  const [location, setLocation] = useState('Online');
-  const [deadline, setDeadline] = useState('');
-  const [prize, setPrize] = useState('');
-  const [tags, setTags] = useState([]);
-  const [customTag, setCustomTag] = useState('');
+  const [status, setStatus] = useState({
+    is_scanning: false,
+    last_scanned_at: null,
+    total_scans_run: 0,
+    total_new_indexed: 0,
+    active_keywords: { colleges: [], cities: [], faang: [] },
+    last_scan_logs: [],
+  });
 
-  const [isExtracting, setIsExtracting] = useState(false);
-  const [extractError, setExtractError] = useState(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [submitError, setSubmitError] = useState(null);
-  const [submittedData, setSubmittedData] = useState(null);
+  const [targetKeyword, setTargetKeyword] = useState('');
+  const [isTriggering, setIsTriggering] = useState(false);
+  const [scanMessage, setScanMessage] = useState(null);
+  const [scanError, setScanError] = useState(null);
+  const [directUrl, setDirectUrl] = useState('');
+  const [isUrlExtracting, setIsUrlExtracting] = useState(false);
+  const [urlMessage, setUrlMessage] = useState(null);
+  const [showDirectUrlTab, setShowDirectUrlTab] = useState(false);
+
+  const logsEndRef = useRef(null);
+
+  // Derive root API url
+  const resolvedBase = apiBase
+    ? apiBase.replace(/\/api\/hackathons\/?$/, '')
+    : (import.meta.env.PROD ? 'https://hackathon-notifier.onrender.com' : 'http://localhost:8000');
 
   // Close on Escape key
   useEffect(() => {
@@ -36,147 +45,183 @@ export default function AutoListModal({ onClose, onSuccess, apiBase }) {
     };
   }, [onClose]);
 
-  // Derive root API url
-  const resolvedBase = apiBase
-    ? apiBase.replace(/\/api\/hackathons\/?$/, '')
-    : (import.meta.env.PROD ? 'https://hackathon-notifier.onrender.com' : 'http://localhost:8000');
-
-  const handleExtract = async () => {
-    if (!link.trim()) {
-      setExtractError('Please enter a hackathon URL first.');
-      return;
+  // Fetch scanner telemetry
+  const fetchStatus = React.useCallback(async () => {
+    try {
+      const res = await fetch(`${resolvedBase}/api/scanner/status`);
+      if (res.ok) {
+        const data = await res.json();
+        setStatus(data);
+      }
+    } catch {
+      // Silent error fallback
     }
-    setExtractError(null);
-    setIsExtracting(true);
+  }, [resolvedBase]);
+
+  useEffect(() => {
+    let ignore = false;
+    const load = async () => {
+      if (!ignore) {
+        await fetchStatus();
+      }
+    };
+    load();
+    const interval = setInterval(load, 3000);
+    return () => {
+      ignore = true;
+      clearInterval(interval);
+    };
+  }, [fetchStatus]);
+
+  // Auto scroll logs
+  useEffect(() => {
+    if (logsEndRef.current && typeof logsEndRef.current.scrollIntoView === 'function') {
+      logsEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [status.last_scan_logs]);
+
+  // Trigger Full Internet Sweep
+  const handleTriggerFullSweep = async () => {
+    setIsTriggering(true);
+    setScanError(null);
+    setScanMessage('Initiating full autonomous internet sweep across all channels...');
 
     try {
-      const res = await fetch(`${resolvedBase}/api/hackathons/preview-url`, {
+      const res = await fetch(`${resolvedBase}/api/scanner/trigger`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ link: link.trim() }),
+        body: JSON.stringify({}),
       });
       const data = await res.json();
       if (res.ok && data.success) {
-        if (data.title) setTitle(data.title);
-        if (data.desc) setDesc(data.desc);
-        if (data.source) setSource(data.source);
-        if (data.mode) setMode(data.mode);
-        if (data.location) setLocation(data.location);
-        if (data.tags && data.tags.length > 0) {
-          setTags((prev) => Array.from(new Set([...prev, ...data.tags])));
-        }
+        setScanMessage(data.message || `Sweep completed: indexed ${data.new_indexed} new events!`);
+        if (onSuccess) onSuccess();
+        fetchStatus();
       } else {
-        setExtractError(data.message || 'Could not auto-extract metadata. You can fill details manually.');
+        setScanError(data.message || 'Scanner busy or sweep encountered an issue.');
       }
     } catch {
-      setExtractError('Extraction network timeout. You can enter details manually.');
+      setScanError('Network error connecting to internet scanner daemon.');
     } finally {
-      setIsExtracting(false);
+      setIsTriggering(false);
+      fetchStatus();
     }
   };
 
-  const toggleTag = (tag) => {
-    const t = tag.toLowerCase().trim();
-    if (tags.includes(t)) {
-      setTags(tags.filter((x) => x !== t));
-    } else {
-      setTags([...tags, t]);
-    }
-  };
+  // Trigger Targeted Keyword Sweep (e.g. "COEP Pune", "IIIT Hyderabad")
+  const handleTriggerTargeted = async (kw) => {
+    const query = (kw || targetKeyword).trim();
+    if (!query) return;
 
-  const handleAddCustomTag = (e) => {
-    e.preventDefault();
-    if (!customTag.trim()) return;
-    const t = customTag.toLowerCase().trim();
-    if (!tags.includes(t)) {
-      setTags([...tags, t]);
-    }
-    setCustomTag('');
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!link.trim()) {
-      setSubmitError('Hackathon URL is required.');
-      return;
-    }
-    if (!title.trim()) {
-      setSubmitError('Hackathon title is required.');
-      return;
-    }
-
-    setSubmitError(null);
-    setIsSubmitting(true);
+    setIsTriggering(true);
+    setScanError(null);
+    setScanMessage(`Scanning internet for '${query}'...`);
 
     try {
-      const payload = {
-        link: link.trim(),
-        title: title.trim(),
-        desc: desc.trim(),
-        source: source.trim() || undefined,
-        mode: mode,
-        location: location.trim(),
-        deadline: deadline.trim() || undefined,
-        prize: prize.trim() || undefined,
-        tags: tags,
-        fetch_metadata: false, // user already reviewed or extracted
-      };
+      const res = await fetch(`${resolvedBase}/api/scanner/trigger`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ keywords: [query], max_per_keyword: 10 }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setScanMessage(data.message || `Found ${data.total_found} events for '${query}' (${data.new_indexed} new indexed).`);
+        if (onSuccess) onSuccess();
+        fetchStatus();
+      } else {
+        setScanError(data.message || `Could not complete scan for '${query}'.`);
+      }
+    } catch {
+      setScanError(`Network error scanning for '${query}'.`);
+    } finally {
+      setIsTriggering(false);
+      fetchStatus();
+    }
+  };
 
+  // 1-Click URL Auto-Extractor for direct links
+  const handleDirectUrlExtract = async (e) => {
+    e.preventDefault();
+    if (!directUrl.trim()) return;
+
+    setIsUrlExtracting(true);
+    setUrlMessage(null);
+    try {
       const res = await fetch(`${resolvedBase}/api/hackathons/auto-list`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({
+          link: directUrl.trim(),
+          title: 'Auto-Discovered Hackathon',
+          fetch_metadata: true,
+        }),
       });
       const data = await res.json();
-
       if (res.ok && data.success) {
-        setSubmittedData(data.data);
-        if (onSuccess) onSuccess(data.data);
+        setUrlMessage({
+          type: 'success',
+          text: `Successfully indexed: ${data.data.title} (${data.data.mode || 'Virtual'})!`,
+        });
+        setDirectUrl('');
+        if (onSuccess) onSuccess();
       } else {
-        setSubmitError(data.message || 'Failed to list hackathon. Please try again.');
+        setUrlMessage({
+          type: 'error',
+          text: data.message || 'Failed to auto-extract from URL.',
+        });
       }
     } catch {
-      setSubmitError('Network failure connecting to radar API.');
+      setUrlMessage({
+        type: 'error',
+        text: 'Network error connecting to radar extractor.',
+      });
     } finally {
-      setIsSubmitting(false);
+      setIsUrlExtracting(false);
     }
   };
 
-  const quickPresets = [
-    { label: '🔥 FAANG / MANGO', tag: 'faang' },
-    { label: '🏛️ IIIT Hyderabad', tag: 'iiit' },
-    { label: '🏙️ Pune Tech', tag: 'pune' },
-    { label: '🎓 IIT / NIT', tag: 'iit' },
-    { label: '🤖 AI / ML', tag: 'ai' },
-    { label: '⛓️ Web3', tag: 'web3' },
-    { label: '💼 Internship', tag: 'internship' },
-    { label: '🌱 Beginner', tag: 'beginner' },
+  const collegeChannels = [
+    { label: '🏛️ IITs', query: 'iit' },
+    { label: '🎓 NITs', query: 'nit' },
+    { label: '🏛️ IIIT Hyderabad', query: 'iiit hyderabad' },
+    { label: '⚡ BITS Pilani', query: 'bits' },
+    { label: '🏢 COEP Pune', query: 'coep' },
+    { label: '💻 PICT Pune', query: 'pict' },
+    { label: '🏫 VJTI Mumbai', query: 'vjti' },
+    { label: '🏛️ DTU / NSUT', query: 'dtu' },
   ];
 
-  const quickLocations = [
-    'Pune, Maharashtra, India',
-    'Hyderabad, Telangana, India',
-    'Bengaluru, Karnataka, India',
-    'Mumbai, Maharashtra, India',
-    'New Delhi, Delhi, India',
-    'Online',
+  const cityChannels = [
+    { label: '🏙️ Pune Tech', query: 'pune' },
+    { label: '🌆 Hyderabad Hub', query: 'hyderabad' },
+    { label: '🚀 Bengaluru', query: 'bengaluru' },
+    { label: '🌊 Mumbai', query: 'mumbai' },
+    { label: '🏛️ Delhi-NCR', query: 'delhi' },
+  ];
+
+  const faangChannels = [
+    { label: '🔥 FAANG / MANGO', query: 'faang' },
+    { label: '🌐 Google Cloud', query: 'google' },
+    { label: '☁️ Amazon AWS', query: 'amazon' },
+    { label: '♾️ Meta / Facebook', query: 'meta' },
+    { label: '💻 Microsoft', query: 'microsoft' },
   ];
 
   return (
     <div
-      className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-5 bg-black/50 backdrop-blur-md overflow-y-auto"
+      className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-5 bg-black/60 backdrop-blur-md overflow-y-auto"
       onClick={onClose}
     >
       <div
-        className="bg-white/95 dark:bg-[#1C1C1E]/95 backdrop-blur-2xl border border-black/[0.08] dark:border-white/[0.12] rounded-[24px] p-5 sm:p-7 w-full max-w-2xl shadow-2xl relative my-auto animate-sheet-pop max-h-[92vh] flex flex-col"
+        className="bg-white/95 dark:bg-[#18181B]/95 backdrop-blur-2xl border border-black/[0.1] dark:border-white/[0.12] rounded-[24px] p-5 sm:p-7 w-full max-w-3xl shadow-2xl relative my-auto animate-sheet-pop max-h-[92vh] flex flex-col"
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
-        aria-label="Auto-List Hackathon"
+        aria-label="Autonomous Internet Scanner"
       >
         {/* Close Button */}
         <button
-          className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full bg-black/[0.05] dark:bg-white/[0.10] text-slate-500 dark:text-slate-400 hover:bg-black/[0.10] dark:hover:bg-white/[0.15] transition-colors cursor-pointer"
+          className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full bg-black/[0.05] dark:bg-white/[0.10] text-slate-500 dark:text-slate-400 hover:bg-black/[0.10] dark:hover:bg-white/[0.15] transition-colors cursor-pointer z-10"
           onClick={onClose}
           aria-label="Close dialog"
         >
@@ -185,371 +230,296 @@ export default function AutoListModal({ onClose, onSuccess, apiBase }) {
 
         {/* Modal Header */}
         <div className="flex items-center gap-3.5 mb-4 shrink-0">
-          <div className="w-11 h-11 rounded-[12px] bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center shadow-sm text-white font-bold text-lg shrink-0">
-            ⚡
+          <div className="relative w-12 h-12 rounded-[14px] bg-gradient-to-br from-blue-600 via-indigo-600 to-violet-600 flex items-center justify-center shadow-lg text-white font-bold text-xl shrink-0">
+            <span className="relative z-10">🌐</span>
+            <span className="absolute -inset-1 rounded-[16px] bg-blue-500/20 animate-pulse pointer-events-none"></span>
           </div>
           <div>
-            <h2 className="text-lg sm:text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
-              Auto-List Hackathon
-              <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-                Live Radar
+            <div className="flex items-center gap-2 flex-wrap">
+              <h2 className="text-lg sm:text-xl font-black text-slate-900 dark:text-white tracking-tight">
+                Autonomous Internet Scanner
+              </h2>
+              <span className={`text-[10px] uppercase font-bold tracking-wider px-2.5 py-0.5 rounded-full flex items-center gap-1.5 border ${
+                status.is_scanning
+                  ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30'
+                  : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30'
+              }`}>
+                <span className={`w-1.5 h-1.5 rounded-full ${status.is_scanning ? 'bg-amber-400 animate-ping' : 'bg-emerald-400'}`}></span>
+                {status.is_scanning ? 'Scanning Internet...' : '24/7 Daemon Active'}
               </span>
-            </h2>
-            <p className="text-xs font-semibold text-[#007AFF] dark:text-[#0A84FF]">
-              Instant discovery & auto-enrichment engine for student hackathons
+            </div>
+            <p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5">
+              Continuously crawls the web for <strong>IIT, NIT, IIIT, Tier-1 Colleges, City Hubs & FAANG</strong> hackathons.
             </p>
           </div>
         </div>
 
-        {/* SUCCESS VIEW */}
-        {submittedData ? (
-          <div className="py-6 px-4 text-center space-y-4">
-            <div className="w-16 h-16 mx-auto rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 flex items-center justify-center text-3xl shadow-inner">
-              ✓
-            </div>
-            <h3 className="text-lg font-bold text-slate-900 dark:text-white">
-              Hackathon Successfully Listed!
-            </h3>
-            <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 max-w-md mx-auto">
-              <strong>{submittedData.title}</strong> has been classified, geocoded, and added to the radar feed.
-            </p>
-            <div className="p-4 rounded-[16px] bg-black/[0.03] dark:bg-white/[0.04] border border-black/[0.06] dark:border-white/[0.08] text-left text-xs space-y-1.5 max-w-md mx-auto">
-              <div className="flex justify-between">
-                <span className="text-slate-500">Mode:</span>
-                <span className="font-semibold text-slate-800 dark:text-slate-200">{submittedData.mode}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-500">Location:</span>
-                <span className="font-semibold text-slate-800 dark:text-slate-200">{submittedData.location || 'Online'}</span>
-              </div>
-              {submittedData.college_type && (
-                <div className="flex justify-between">
-                  <span className="text-slate-500">Tier:</span>
-                  <span className="font-bold text-[#007AFF] dark:text-[#0A84FF]">{submittedData.college_type} ({submittedData.college_name || 'Top Tier'})</span>
-                </div>
-              )}
-              {submittedData.lat && submittedData.lng && (
-                <div className="flex justify-between">
-                  <span className="text-slate-500">Geocoded GPS:</span>
-                  <span className="font-mono text-emerald-600 dark:text-emerald-400">✓ {submittedData.lat.toFixed(4)}, {submittedData.lng.toFixed(4)}</span>
-                </div>
-              )}
-            </div>
-            <div className="flex justify-center gap-3 pt-2">
-              <button
-                onClick={onClose}
-                className="px-5 py-2.5 rounded-[12px] bg-[#007AFF] hover:bg-[#0066D6] dark:bg-[#0A84FF] dark:hover:bg-[#0077ED] text-white text-xs font-bold shadow-md cursor-pointer transition-all"
-              >
-                Done / Explore in Feed
-              </button>
-              <button
-                onClick={() => {
-                  setSubmittedData(null);
-                  setLink('');
-                  setTitle('');
-                  setDesc('');
-                  setTags([]);
-                }}
-                className="px-4 py-2.5 rounded-[12px] bg-black/[0.05] dark:bg-white/[0.08] text-slate-700 dark:text-slate-300 text-xs font-semibold hover:bg-black/[0.1] transition-all cursor-pointer"
-              >
-                + List Another
-              </button>
+        {/* Telemetry Stats Bar */}
+        <div className="grid grid-cols-3 gap-2.5 mb-4 shrink-0">
+          <div className="p-2.5 rounded-[14px] bg-black/[0.03] dark:bg-white/[0.04] border border-black/[0.06] dark:border-white/[0.08] text-center">
+            <div className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Scanner Mode</div>
+            <div className="text-xs sm:text-sm font-black text-slate-800 dark:text-slate-200 mt-0.5">
+              Continuous (2h Loop)
             </div>
           </div>
-        ) : (
-          /* FORM VIEW */
-          <form onSubmit={handleSubmit} className="overflow-y-auto pr-1 space-y-4 text-xs">
-            {/* Auto-Extract URL Box */}
-            <div className="p-3.5 rounded-[16px] bg-gradient-to-br from-amber-500/[0.06] via-orange-500/[0.04] to-transparent border border-amber-500/20">
-              <label className="block text-[11px] font-bold uppercase tracking-wider text-amber-800 dark:text-amber-300 mb-1.5">
-                ⚡ 1-Click URL Auto-Extractor
-              </label>
-              <div className="flex gap-2">
-                <input
-                  type="url"
-                  placeholder="Paste URL (Unstop, Devpost, Devfolio, MLH, college portal...)"
-                  value={link}
-                  onChange={(e) => setLink(e.target.value)}
-                  className="flex-1 px-3 py-2 rounded-[10px] bg-white dark:bg-[#2C2C2E] border border-black/[0.1] dark:border-white/[0.15] text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#007AFF]"
-                  required
-                />
-                <button
-                  type="button"
-                  onClick={handleExtract}
-                  disabled={isExtracting}
-                  className="px-3.5 py-2 rounded-[10px] bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white font-bold text-xs shrink-0 shadow-sm disabled:opacity-50 transition-all flex items-center gap-1.5 cursor-pointer"
-                >
-                  {isExtracting ? (
-                    <>
-                      <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
-                      Extracting…
-                    </>
-                  ) : (
-                    '⚡ Auto-Fill'
-                  )}
-                </button>
-              </div>
-              {extractError && (
-                <p className="mt-1.5 text-[11px] text-amber-600 dark:text-amber-400 font-medium">
-                  {extractError}
-                </p>
-              )}
+          <div className="p-2.5 rounded-[14px] bg-black/[0.03] dark:bg-white/[0.04] border border-black/[0.06] dark:border-white/[0.08] text-center">
+            <div className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Cycles Run</div>
+            <div className="text-xs sm:text-sm font-black text-[#007AFF] dark:text-[#0A84FF] mt-0.5">
+              {status.total_scans_run} Complete
             </div>
-
-            {/* Title & Platform */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div className="sm:col-span-2">
-                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
-                  Hackathon Title *
-                </label>
-                <input
-                  type="text"
-                  placeholder="e.g. Pune Techathon 2026 or Megathon"
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  className="w-full px-3 py-2 rounded-[10px] bg-white dark:bg-[#2C2C2E] border border-black/[0.1] dark:border-white/[0.15] text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#007AFF]"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
-                  Platform / Source
-                </label>
-                <input
-                  type="text"
-                  placeholder="e.g. Devfolio, Unstop"
-                  value={source}
-                  onChange={(e) => setSource(e.target.value)}
-                  className="w-full px-3 py-2 rounded-[10px] bg-white dark:bg-[#2C2C2E] border border-black/[0.1] dark:border-white/[0.15] text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#007AFF]"
-                />
-              </div>
+          </div>
+          <div className="p-2.5 rounded-[14px] bg-black/[0.03] dark:bg-white/[0.04] border border-black/[0.06] dark:border-white/[0.08] text-center">
+            <div className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">New Indexed</div>
+            <div className="text-xs sm:text-sm font-black text-emerald-600 dark:text-emerald-400 mt-0.5">
+              +{status.total_new_indexed} Hackathons
             </div>
+          </div>
+        </div>
 
-            {/* Mode & Location */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
-                  Event Format / Mode
-                </label>
-                <div className="grid grid-cols-3 gap-1.5">
-                  {['Virtual', 'Offline', 'Hybrid'].map((m) => (
-                    <button
-                      key={m}
-                      type="button"
-                      onClick={() => {
-                        setMode(m);
-                        if (m === 'Virtual' && (!location || location === 'Online')) {
-                          setLocation('Online');
-                        }
-                      }}
-                      className={`py-1.5 px-2 rounded-[8px] font-semibold text-xs transition-all cursor-pointer ${
-                        mode.toLowerCase() === m.toLowerCase()
-                          ? 'bg-[#007AFF] text-white shadow-xs'
-                          : 'bg-black/[0.04] dark:bg-white/[0.08] text-slate-700 dark:text-slate-300 hover:bg-black/[0.08]'
-                      }`}
-                    >
-                      {m}
-                    </button>
-                  ))}
-                </div>
-              </div>
+        {/* Scrollable Scanner Body */}
+        <div className="flex-1 overflow-y-auto space-y-4 pr-1">
 
-              <div>
-                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
-                  City / Venue Location
-                </label>
-                <input
-                  type="text"
-                  placeholder="e.g. Pune, Maharashtra or Online"
-                  value={location}
-                  onChange={(e) => setLocation(e.target.value)}
-                  className="w-full px-3 py-2 rounded-[10px] bg-white dark:bg-[#2C2C2E] border border-black/[0.1] dark:border-white/[0.15] text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#007AFF]"
-                />
-                <div className="flex flex-wrap gap-1 mt-1.5">
-                  {quickLocations.map((loc) => (
-                    <button
-                      key={loc}
-                      type="button"
-                      onClick={() => setLocation(loc)}
-                      className="text-[10px] px-2 py-0.5 rounded-full bg-black/[0.04] dark:bg-white/[0.08] text-slate-600 dark:text-slate-300 hover:bg-[#007AFF]/15 hover:text-[#007AFF] transition-colors cursor-pointer"
-                    >
-                      {loc.split(',')[0]}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            {/* Deadline & Prize */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
-                  Registration Deadline
-                </label>
-                <input
-                  type="text"
-                  placeholder="e.g. 2026-10-31 or Oct 31, 2026"
-                  value={deadline}
-                  onChange={(e) => setDeadline(e.target.value)}
-                  className="w-full px-3 py-2 rounded-[10px] bg-white dark:bg-[#2C2C2E] border border-black/[0.1] dark:border-white/[0.15] text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#007AFF]"
-                />
-              </div>
-
-              <div>
-                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
-                  Prize Pool
-                </label>
-                <input
-                  type="text"
-                  placeholder="e.g. ₹5,00,000 or $10,000"
-                  value={prize}
-                  onChange={(e) => setPrize(e.target.value)}
-                  className="w-full px-3 py-2 rounded-[10px] bg-white dark:bg-[#2C2C2E] border border-black/[0.1] dark:border-white/[0.15] text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#007AFF]"
-                />
-              </div>
-            </div>
-
-            {/* Quick Tag Badges */}
+          {/* Action Hero: Instant Full Internet Scan */}
+          <div className="p-4 rounded-[18px] bg-gradient-to-r from-blue-900/10 via-indigo-900/10 to-violet-900/10 dark:from-blue-950/30 dark:via-indigo-950/30 dark:to-violet-950/30 border border-blue-500/20 flex flex-col sm:flex-row items-center justify-between gap-3">
             <div>
-              <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1.5">
-                Categories & Technology Tags
-              </label>
-              <div className="flex flex-wrap gap-1.5 mb-2">
-                {quickPresets.map((p) => {
-                  const active = tags.includes(p.tag);
-                  return (
-                    <button
-                      key={p.tag}
-                      type="button"
-                      onClick={() => toggleTag(p.tag)}
-                      className={`text-[11px] px-2.5 py-1 rounded-[8px] font-semibold transition-all cursor-pointer ${
-                        active
-                          ? 'bg-[#007AFF] text-white shadow-xs'
-                          : 'bg-black/[0.04] dark:bg-white/[0.08] text-slate-700 dark:text-slate-300 hover:bg-black/[0.08]'
-                      }`}
-                    >
-                      {p.label}
-                    </button>
-                  );
-                })}
+              <div className="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-1.5">
+                <span>⚡ Instant Full Internet Sweep</span>
               </div>
-
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  placeholder="Add custom tag (e.g. coep, solana, iot) and press Enter"
-                  value={customTag}
-                  onChange={(e) => setCustomTag(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') handleAddCustomTag(e);
-                  }}
-                  className="flex-1 px-3 py-1.5 rounded-[8px] bg-white dark:bg-[#2C2C2E] border border-black/[0.1] dark:border-white/[0.15] text-slate-900 dark:text-white placeholder-slate-400 text-xs focus:outline-none focus:ring-2 focus:ring-[#007AFF]"
-                />
-                <button
-                  type="button"
-                  onClick={handleAddCustomTag}
-                  className="px-3 py-1.5 rounded-[8px] bg-black/[0.06] dark:bg-white/[0.1] text-slate-700 dark:text-slate-300 font-semibold cursor-pointer"
-                >
-                  + Add
-                </button>
-              </div>
-
-              {tags.length > 0 && (
-                <div className="flex flex-wrap gap-1 mt-2">
-                  {tags.map((t) => (
-                    <span
-                      key={t}
-                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#007AFF]/10 text-[#007AFF] dark:bg-[#0A84FF]/20 dark:text-[#0A84FF] border border-[#007AFF]/20"
-                    >
-                      #{t}
-                      <button
-                        type="button"
-                        onClick={() => toggleTag(t)}
-                        className="hover:text-red-500 cursor-pointer ml-0.5"
-                      >
-                        ✕
-                      </button>
-                    </span>
-                  ))}
-                </div>
-              )}
+              <p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5">
+                Crawl Devpost, HackerEarth & GitHub DevRegistries across all premier colleges, cities, and tech giants.
+              </p>
             </div>
+            <button
+              onClick={handleTriggerFullSweep}
+              disabled={isTriggering || status.is_scanning}
+              className={`shrink-0 px-4 py-2.5 rounded-[12px] font-bold text-xs shadow-md transition-all flex items-center gap-2 cursor-pointer ${
+                isTriggering || status.is_scanning
+                  ? 'bg-slate-400 text-white cursor-not-allowed opacity-80'
+                  : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white shadow-blue-500/25 active:scale-95'
+              }`}
+            >
+              {isTriggering || status.is_scanning ? (
+                <>
+                  <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                  Sweeping Internet...
+                </>
+              ) : (
+                <>
+                  <span>🚀</span> Scan Internet Now
+                </>
+              )}
+            </button>
+          </div>
 
-            {/* Description */}
-            <div>
-              <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
-                Description / Key Themes
-              </label>
-              <textarea
-                rows={2}
-                placeholder="Brief summary of challenges, tracks, prizes, or eligibility..."
-                value={desc}
-                onChange={(e) => setDesc(e.target.value)}
-                className="w-full px-3 py-2 rounded-[10px] bg-white dark:bg-[#2C2C2E] border border-black/[0.1] dark:border-white/[0.15] text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#007AFF]"
+          {/* Targeted College / City Search Bar */}
+          <div className="space-y-2">
+            <div className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center justify-between">
+              <span>🎯 Targeted College / City Web Scanner</span>
+              <span className="text-[11px] text-slate-500 font-normal">Scans internet on demand</span>
+            </div>
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                handleTriggerTargeted(targetKeyword);
+              }}
+              className="flex gap-2"
+            >
+              <input
+                type="text"
+                value={targetKeyword}
+                onChange={(e) => setTargetKeyword(e.target.value)}
+                placeholder="Enter college or city (e.g. COEP Pune, IIIT Hyderabad, BITS, Mumbai, VJTI)..."
+                className="flex-1 px-3.5 py-2.5 rounded-[12px] bg-black/[0.04] dark:bg-white/[0.06] border border-black/[0.08] dark:border-white/[0.12] text-xs sm:text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#007AFF]/30"
               />
-            </div>
-
-            {/* LIVE PREVIEW CARD */}
-            <div className="p-3 rounded-[16px] bg-black/[0.02] dark:bg-white/[0.03] border border-black/[0.06] dark:border-white/[0.08]">
-              <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">
-                Live Radar Preview Card
-              </div>
-              <div className="p-3 rounded-[12px] bg-white dark:bg-[#252528] border border-black/[0.06] dark:border-white/[0.1] shadow-xs">
-                <div className="flex items-start justify-between gap-2">
-                  <h4 className="font-bold text-slate-900 dark:text-white text-xs sm:text-sm leading-snug">
-                    {title || 'Hackathon Title'}
-                  </h4>
-                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-bold shrink-0">
-                    {mode}
-                  </span>
-                </div>
-                <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 line-clamp-2">
-                  {desc || 'Event description and problem statements will appear here.'}
-                </p>
-                <div className="flex items-center justify-between mt-2 pt-2 border-t border-black/[0.04] dark:border-white/[0.06] text-[10px]">
-                  <span className="font-semibold text-slate-600 dark:text-slate-300">
-                    📍 {location || 'Online'}
-                  </span>
-                  <span className="font-bold text-emerald-600 dark:text-emerald-400">
-                    {prize ? `🏆 ${prize}` : 'Prizes TBA'}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {/* Error notice */}
-            {submitError && (
-              <div className="p-2.5 rounded-[10px] bg-red-500/10 border border-red-500/20 text-red-600 dark:text-red-400 text-xs font-semibold">
-                {submitError}
-              </div>
-            )}
-
-            {/* SUBMIT BUTTON */}
-            <div className="pt-2 flex items-center justify-end gap-2.5">
-              <button
-                type="button"
-                onClick={onClose}
-                className="px-4 py-2.5 rounded-[12px] bg-black/[0.04] dark:bg-white/[0.08] hover:bg-black/[0.08] text-slate-700 dark:text-slate-300 font-semibold text-xs cursor-pointer transition-colors"
-              >
-                Cancel
-              </button>
               <button
                 type="submit"
-                disabled={isSubmitting}
-                className="px-5 py-2.5 rounded-[12px] bg-gradient-to-r from-[#007AFF] to-[#0055D4] hover:from-[#0066D6] hover:to-[#0047B8] text-white font-bold text-xs shadow-md hover:shadow-lg hover:shadow-[#007AFF]/25 disabled:opacity-50 transition-all flex items-center gap-1.5 cursor-pointer"
+                disabled={isTriggering || status.is_scanning || !targetKeyword.trim()}
+                className="px-4 py-2.5 rounded-[12px] bg-[#007AFF] hover:bg-[#0066D6] dark:bg-[#0A84FF] text-white text-xs font-bold shadow-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer shrink-0"
               >
-                {isSubmitting ? (
-                  <>
-                    <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
-                    Auto-Listing…
-                  </>
-                ) : (
-                  '⚡ Auto-List Hackathon Now'
-                )}
+                🔍 Scan Keyword
+              </button>
+            </form>
+          </div>
+
+          {/* Monitored Channels Clusters */}
+          <div className="space-y-3">
+            <div className="text-xs font-bold text-slate-700 dark:text-slate-300">
+              📡 Monitored Internet Channels <span className="font-normal text-slate-500">(Click to scan channel now)</span>:
+            </div>
+
+            {/* Colleges */}
+            <div className="space-y-1.5">
+              <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                🏛️ Premier Colleges
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {collegeChannels.map((c) => (
+                  <button
+                    key={c.query}
+                    onClick={() => handleTriggerTargeted(c.query)}
+                    disabled={isTriggering || status.is_scanning}
+                    className="px-2.5 py-1.5 rounded-[10px] text-xs font-medium bg-black/[0.04] dark:bg-white/[0.06] hover:bg-blue-500/15 hover:text-blue-600 dark:hover:text-blue-400 border border-black/[0.06] dark:border-white/[0.08] transition-colors cursor-pointer active:scale-95 disabled:opacity-50"
+                    title={`Scan internet for ${c.label}`}
+                  >
+                    {c.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* City Hubs */}
+            <div className="space-y-1.5">
+              <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                🏙️ City Tech Hubs
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {cityChannels.map((c) => (
+                  <button
+                    key={c.query}
+                    onClick={() => handleTriggerTargeted(c.query)}
+                    disabled={isTriggering || status.is_scanning}
+                    className="px-2.5 py-1.5 rounded-[10px] text-xs font-medium bg-black/[0.04] dark:bg-white/[0.06] hover:bg-emerald-500/15 hover:text-emerald-600 dark:hover:text-emerald-400 border border-black/[0.06] dark:border-white/[0.08] transition-colors cursor-pointer active:scale-95 disabled:opacity-50"
+                    title={`Scan internet for ${c.label}`}
+                  >
+                    {c.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* FAANG / Big Tech */}
+            <div className="space-y-1.5">
+              <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                🚀 FAANG & Big Tech
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {faangChannels.map((c) => (
+                  <button
+                    key={c.query}
+                    onClick={() => handleTriggerTargeted(c.query)}
+                    disabled={isTriggering || status.is_scanning}
+                    className="px-2.5 py-1.5 rounded-[10px] text-xs font-medium bg-black/[0.04] dark:bg-white/[0.06] hover:bg-amber-500/15 hover:text-amber-600 dark:hover:text-amber-400 border border-black/[0.06] dark:border-white/[0.08] transition-colors cursor-pointer active:scale-95 disabled:opacity-50"
+                    title={`Scan internet for ${c.label}`}
+                  >
+                    {c.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Feedback Messages */}
+          {scanMessage && (
+            <div className="p-3 rounded-[12px] bg-emerald-500/10 border border-emerald-500/20 text-emerald-700 dark:text-emerald-300 text-xs font-medium flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <span>✓</span>
+                <span>{scanMessage}</span>
+              </div>
+              <button
+                onClick={() => {
+                  onClose();
+                  if (onSuccess) onSuccess();
+                }}
+                className="px-2.5 py-1 rounded-[8px] bg-emerald-600 text-white font-bold text-[11px] hover:bg-emerald-700 cursor-pointer shrink-0"
+              >
+                View in Radar
               </button>
             </div>
-          </form>
-        )}
+          )}
+
+          {scanError && (
+            <div className="p-3 rounded-[12px] bg-rose-500/10 border border-rose-500/20 text-rose-700 dark:text-rose-300 text-xs font-medium flex items-center gap-2">
+              <span>⚠️</span>
+              <span>{scanError}</span>
+            </div>
+          )}
+
+          {/* Real-time Crawler Console / Logs Window */}
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+              <span className="flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                Live Crawler Console Logs
+              </span>
+              <span>{status.last_scan_logs?.length || 0} entries</span>
+            </div>
+            <div className="p-3 rounded-[14px] bg-[#0F172A] border border-slate-800 text-slate-300 font-mono text-[11px] leading-relaxed max-h-40 overflow-y-auto space-y-1 shadow-inner">
+              {status.last_scan_logs && status.last_scan_logs.length > 0 ? (
+                status.last_scan_logs.map((log, idx) => (
+                  <div key={idx} className="flex items-start gap-2">
+                    <span className="text-blue-400 select-none">›</span>
+                    <span className={log.includes('New indexed') || log.includes('complete') ? 'text-emerald-400 font-semibold' : 'text-slate-300'}>
+                      {log}
+                    </span>
+                  </div>
+                ))
+              ) : (
+                <div className="text-slate-500 italic">
+                  Daemon is in standby. Ready to sweep college & city channels on schedule or demand.
+                </div>
+              )}
+              <div ref={logsEndRef} />
+            </div>
+          </div>
+
+          {/* Collapsible: Direct URL 1-Click Auto-Extractor */}
+          <div className="pt-2 border-t border-black/[0.06] dark:border-white/[0.08]">
+            <button
+              type="button"
+              onClick={() => setShowDirectUrlTab(!showDirectUrlTab)}
+              className="w-full flex items-center justify-between text-xs font-semibold text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors cursor-pointer py-1"
+            >
+              <span className="flex items-center gap-1.5">
+                <span>🔗</span> Have an exact hackathon link? 1-Click URL Auto-Extractor
+              </span>
+              <span>{showDirectUrlTab ? '▲' : '▼'}</span>
+            </button>
+
+            {showDirectUrlTab && (
+              <form onSubmit={handleDirectUrlExtract} className="mt-2.5 p-3 rounded-[14px] bg-black/[0.02] dark:bg-white/[0.03] border border-black/[0.06] dark:border-white/[0.08] space-y-2">
+                <div className="text-[11px] text-slate-500 dark:text-slate-400">
+                  Paste any Devpost, Unstop, Devfolio, or university website link. Our AI will automatically scrape title, dates, tags, and insert it into MongoDB.
+                </div>
+                <div className="flex gap-2">
+                  <input
+                    type="url"
+                    value={directUrl}
+                    onChange={(e) => setDirectUrl(e.target.value)}
+                    placeholder="https://unstop.com/hackathons/... or https://devpost.com/..."
+                    className="flex-1 px-3 py-2 rounded-[10px] bg-black/[0.04] dark:bg-white/[0.06] border border-black/[0.08] dark:border-white/[0.12] text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#007AFF]/30"
+                  />
+                  <button
+                    type="submit"
+                    disabled={isUrlExtracting || !directUrl.trim()}
+                    className="px-3.5 py-2 rounded-[10px] bg-[#007AFF] hover:bg-[#0066D6] dark:bg-[#0A84FF] text-white text-xs font-bold transition-all disabled:opacity-50 cursor-pointer shrink-0"
+                  >
+                    {isUrlExtracting ? 'Extracting...' : 'Auto-Extract & Add'}
+                  </button>
+                </div>
+                {urlMessage && (
+                  <div className={`text-xs mt-1 font-medium ${urlMessage.type === 'success' ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
+                    {urlMessage.text}
+                  </div>
+                )}
+              </form>
+            )}
+          </div>
+
+        </div>
+
+        {/* Modal Footer */}
+        <div className="flex items-center justify-between pt-3 mt-3 border-t border-black/[0.06] dark:border-white/[0.08] shrink-0 text-xs">
+          <div className="text-slate-500 dark:text-slate-400 text-[11px]">
+            {status.last_scanned_at ? `Last sweep: ${new Date(status.last_scanned_at).toLocaleTimeString()}` : 'Continuous sweep active'}
+          </div>
+          <button
+            onClick={onClose}
+            className="px-4 py-2 rounded-[12px] bg-black/[0.05] dark:bg-white/[0.10] hover:bg-black/[0.10] dark:hover:bg-white/[0.15] text-slate-700 dark:text-slate-200 font-semibold cursor-pointer transition-colors"
+          >
+            Close Radar Console
+          </button>
+        </div>
+
       </div>
     </div>
   );

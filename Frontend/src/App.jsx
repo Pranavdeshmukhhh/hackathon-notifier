@@ -451,10 +451,10 @@ function App() {
               }`} onClick={() => { if (currentView === 'terms') navigateToRadar('events'); requestLocation(); }}><PinIcon /> {isLocating ? 'Locating...' : 'Near Me'}</button>
               <button
                 onClick={() => setShowAutoListModal(true)}
-                className="hidden sm:flex items-center gap-1.5 px-3.5 h-10 min-h-[40px] rounded-[12px] apple-squircle apple-touch-target apple-spring-press apple-dual-bevel text-xs font-bold bg-gradient-to-r from-amber-500/15 to-orange-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30 hover:border-amber-500/50 shadow-xs hover:shadow-md transition-all cursor-pointer"
-                title="Auto-List or submit a hackathon into live radar"
+                className="hidden sm:flex items-center gap-1.5 px-3.5 h-10 min-h-[40px] rounded-[12px] apple-squircle apple-touch-target apple-spring-press apple-dual-bevel text-xs font-bold bg-gradient-to-r from-blue-600/15 via-indigo-600/15 to-violet-600/15 text-blue-700 dark:text-blue-300 border border-blue-500/30 hover:border-blue-500/50 shadow-xs hover:shadow-md transition-all cursor-pointer"
+                title="Autonomous Internet Hackathon Scanner for Colleges & Cities"
               >
-                ⚡ Auto-List
+                🌐 Auto-Scanner
               </button>
               <button className="hidden sm:flex items-center gap-1.5 px-4 h-10 min-h-[40px] rounded-[12px] apple-squircle apple-touch-target apple-spring-press apple-dual-bevel text-xs font-bold bg-[#007AFF] hover:bg-[#0066D6] dark:bg-[#0A84FF] dark:hover:bg-[#0077ED] text-white shadow-xs hover:shadow-md hover:shadow-[#007AFF]/25 transition-all cursor-pointer" onClick={() => { if (currentView === 'terms') navigateToRadar('events'); fetchHackathons(); }}>Sync</button>
               <button className="md:hidden p-2 text-slate-600 dark:text-slate-300" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}><HamburgerIcon /></button>
@@ -487,7 +487,7 @@ function App() {
               </a>
             ))}
             <div className="h-px bg-black/[0.06] dark:bg-white/[0.08] my-1"></div>
-            <button className="flex items-center justify-center gap-2 py-2.5 rounded-[12px] bg-gradient-to-r from-amber-500/20 to-orange-500/20 text-amber-800 dark:text-amber-200 border border-amber-500/30 text-sm font-bold cursor-pointer" onClick={() => { setMobileMenuOpen(false); setShowAutoListModal(true); }}>⚡ Auto-List Hackathon</button>
+            <button className="flex items-center justify-center gap-2 py-2.5 rounded-[12px] bg-gradient-to-r from-blue-600/20 to-indigo-600/20 text-blue-800 dark:text-blue-200 border border-blue-500/30 text-sm font-bold cursor-pointer" onClick={() => { setMobileMenuOpen(false); setShowAutoListModal(true); }}>🌐 Autonomous Internet Scanner</button>
             <button className="flex items-center justify-center gap-2 py-2.5 rounded-[12px] bg-black/[0.04] dark:bg-white/[0.08] text-sm font-semibold" onClick={() => { if (currentView === 'terms') navigateToRadar('events'); requestLocation(); }}><PinIcon /> Use GPS Location</button>
             <button className="flex items-center justify-center gap-2 py-2.5 rounded-[12px] bg-[#007AFF] text-white text-sm font-semibold" onClick={() => { if (currentView === 'terms') navigateToRadar('events'); fetchHackathons(); }}>Force Sync Now</button>
           </div>
@@ -590,10 +590,10 @@ function App() {
                   </div>
                   <button
                     onClick={() => setShowAutoListModal(true)}
-                    className="shrink-0 flex items-center gap-1.5 px-3.5 h-11 min-h-[44px] rounded-[14px] bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white font-bold text-xs shadow-md hover:shadow-amber-500/25 transition-all cursor-pointer"
-                    title="Auto-List or submit a hackathon into live radar"
+                    className="shrink-0 flex items-center gap-1.5 px-3.5 h-11 min-h-[44px] rounded-[14px] bg-gradient-to-r from-blue-600 via-indigo-600 to-violet-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-xs shadow-md hover:shadow-blue-500/25 transition-all cursor-pointer"
+                    title="Autonomous Internet Hackathon Scanner for Colleges & Cities"
                   >
-                    ⚡ Auto-List
+                    🌐 Auto-Scanner
                   </button>
                 </div>
               </div>

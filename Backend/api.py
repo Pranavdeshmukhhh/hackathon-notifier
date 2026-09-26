@@ -10,6 +10,7 @@ from collections import deque
 from datetime import datetime, timezone
 import math
 import hashlib
+from contextlib import asynccontextmanager
 from typing import Optional
 from urllib.parse import urlparse
 import requests
@@ -33,9 +34,17 @@ from schemas import (
     HackathonPreviewRequest,
     HackathonPreviewResponse,
     HackathonOut,
+    ScannerTriggerRequest,
+    ScannerTriggerResponse,
+    ScannerStatusResponse,
 )
 from filters.keyword_filter import classify_hackathon
 from scrapers.geocoder import geocode
+from scrapers.internet_scanner import (
+    run_internet_scan,
+    get_scanner_status,
+    start_continuous_background_scanner,
+)
 
 # Ensure utf-8 encoding for standard output
 if hasattr(sys.stdout, "reconfigure"):
@@ -74,6 +83,16 @@ def get_client_ip(request: Request) -> str:
 # Rate limiter – configured per real validated client IP
 limiter = Limiter(key_func=get_client_ip)
 
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Lifecycle manager: launches continuous autonomous internet scanner daemon on startup."""
+    try:
+        start_continuous_background_scanner(interval_hours=2.0)
+        logger.info("Continuous autonomous internet scanner started.")
+    except Exception as e:
+        logger.warning("Could not launch background scanner daemon: %s", e)
+    yield
+
 _is_prod = os.getenv("ENVIRONMENT", "").lower() == "production" or os.getenv("RENDER", "").lower() == "true"
 app = FastAPI(
     title="Hackathon Notifier API",
@@ -82,6 +101,7 @@ app = FastAPI(
     docs_url="/docs",
     redoc_url="/redoc",
     openapi_url="/openapi.json",
+    lifespan=lifespan,
 )
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
@@ -562,13 +582,13 @@ def get_hackathons(
         
     # Sorting
     if sort == 'deadline':
-        filtered = sorted(filtered, key=lambda d: d.get('deadline_iso', '9999'))
+        filtered = sorted(filtered, key=lambda d: str(d.get('deadline_iso') or '9999-99-99'))
     elif sort == 'distance':
-        filtered = sorted(filtered, key=lambda d: d.get('distance_km', 999999))
+        filtered = sorted(filtered, key=lambda d: float(d.get('distance_km')) if d.get('distance_km') is not None else 999999.0)
     elif sort == 'name':
-        filtered = sorted(filtered, key=lambda d: d.get('title', '').lower())
+        filtered = sorted(filtered, key=lambda d: str(d.get('title') or '').lower())
     elif sort == 'newest':
-        filtered = sorted(filtered, key=lambda d: d.get('scraped_at', ''), reverse=True)
+        filtered = sorted(filtered, key=lambda d: str(d.get('scraped_at') or ''), reverse=True)
 
     # Split into Upcoming / Missed / All
     upcoming = [d for d in filtered if not d.get('is_past', False)]
@@ -929,6 +949,25 @@ def auto_list_hackathon(request: Request, body: HackathonAutoListRequest):
             status_code=500,
             content={"success": False, "message": f"Server error: {str(e)}", "is_new": False, "data": None}
         )
+
+
+# ── Autonomous Continuous Internet Scanner Endpoints ─────────────────────────
+
+@app.get("/api/scanner/status", response_model=ScannerStatusResponse)
+@v1_router.get("/scanner/status", response_model=ScannerStatusResponse)
+@limiter.limit("60/minute")
+def get_internet_scanner_status(request: Request):
+    """Return live status and telemetry of autonomous web discovery scanner."""
+    return get_scanner_status()
+
+
+@app.post("/api/scanner/trigger", response_model=ScannerTriggerResponse)
+@v1_router.post("/scanner/trigger", response_model=ScannerTriggerResponse)
+@limiter.limit("10/minute")
+def trigger_internet_scanner(request: Request, body: ScannerTriggerRequest):
+    """Trigger an immediate autonomous sweep across target college/city/FAANG keywords."""
+    res = run_internet_scan(keywords=body.keywords)
+    return res
 
 
 # Mount API v1 router
