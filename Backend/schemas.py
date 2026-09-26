@@ -52,6 +52,7 @@ class StatsOut(BaseModel):
     total: int = Field(default=0, description="Total hackathons currently indexed")
     unique_tags: int = Field(default=0, description="Count of distinct tech/theme tags")
     sources: list[str] = Field(default_factory=list, description="List of active scraper sources")
+    source_counts: dict[str, int] = Field(default_factory=dict, description="Count of hackathons per source platform")
     last_scraped: str = Field(default="", description="ISO timestamp of most recent scraper sweep")
     top_college_count: int = Field(default=0, description="Number of IIT/NIT/IIIT/BITS events")
     internship_count: int = Field(default=0, description="Number of PPI/internship opportunities")
@@ -75,6 +76,7 @@ class HackathonsResponse(BaseModel):
     data: list[HackathonOut] = Field(default_factory=list, description="Paginated hackathon entities")
     upcoming_total: int = Field(default=0, description="Total upcoming opportunities matching filter")
     missed_total: int = Field(default=0, description="Total past opportunities matching filter")
+    all_total: Optional[int] = Field(default=0, description="Total opportunities matching filter across all tabs")
     stats: Optional[StatsOut] = Field(default=None, description="System-wide aggregate radar telemetry")
 
 

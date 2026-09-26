@@ -360,10 +360,31 @@ def get_hackathons(
     page: int = Query(default=1, ge=1, le=1000),
     limit: int = Query(default=12, ge=1, le=100),
     category: str = Query(default="All", max_length=30),
+    source: Optional[str] = Query(default=None, max_length=50),
     search: str = Query(default="", max_length=100),
     sort: str = Query(default="deadline", max_length=20),
     tab: str = Query(default="upcoming", max_length=20)
 ):
+    # Normalize query params if passed directly without FastAPI dependency injection
+    if not isinstance(source, str):
+        source = getattr(source, 'default', None)
+    if not isinstance(category, str):
+        category = getattr(category, 'default', 'All')
+    if not isinstance(tab, str):
+        tab = getattr(tab, 'default', 'upcoming')
+    if not isinstance(sort, str):
+        sort = getattr(sort, 'default', 'deadline')
+    if not isinstance(search, str):
+        search = getattr(search, 'default', '')
+    if not isinstance(page, int):
+        page = getattr(page, 'default', 1)
+    if not isinstance(limit, int):
+        limit = getattr(limit, 'default', 12)
+    if not isinstance(lat, (float, int)) and lat is not None:
+        lat = getattr(lat, 'default', None)
+    if not isinstance(lng, (float, int)) and lng is not None:
+        lng = getattr(lng, 'default', None)
+
     # Enqueue visitor tracking in background (zero latency added to response)
     if request is not None and background_tasks is not None:
         client_ip = get_client_ip(request)
@@ -404,11 +425,15 @@ def get_hackathons(
             latest_scrape = ""
             top_college_count = 0
             internship_count = 0
+            source_counts: dict[str, int] = {}
 
             for doc in sorted_docs:
                 for t in doc.get("tags", []):
                     all_tags.add(t)
-                sources.add(doc.get("source", "Unknown"))
+                src = doc.get("source", "Unknown")
+                sources.add(src)
+                source_counts[src] = source_counts.get(src, 0) + 1
+
                 sa = doc.get("scraped_at", "")
                 if sa > latest_scrape:
                     latest_scrape = sa
@@ -445,6 +470,7 @@ def get_hackathons(
                 "total": len(sorted_docs),
                 "unique_tags": len(all_tags),
                 "sources": list(sources),
+                "source_counts": source_counts,
                 "last_scraped": latest_scrape,
                 "top_college_count": top_college_count,
                 "internship_count": internship_count,
@@ -490,6 +516,11 @@ def get_hackathons(
     else:
         filtered = cached["docs"]
     
+    # Filter by source platform if specified
+    if source and source != "All":
+        filtered = [d for d in filtered if d.get('source', '').lower() == source.lower()]
+
+    # Filter by category
     if category == 'Top College':
         filtered = [d for d in filtered if d.get('is_top_college')]
     elif category == 'Internship':
@@ -502,6 +533,15 @@ def get_hackathons(
         filtered = [d for d in filtered if 'offline' in d.get('mode', '').lower()]
     elif category == 'Unique Sources':
         filtered = [d for d in filtered if d.get('source') == 'Unique Sources']
+    elif category in ['Devfolio', 'Unstop', 'Devpost', 'HackerEarth', 'Devnovate']:
+        filtered = [d for d in filtered if d.get('source', '').lower() == category.lower()]
+    elif category != 'All':
+        c_low = category.lower()
+        filtered = [d for d in filtered if (
+            d.get('source', '').lower() == c_low or
+            d.get('mode', '').lower() == c_low or
+            any(c_low in str(t).lower() for t in d.get('tags', []))
+        )]
 
     if search:
         q = search.lower()
@@ -521,11 +561,16 @@ def get_hackathons(
     elif sort == 'newest':
         filtered = sorted(filtered, key=lambda d: d.get('scraped_at', ''), reverse=True)
 
-    # Split into Upcoming / Missed
+    # Split into Upcoming / Missed / All
     upcoming = [d for d in filtered if not d.get('is_past', False)]
     missed = [d for d in filtered if d.get('is_past', False)]
     
-    target_list = upcoming if tab == 'upcoming' else missed
+    if tab == 'all':
+        target_list = filtered
+    elif tab == 'missed':
+        target_list = missed
+    else: # upcoming
+        target_list = upcoming
     
     # Paginate
     start_idx = (page - 1) * limit
@@ -538,11 +583,12 @@ def get_hackathons(
         "data": page_data, 
         "upcoming_total": len(upcoming),
         "missed_total": len(missed),
+        "all_total": len(filtered),
         "stats": cached["stats"]
     }
 
     # High-Performance HTTP Caching & ETag Validation
-    etag_seed = f"{cached['stats'].get('last_scraped', '')}_{len(target_list)}_{page}_{limit}_{category}_{sort}_{tab}_{search}"
+    etag_seed = f"{cached['stats'].get('last_scraped', '')}_{len(target_list)}_{page}_{limit}_{category}_{source or ''}_{sort}_{tab}_{search}"
     etag = f'"{hashlib.md5(etag_seed.encode("utf-8"), usedforsecurity=False).hexdigest()}"'
 
     if_none_match = request.headers.get("if-none-match")

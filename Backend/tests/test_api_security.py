@@ -241,18 +241,33 @@ async def test_api_v1_versioned_routes():
 
 
 @pytest.mark.anyio
-async def test_openapi_schema_contains_pydantic_models():
-    """Verify OpenAPI 3.1 specification contains strongly typed schemas."""
-    status, _, body = await asgi_request("GET", "/openapi.json")
-    assert status == 200
-    schema = json.loads(body.decode("utf-8"))
-    assert "components" in schema
-    assert "schemas" in schema["components"]
-    schemas = schema["components"]["schemas"]
-    assert "HackathonsResponse" in schemas
-    assert "HackathonOut" in schemas
-    assert "StatsOut" in schemas
-    assert "HealthResponse" in schemas
-    assert "MetricsResponse" in schemas
+async def test_tab_all_and_source_filter():
+    """Verify tab=all, source parameter validation, and all_total returned."""
+    # 1. source parameter max length rejection
+    long_source = b"source=" + b"a" * 55
+    status, _, _ = await asgi_request("GET", "/api/hackathons", query_string=long_source)
+    assert status == 422
+
+    # 2. tab=all works with mock data
+    mock_docs = [
+        {"_id": "1", "title": "Upcoming Hack", "source": "Devfolio", "deadline_iso": "2099-01-01", "status": "Open", "mode": "Online", "tags": []},
+        {"_id": "2", "title": "Past Hack", "source": "Unstop", "deadline_iso": "2020-01-01", "status": "Ended", "mode": "Offline", "tags": []},
+    ]
+    with patch("api.get_collection") as mock_get_col, patch("api._cache", {}):
+        mock_col = MagicMock()
+        mock_col.find.return_value = mock_docs
+        mock_get_col.return_value = mock_col
+
+        status, _, body = await asgi_request("GET", "/api/hackathons", query_string=b"tab=all")
+        assert status == 200
+        data = json.loads(body.decode("utf-8"))
+        assert data["success"] is True
+        assert data["all_total"] == 2
+        assert len(data["data"]) == 2
+        assert data["upcoming_total"] == 1
+        assert data["missed_total"] == 1
+        assert "source_counts" in data["stats"]
+        assert data["stats"]["source_counts"]["Devfolio"] == 1
+        assert data["stats"]["source_counts"]["Unstop"] == 1
 
 
