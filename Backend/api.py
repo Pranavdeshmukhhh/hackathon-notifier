@@ -37,6 +37,12 @@ from schemas import (
     ScannerTriggerRequest,
     ScannerTriggerResponse,
     ScannerStatusResponse,
+    InstagramScanRequest,
+    InstagramScanResponse,
+    WebDiscoveryRequest,
+    WebDiscoveryResponse,
+    VerifyHackathonRequest,
+    VerifyHackathonResponse,
 )
 from filters.keyword_filter import classify_hackathon
 from scrapers.geocoder import geocode
@@ -968,6 +974,138 @@ def trigger_internet_scanner(request: Request, body: ScannerTriggerRequest):
     """Trigger an immediate autonomous sweep across target college/city/FAANG keywords."""
     res = run_internet_scan(keywords=body.keywords)
     return res
+
+
+# ── Instagram Scanner Endpoint ───────────────────────────────────────────────
+
+@app.post("/api/scanner/instagram", response_model=InstagramScanResponse)
+@v1_router.post("/scanner/instagram", response_model=InstagramScanResponse)
+@limiter.limit("5/minute")
+def trigger_instagram_scan(request: Request, body: InstagramScanRequest):
+    """Trigger an Instagram scan for hackathon posts from known accounts and hashtags."""
+    import time as _time
+    from scrapers.instagram_scraper import scrape_instagram_hackathons
+    from scrapers.hackathon_verifier import verify_hackathon
+
+    start = _time.time()
+    try:
+        items = scrape_instagram_hackathons(
+            accounts=body.accounts,
+            hashtags=body.hashtags,
+        )
+
+        new_indexed = 0
+        collection = get_collection()
+
+        for doc in items:
+            link = doc.get("link")
+            if not link or collection is None:
+                continue
+
+            classify_hackathon(doc)
+            if doc.get("mode", "").lower() == "offline" and doc.get("location"):
+                loc = doc["location"]
+                if loc.lower() not in {"online", "virtual", "tba"} and not doc.get("lat"):
+                    lat, lng = geocode(loc)
+                    if lat and lng:
+                        doc["lat"] = lat
+                        doc["lng"] = lng
+
+            res = collection.update_one({"link": link}, {"$set": doc}, upsert=True)
+            if res.upserted_id:
+                new_indexed += 1
+
+        _cache.clear()
+        elapsed = round(_time.time() - start, 2)
+
+        return {
+            "success": True,
+            "message": f"Instagram scan completed in {elapsed}s. Found {len(items)} posts, indexed {new_indexed} new hackathons.",
+            "total_found": len(items),
+            "new_indexed": new_indexed,
+            "elapsed_seconds": elapsed,
+        }
+    except Exception as e:
+        logger.error("Instagram scan error: %s", e)
+        return JSONResponse(
+            status_code=500,
+            content={"success": False, "message": f"Instagram scan error: {str(e)}", "total_found": 0, "new_indexed": 0}
+        )
+
+
+# ── Web Discovery Endpoint ───────────────────────────────────────────────────
+
+@app.post("/api/scanner/web-discovery", response_model=WebDiscoveryResponse)
+@v1_router.post("/scanner/web-discovery", response_model=WebDiscoveryResponse)
+@limiter.limit("5/minute")
+def trigger_web_discovery(request: Request, body: WebDiscoveryRequest):
+    """Trigger a web discovery scan across Google, MLH, Eventbrite, and KonfHub."""
+    import time as _time
+    from scrapers.web_discovery_scraper import run_web_discovery
+    from scrapers.hackathon_verifier import verify_hackathon
+
+    start = _time.time()
+    try:
+        items = run_web_discovery(queries=body.queries)
+
+        new_indexed = 0
+        collection = get_collection()
+
+        for doc in items:
+            link = doc.get("link")
+            if not link or collection is None:
+                continue
+
+            classify_hackathon(doc)
+            if doc.get("mode", "").lower() == "offline" and doc.get("location"):
+                loc = doc["location"]
+                if loc.lower() not in {"online", "virtual", "tba"} and not doc.get("lat"):
+                    lat, lng = geocode(loc)
+                    if lat and lng:
+                        doc["lat"] = lat
+                        doc["lng"] = lng
+
+            res = collection.update_one({"link": link}, {"$set": doc}, upsert=True)
+            if res.upserted_id:
+                new_indexed += 1
+
+        _cache.clear()
+        elapsed = round(_time.time() - start, 2)
+
+        return {
+            "success": True,
+            "message": f"Web discovery completed in {elapsed}s. Found {len(items)} events, indexed {new_indexed} new hackathons.",
+            "total_found": len(items),
+            "new_indexed": new_indexed,
+            "elapsed_seconds": elapsed,
+        }
+    except Exception as e:
+        logger.error("Web discovery error: %s", e)
+        return JSONResponse(
+            status_code=500,
+            content={"success": False, "message": f"Web discovery error: {str(e)}", "total_found": 0, "new_indexed": 0}
+        )
+
+
+# ── Hackathon Verification Endpoint ──────────────────────────────────────────
+
+@app.post("/api/hackathons/verify", response_model=VerifyHackathonResponse)
+@v1_router.post("/hackathons/verify", response_model=VerifyHackathonResponse)
+@limiter.limit("30/minute")
+def verify_hackathon_endpoint(request: Request, body: VerifyHackathonRequest):
+    """Verify whether a hackathon listing is legitimate using multi-signal analysis."""
+    from scrapers.hackathon_verifier import verify_hackathon as _verify
+
+    doc = {
+        "title": body.title,
+        "link": body.link,
+        "desc": body.desc or "",
+        "source": body.source or "",
+        "deadline_iso": body.deadline_iso,
+    }
+
+    result = _verify(doc, check_url=True)
+    return result
 
 
 # Mount API v1 router

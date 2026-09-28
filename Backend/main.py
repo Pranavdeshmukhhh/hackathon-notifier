@@ -38,6 +38,9 @@ from scrapers.devpost_scraper import scrape_devpost
 from scrapers.hackerearth_scraper import scrape_hackerearth
 from scrapers.devnovate_scraper import scrape_devnovate
 from scrapers.internet_scanner import scan_single_keyword
+from scrapers.instagram_scraper import scrape_instagram_hackathons
+from scrapers.web_discovery_scraper import run_web_discovery
+from scrapers.hackathon_verifier import batch_verify
 
 # ── Logging — configured ONCE here, all other modules use getLogger(__name__) ─
 logging.basicConfig(
@@ -77,11 +80,13 @@ def _run_scrapers() -> dict:
         "HackerEarth":     scrape_hackerearth,
         "Devnovate":       scrape_devnovate,
         "InternetScanner": _run_internet_scanner,
+        "Instagram":       scrape_instagram_hackathons,
+        "WebDiscovery":    run_web_discovery,
     }
     combined: list[dict] = []
     counts: dict[str, int] = {}
 
-    with ThreadPoolExecutor(max_workers=6, thread_name_prefix="scraper") as pool:
+    with ThreadPoolExecutor(max_workers=8, thread_name_prefix="scraper") as pool:
         futures = {pool.submit(fn): name for name, fn in scrapers.items()}
         for future in as_completed(futures):
             name = futures[future]
@@ -137,10 +142,15 @@ def run_pipeline(dry_run: bool = False) -> int:
     logger.info("Total scraped (before classification): %d", len(all_hackathons))
 
 
-    # ── Step 3: Classify ALL hackathons with metadata ─────────────────────────
+    # ── Step 3: Verify ALL hackathons (multi-signal verification pipeline) ────
+    logger.info("Running multi-signal verification on %d hackathons...", len(all_hackathons))
+    all_hackathons = batch_verify(all_hackathons, check_url=False)  # Skip URL check for speed in batch
+    logger.info("Verified hackathons: %d passed verification", len(all_hackathons))
+
+    # ── Step 4: Classify ALL hackathons with metadata ─────────────────────────
     classify_all(all_hackathons)
 
-    # ── Step 4: Dedup + DB insert ─────────────────────────────────────────────
+    # ── Step 5: Dedup + DB insert ─────────────────────────────────────────────
     new_hackathons: list[dict] = []
     if dry_run:
         # In dry-run, treat everything as "new" for reporting but don't insert
@@ -160,7 +170,7 @@ def run_pipeline(dry_run: bool = False) -> int:
             except Exception:
                 logger.exception("DB insert failed for: %s", link)
 
-    # ── Step 5: Filter for notification-worthy items ──────────────────────────
+    # ── Step 6: Filter for notification-worthy items ──────────────────────────
     notify_list = [
         h for h in new_hackathons
         if h.get("is_top_college") or h.get("is_internship")
@@ -171,7 +181,7 @@ def run_pipeline(dry_run: bool = False) -> int:
         len(new_hackathons), len(notify_list),
     )
 
-    # ── Step 6: Telegram notifications ───────────────────────────────────────
+    # ── Step 7: Telegram notifications ───────────────────────────────────────
     sent_count = 0
     if notify_list and not dry_run:
         logger.info("Sending %d Telegram notification(s)…", len(notify_list))

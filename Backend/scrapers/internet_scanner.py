@@ -24,6 +24,7 @@ from bs4 import BeautifulSoup
 from db.mongo_client import get_collection
 from filters.keyword_filter import classify_hackathon
 from scrapers.geocoder import geocode
+from scrapers.hackathon_verifier import verify_hackathon
 
 logger = logging.getLogger("internet_scanner")
 
@@ -303,7 +304,14 @@ def scan_single_keyword(keyword: str) -> list[dict]:
         lnk = (r.get("link") or "").lower()
         if not lnk or "github.com" in lnk or lnk.endswith(".git"):
             continue
-        cleaned.append(r)
+        # Run verification on each result
+        v = verify_hackathon(r, check_url=False)
+        if v["is_verified"]:
+            r["verified"] = True
+            r["verification_confidence"] = v["confidence"]
+            cleaned.append(r)
+        else:
+            logger.debug("Scanner rejected: '%s' (confidence=%.2f)", r.get("title", "?"), v["confidence"])
 
     return cleaned
 
@@ -365,6 +373,62 @@ def run_internet_scan(keywords: list[str] = None) -> dict:
                     if res.upserted_id:
                         new_indexed += 1
                         logger.info("Auto-indexed new internet hackathon: %s", doc["title"])
+
+        # 4. Instagram scan (runs once per sweep, not per-keyword)
+        if target_keywords == DEFAULT_KEYWORDS:  # Only on full sweeps
+            try:
+                from scrapers.instagram_scraper import scrape_instagram_hackathons
+                ig_items = scrape_instagram_hackathons()
+                total_found += len(ig_items)
+                for doc in ig_items:
+                    link = doc.get("link")
+                    if not link:
+                        continue
+                    classify_hackathon(doc)
+                    if doc.get("mode", "").lower() == "offline" and doc.get("location"):
+                        loc = doc["location"]
+                        if loc.lower() not in {"online", "virtual", "tba"} and not doc.get("lat"):
+                            lat, lng = geocode(loc)
+                            if lat and lng:
+                                doc["lat"] = lat
+                                doc["lng"] = lng
+                    if collection is not None:
+                        res = collection.update_one({"link": link}, {"$set": doc}, upsert=True)
+                        if res.upserted_id:
+                            new_indexed += 1
+                            logger.info("Auto-indexed Instagram hackathon: %s", doc["title"])
+                logs.append(f"Instagram scan: found {len(ig_items)} posts.")
+            except Exception as e:
+                logger.warning("Instagram scanner error: %s", e)
+                logs.append(f"Instagram scan error: {e}")
+
+        # 5. Web discovery scan (runs once per sweep)
+        if target_keywords == DEFAULT_KEYWORDS:
+            try:
+                from scrapers.web_discovery_scraper import run_web_discovery
+                web_items = run_web_discovery()
+                total_found += len(web_items)
+                for doc in web_items:
+                    link = doc.get("link")
+                    if not link:
+                        continue
+                    classify_hackathon(doc)
+                    if doc.get("mode", "").lower() == "offline" and doc.get("location"):
+                        loc = doc["location"]
+                        if loc.lower() not in {"online", "virtual", "tba"} and not doc.get("lat"):
+                            lat, lng = geocode(loc)
+                            if lat and lng:
+                                doc["lat"] = lat
+                                doc["lng"] = lng
+                    if collection is not None:
+                        res = collection.update_one({"link": link}, {"$set": doc}, upsert=True)
+                        if res.upserted_id:
+                            new_indexed += 1
+                            logger.info("Auto-indexed web discovery hackathon: %s", doc["title"])
+                logs.append(f"Web discovery scan: found {len(web_items)} events.")
+            except Exception as e:
+                logger.warning("Web discovery scanner error: %s", e)
+                logs.append(f"Web discovery scan error: {e}")
 
         elapsed = round(time.time() - start_time, 2)
         logs.append(f"Sweep complete in {elapsed}s. Scanned: {total_found} items, New indexed: {new_indexed}.")

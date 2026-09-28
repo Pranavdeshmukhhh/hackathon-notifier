@@ -41,6 +41,12 @@ class HackathonOut(BaseModel):
     scraped_at: Optional[str] = Field(default=None, description="ISO timestamp of discovery sweep")
     desc: Optional[str] = Field(default=None, description="Event description or theme excerpt")
     opportunity_type: Optional[str] = Field(default=None, description="Type (Hackathon, Internship, Hiring Challenge)")
+    discovery_source: Optional[str] = Field(default=None, description="Discovery channel (platform, instagram, web_discovery)")
+    verified: Optional[bool] = Field(default=None, description="Whether the hackathon passed multi-signal verification")
+    verification_confidence: Optional[float] = Field(default=None, description="Verification confidence score (0.0-1.0)")
+    source_account: Optional[str] = Field(default=None, description="Instagram/social account that posted the hackathon")
+    instagram_post_url: Optional[str] = Field(default=None, description="Original Instagram post URL if discovered from Instagram")
+    image: Optional[str] = Field(default=None, description="Event banner/poster image URL")
 
     model_config = {
         "populate_by_name": True,
@@ -162,4 +168,44 @@ class ScannerStatusResponse(BaseModel):
     active_keywords: dict[str, list[str]] = Field(default_factory=dict)
     last_scan_logs: list[str] = Field(default_factory=list)
 
+
+class InstagramScanRequest(BaseModel):
+    accounts: Optional[list[str]] = Field(default=None, description="Instagram accounts to scan (defaults to curated list)")
+    hashtags: Optional[list[str]] = Field(default=None, description="Instagram hashtags to scan (defaults to curated list)")
+
+
+class InstagramScanResponse(BaseModel):
+    success: bool = Field(..., description="Whether Instagram scan completed")
+    message: str = Field(..., description="Status summary")
+    total_found: int = Field(default=0, description="Total posts discovered")
+    new_indexed: int = Field(default=0, description="New hackathons indexed")
+    elapsed_seconds: Optional[float] = Field(default=None, description="Time taken")
+
+
+class WebDiscoveryRequest(BaseModel):
+    queries: Optional[list[str]] = Field(default=None, description="Custom search queries")
+
+
+class WebDiscoveryResponse(BaseModel):
+    success: bool = Field(..., description="Whether web discovery completed")
+    message: str = Field(..., description="Status summary")
+    total_found: int = Field(default=0, description="Total events discovered")
+    new_indexed: int = Field(default=0, description="New hackathons indexed")
+    elapsed_seconds: Optional[float] = Field(default=None, description="Time taken")
+
+
+class VerifyHackathonRequest(BaseModel):
+    title: str = Field(..., description="Hackathon title")
+    link: str = Field(..., description="Hackathon URL")
+    desc: Optional[str] = Field(default="", description="Description")
+    source: Optional[str] = Field(default="", description="Source platform")
+    deadline_iso: Optional[str] = Field(default=None, description="ISO deadline")
+
+
+class VerifyHackathonResponse(BaseModel):
+    is_verified: bool = Field(..., description="Whether verification passed")
+    confidence: float = Field(..., description="Confidence score (0.0-1.0)")
+    signals: dict = Field(default_factory=dict, description="Individual signal scores")
+    issues: list[str] = Field(default_factory=list, description="Problems found")
+    recommendation: str = Field(default="", description="accept, review, or reject")
 

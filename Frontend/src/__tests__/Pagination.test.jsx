@@ -16,11 +16,11 @@ describe('Pagination Component', () => {
       <Pagination currentPage={2} totalPages={5} onPageChange={() => {}} />
     );
 
-    const activePageBtn = screen.getByRole('button', { name: '2' });
+    const activePageBtn = screen.getByRole('button', { name: /go to page 2/i });
     expect(activePageBtn).toBeInTheDocument();
     expect(activePageBtn).toHaveClass('bg-[#007AFF]');
-    expect(screen.getByRole('button', { name: /previous/i })).not.toBeDisabled();
-    expect(screen.getByRole('button', { name: /next/i })).not.toBeDisabled();
+    expect(screen.getByRole('button', { name: /previous page/i })).not.toBeDisabled();
+    expect(screen.getByRole('button', { name: /next page/i })).not.toBeDisabled();
   });
 
   it('disables previous button on first page', () => {
@@ -28,7 +28,7 @@ describe('Pagination Component', () => {
       <Pagination currentPage={1} totalPages={4} onPageChange={() => {}} />
     );
 
-    const prevBtn = screen.getByRole('button', { name: /previous/i });
+    const prevBtn = screen.getByRole('button', { name: /previous page/i });
     expect(prevBtn).toBeDisabled();
   });
 
@@ -37,7 +37,7 @@ describe('Pagination Component', () => {
       <Pagination currentPage={4} totalPages={4} onPageChange={() => {}} />
     );
 
-    const nextBtn = screen.getByRole('button', { name: /next/i });
+    const nextBtn = screen.getByRole('button', { name: /next page/i });
     expect(nextBtn).toBeDisabled();
   });
 
@@ -47,7 +47,7 @@ describe('Pagination Component', () => {
       <Pagination currentPage={3} totalPages={5} onPageChange={onPageChange} />
     );
 
-    fireEvent.click(screen.getByRole('button', { name: /previous/i }));
+    fireEvent.click(screen.getByRole('button', { name: /previous page/i }));
     expect(onPageChange).toHaveBeenCalledWith(2);
   });
 
@@ -57,7 +57,7 @@ describe('Pagination Component', () => {
       <Pagination currentPage={3} totalPages={5} onPageChange={onPageChange} />
     );
 
-    fireEvent.click(screen.getByRole('button', { name: /next/i }));
+    fireEvent.click(screen.getByRole('button', { name: /next page/i }));
     expect(onPageChange).toHaveBeenCalledWith(4);
   });
 });

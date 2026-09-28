@@ -456,7 +456,7 @@ function App() {
               >
                 🌐 Auto-Scanner
               </button>
-              <button className="hidden sm:flex items-center gap-1.5 px-4 h-10 min-h-[40px] rounded-[12px] apple-squircle apple-touch-target apple-spring-press apple-dual-bevel text-xs font-bold bg-[#007AFF] hover:bg-[#0066D6] dark:bg-[#0A84FF] dark:hover:bg-[#0077ED] text-white shadow-xs hover:shadow-md hover:shadow-[#007AFF]/25 transition-all cursor-pointer" onClick={() => { if (currentView === 'terms') navigateToRadar('events'); fetchHackathons(); }}>Sync</button>
+              <button className="hidden sm:flex items-center gap-1.5 px-4 h-10 min-h-[40px] rounded-[12px] apple-squircle apple-touch-target apple-spring-press apple-dual-bevel text-xs font-bold bg-[#007AFF] hover:bg-[#0066D6] dark:bg-[#0A84FF] dark:hover:bg-[#0077ED] text-white shadow-xs hover:shadow-md hover:shadow-[#007AFF]/25 transition-all cursor-pointer" onClick={() => { if (currentView === 'terms') navigateToRadar('events'); fetchHackathons(); }}>{loading ? <><span className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></span> Syncing</> : 'Sync'}</button>
               <button className="md:hidden p-2 text-slate-600 dark:text-slate-300" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}><HamburgerIcon /></button>
             </div>
           </div>
@@ -845,7 +845,7 @@ function App() {
         <div className="flex flex-wrap items-center justify-center gap-4">
           <button className="text-[#007AFF] dark:text-[#0A84FF] hover:underline font-bold cursor-pointer" onClick={navigateToTerms}>Terms & Conditions</button>
           <button className="text-[#007AFF] dark:text-[#0A84FF] hover:underline font-bold cursor-pointer" onClick={() => setShowTechSpecModal(true)}>Architecture Spec</button>
-          <span className="text-[#34C759] dark:text-[#30D158] font-mono font-bold">Mode: {isDarkMode ? 'OLED Dark' : 'Normal Light'} PRO</span>
+          <span className="text-[#34C759] dark:text-[#30D158] font-mono font-bold">System: {isDarkMode ? 'Dark' : 'Light'}</span>
         </div>
       </footer>
 

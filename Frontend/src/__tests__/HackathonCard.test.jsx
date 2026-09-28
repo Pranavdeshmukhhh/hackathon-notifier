@@ -66,7 +66,7 @@ describe('HackathonCard Component', () => {
     };
     render(<HackathonCard hackathon={maliciousHackathon} />);
 
-    const registerBtn = screen.getByRole('link', { name: /register now/i });
+    const registerBtn = screen.getByRole('link', { name: /link unavailable/i });
     expect(registerBtn).toHaveAttribute('href', '#');
   });
 

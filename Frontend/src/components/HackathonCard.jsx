@@ -96,6 +96,11 @@ function getBannerClass(source) {
     devpost: 'devpost',
     hackerearth: 'hackerearth',
     devnovate: 'devnovate',
+    instagram: 'instagram',
+    webdiscovery: 'webdiscovery',
+    mlh: 'mlh',
+    eventbrite: 'eventbrite',
+    konfhub: 'konfhub',
   };
   return map[s] || 'unknown';
 }
@@ -106,6 +111,11 @@ const sourceGradients = {
   devpost: 'from-teal-500 via-emerald-600 to-blue-600',
   hackerearth: 'from-purple-600 via-indigo-600 to-blue-700',
   devnovate: 'from-pink-500 via-rose-500 to-purple-600',
+  instagram: 'from-[#F58529] via-[#DD2A7B] to-[#8134AF]',
+  webdiscovery: 'from-emerald-500 via-teal-600 to-cyan-600',
+  mlh: 'from-blue-500 via-blue-600 to-indigo-700',
+  eventbrite: 'from-orange-500 via-red-500 to-pink-600',
+  konfhub: 'from-green-500 via-emerald-600 to-teal-600',
 };
 
 // Safely validate URL protocol (must start with http:// or https://)
@@ -215,7 +225,7 @@ const HackathonCard = ({ hackathon, onShare }) => {
       onMouseMove={handleMouseMove}
       onMouseLeave={handleMouseLeave}
       style={{ transform: 'perspective(1000px) rotateX(var(--tilt-x, 0deg)) rotateY(var(--tilt-y, 0deg)) translateZ(0)' }}
-      className={`group relative overflow-hidden rounded-[24px] apple-squircle border border-black/[0.08] dark:border-white/[0.12] bg-white/95 dark:bg-[#1C1C1E]/90 backdrop-blur-xl shadow-[0_2px_14px_-2px_rgba(0,0,0,0.04)] dark:shadow-[0_4px_24px_-2px_rgba(0,0,0,0.45)] hover:shadow-2xl dark:hover:shadow-[0_24px_52px_rgba(0,0,0,0.75)] hover:border-[#007AFF]/40 dark:hover:border-[#0A84FF]/50 ios-card-spring apple-touch-layer apple-specular-spotlight crystal-chamfer crystal-sheen apple-card-contain apple-dual-bevel flex flex-col justify-between h-full ${isPast ? 'opacity-60 grayscale-[0.4]' : ''}`}
+      className={`group relative overflow-hidden rounded-[24px] apple-squircle border border-black/[0.08] dark:border-white/[0.12] bg-white/95 dark:bg-[#1C1C1E]/90 backdrop-blur-xl shadow-[0_2px_14px_-2px_rgba(0,0,0,0.04)] dark:shadow-[0_4px_24px_-2px_rgba(0,0,0,0.45)] hover:shadow-2xl dark:hover:shadow-[0_24px_52px_rgba(0,0,0,0.75)] hover:border-[#007AFF]/40 dark:hover:border-[#0A84FF]/50 ios-card-spring apple-touch-layer apple-specular-spotlight crystal-chamfer crystal-sheen apple-card-contain apple-dual-bevel flex flex-col justify-between h-full ${isPast ? 'opacity-75 grayscale-[0.15]' : ''}`}
     >
       {/* Platform Branded Subtle Accent Hairline */}
       <div className={`h-1 group-hover:h-1.5 w-full bg-gradient-to-r ${bannerGradient} opacity-90 transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:opacity-100`} />
@@ -241,6 +251,30 @@ const HackathonCard = ({ hackathon, onShare }) => {
           {isInternship && (
             <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-[8px] text-[11px] font-semibold bg-[#AF52DE]/10 text-[#AF52DE] dark:bg-[#BF5AF2]/15 dark:text-[#BF5AF2] border border-[#AF52DE]/20 dark:border-[#BF5AF2]/30 crystal-pill apple-caption">
               <BriefcaseIcon /> Internship
+            </span>
+          )}
+          {hackathon.verified && (
+            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-[8px] text-[11px] font-semibold bg-emerald-500/10 text-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-400 border border-emerald-500/20 dark:border-emerald-500/30 crystal-pill apple-caption" title={`Verification confidence: ${((hackathon.verification_confidence || 0) * 100).toFixed(0)}%`}>
+              <CheckIcon /> Verified
+            </span>
+          )}
+          {hackathon.discovery_source === 'instagram' && (
+            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-[8px] text-[11px] font-semibold bg-gradient-to-r from-[#F58529]/10 via-[#DD2A7B]/10 to-[#8134AF]/10 text-[#DD2A7B] dark:text-[#E1306C] border border-[#DD2A7B]/20 dark:border-[#E1306C]/30 crystal-pill apple-caption" title={hackathon.source_account || 'Instagram'}>
+              <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
+                <rect x="2" y="2" width="20" height="20" rx="5" ry="5" />
+                <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" />
+                <line x1="17.5" y1="6.5" x2="17.51" y2="6.5" />
+              </svg>
+              {hackathon.source_account || 'IG'}
+            </span>
+          )}
+          {hackathon.discovery_source === 'web_discovery' && (
+            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-[8px] text-[11px] font-semibold bg-emerald-500/10 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300 border border-emerald-500/20 dark:border-emerald-500/30 crystal-pill apple-caption">
+              <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
+                <circle cx="11" cy="11" r="8" />
+                <line x1="21" y1="21" x2="16.65" y2="16.65" />
+              </svg>
+              Web Found
             </span>
           )}
         </div>
@@ -334,15 +368,21 @@ const HackathonCard = ({ hackathon, onShare }) => {
           href={safeLink}
           target={safeLink !== '#' ? "_blank" : undefined}
           rel={safeLink !== '#' ? "noopener noreferrer" : undefined}
-          onClick={() => {
-            if (safeLink !== '#') {
-              onShare?.(`Opening official ${source} portal for ${hackathon.title}`);
+          onClick={(e) => {
+            if (safeLink === '#') {
+              e.preventDefault();
+              return;
             }
+            onShare?.(`Opening official ${source} portal for ${hackathon.title}`);
           }}
-          className="h-11 min-h-[44px] flex-1 apple-touch-target apple-squircle inline-flex items-center justify-center gap-2 px-4 rounded-[14px] bg-[#007AFF] hover:bg-[#0066D6] dark:bg-[#0A84FF] dark:hover:bg-[#0077ED] text-white font-semibold text-xs sm:text-sm shadow-xs hover:shadow-md hover:shadow-[#007AFF]/25 transition-all duration-250 ease-[cubic-bezier(0.16,1,0.3,1)] apple-spring-press apple-touch-layer cursor-pointer crystal-chamfer apple-dual-bevel"
+          className={`h-11 min-h-[44px] flex-1 apple-touch-target apple-squircle inline-flex items-center justify-center gap-2 px-4 rounded-[14px] font-semibold text-xs sm:text-sm shadow-xs transition-all duration-250 ease-[cubic-bezier(0.16,1,0.3,1)] apple-spring-press apple-touch-layer crystal-chamfer apple-dual-bevel ${
+            safeLink === '#'
+              ? 'bg-slate-300 dark:bg-slate-700 text-slate-500 dark:text-slate-400 cursor-not-allowed'
+              : 'bg-[#007AFF] hover:bg-[#0066D6] dark:bg-[#0A84FF] dark:hover:bg-[#0077ED] text-white cursor-pointer hover:shadow-md hover:shadow-[#007AFF]/25'
+          }`}
         >
-          <span>{safeLink.includes('github.com') ? 'View Project Repo' : 'Register Now'}</span>
-          <span className="transition-transform duration-200 group-hover:translate-x-0.5"><ExternalLinkIcon /></span>
+          <span>{safeLink === '#' ? 'Link Unavailable' : isPast ? 'View Details' : 'Register Now'}</span>
+          {safeLink !== '#' && <span className="transition-transform duration-200 group-hover:translate-x-0.5"><ExternalLinkIcon /></span>}
         </a>
         <button
           type="button"

@@ -24,6 +24,10 @@ export default function AutoListModal({ onClose, onSuccess, apiBase }) {
   const [isUrlExtracting, setIsUrlExtracting] = useState(false);
   const [urlMessage, setUrlMessage] = useState(null);
   const [showDirectUrlTab, setShowDirectUrlTab] = useState(false);
+  const [isInstagramScanning, setIsInstagramScanning] = useState(false);
+  const [instagramMessage, setInstagramMessage] = useState(null);
+  const [isWebDiscovering, setIsWebDiscovering] = useState(false);
+  const [webDiscoveryMessage, setWebDiscoveryMessage] = useState(null);
 
   const logsEndRef = useRef(null);
 
@@ -286,7 +290,7 @@ export default function AutoListModal({ onClose, onSuccess, apiBase }) {
                 <span>⚡ Instant Full Internet Sweep</span>
               </div>
               <p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5">
-                Crawl Devpost, HackerEarth & GitHub DevRegistries across all premier colleges, cities, and tech giants.
+                Crawl Unstop, Devpost & HackerEarth registries across all premier colleges, cities, and tech giants.
               </p>
             </div>
             <button
@@ -306,6 +310,133 @@ export default function AutoListModal({ onClose, onSuccess, apiBase }) {
               ) : (
                 <>
                   <span>🚀</span> Scan Internet Now
+                </>
+              )}
+            </button>
+          </div>
+
+          {/* Instagram Hackathon Scanner */}
+          <div className="p-4 rounded-[18px] bg-gradient-to-r from-[#F58529]/10 via-[#DD2A7B]/10 to-[#8134AF]/10 dark:from-[#F58529]/15 dark:via-[#DD2A7B]/15 dark:to-[#8134AF]/15 border border-[#DD2A7B]/20 flex flex-col sm:flex-row items-center justify-between gap-3">
+            <div>
+              <div className="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-1.5">
+                <span>📸 Instagram Hackathon Scanner</span>
+              </div>
+              <p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5">
+                Scans 20+ hackathon organizer accounts & trending hashtags (#hackathon, #devhack, #hackathonindia) on Instagram. Auto-verifies posts before listing.
+              </p>
+              {instagramMessage && (
+                <div className={`mt-2 text-xs font-medium ${instagramMessage.type === 'success' ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
+                  {instagramMessage.text}
+                </div>
+              )}
+            </div>
+            <button
+              onClick={async () => {
+                setIsInstagramScanning(true);
+                setInstagramMessage(null);
+                try {
+                  const res = await fetch(`${resolvedBase}/api/scanner/instagram`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({}),
+                  });
+                  const data = await res.json();
+                  if (res.ok && data.success) {
+                    setInstagramMessage({ type: 'success', text: data.message || `Found ${data.total_found} posts, indexed ${data.new_indexed} new.` });
+                    if (onSuccess) onSuccess();
+                    fetchStatus();
+                  } else {
+                    setInstagramMessage({ type: 'error', text: data.message || 'Instagram scan encountered an issue.' });
+                  }
+                } catch {
+                  setInstagramMessage({ type: 'error', text: 'Network error connecting to Instagram scanner.' });
+                } finally {
+                  setIsInstagramScanning(false);
+                }
+              }}
+              disabled={isInstagramScanning || isTriggering}
+              className={`shrink-0 px-4 py-2.5 rounded-[12px] font-bold text-xs shadow-md transition-all flex items-center gap-2 cursor-pointer ${
+                isInstagramScanning
+                  ? 'bg-slate-400 text-white cursor-not-allowed opacity-80'
+                  : 'bg-gradient-to-r from-[#F58529] via-[#DD2A7B] to-[#8134AF] hover:from-[#E07420] hover:via-[#CC1E6C] hover:to-[#7029A0] text-white shadow-[#DD2A7B]/25 active:scale-95'
+              }`}
+            >
+              {isInstagramScanning ? (
+                <>
+                  <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                  Scanning IG...
+                </>
+              ) : (
+                <>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="2" y="2" width="20" height="20" rx="5" ry="5" />
+                    <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" />
+                    <line x1="17.5" y1="6.5" x2="17.51" y2="6.5" />
+                  </svg>
+                  Scan Instagram
+                </>
+              )}
+            </button>
+          </div>
+
+          {/* Web Discovery Scanner */}
+          <div className="p-4 rounded-[18px] bg-gradient-to-r from-emerald-900/10 via-teal-900/10 to-cyan-900/10 dark:from-emerald-950/30 dark:via-teal-950/30 dark:to-cyan-950/30 border border-emerald-500/20 flex flex-col sm:flex-row items-center justify-between gap-3">
+            <div>
+              <div className="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-1.5">
+                <span>🌐 Open Internet Discovery</span>
+              </div>
+              <p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5">
+                Searches Google, MLH, Eventbrite & KonfHub for hackathons across India. Extracts metadata & auto-verifies legitimacy before listing.
+              </p>
+              {webDiscoveryMessage && (
+                <div className={`mt-2 text-xs font-medium ${webDiscoveryMessage.type === 'success' ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
+                  {webDiscoveryMessage.text}
+                </div>
+              )}
+            </div>
+            <button
+              onClick={async () => {
+                setIsWebDiscovering(true);
+                setWebDiscoveryMessage(null);
+                try {
+                  const res = await fetch(`${resolvedBase}/api/scanner/web-discovery`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({}),
+                  });
+                  const data = await res.json();
+                  if (res.ok && data.success) {
+                    setWebDiscoveryMessage({ type: 'success', text: data.message || `Found ${data.total_found} events, indexed ${data.new_indexed} new.` });
+                    if (onSuccess) onSuccess();
+                    fetchStatus();
+                  } else {
+                    setWebDiscoveryMessage({ type: 'error', text: data.message || 'Web discovery encountered an issue.' });
+                  }
+                } catch {
+                  setWebDiscoveryMessage({ type: 'error', text: 'Network error connecting to web discovery engine.' });
+                } finally {
+                  setIsWebDiscovering(false);
+                }
+              }}
+              disabled={isWebDiscovering || isTriggering}
+              className={`shrink-0 px-4 py-2.5 rounded-[12px] font-bold text-xs shadow-md transition-all flex items-center gap-2 cursor-pointer ${
+                isWebDiscovering
+                  ? 'bg-slate-400 text-white cursor-not-allowed opacity-80'
+                  : 'bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white shadow-emerald-500/25 active:scale-95'
+              }`}
+            >
+              {isWebDiscovering ? (
+                <>
+                  <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                  Discovering...
+                </>
+              ) : (
+                <>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="11" cy="11" r="8" />
+                    <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                  </svg>
+                  Discover from Web
                 </>
               )}
             </button>
