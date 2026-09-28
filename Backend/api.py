@@ -10,6 +10,7 @@ from collections import deque
 from datetime import datetime, timezone
 import math
 import hashlib
+import difflib
 from contextlib import asynccontextmanager
 from typing import Optional
 from urllib.parse import urlparse
@@ -252,6 +253,229 @@ def _sort_hackathons(docs: list[dict]) -> list[dict]:
     return upcoming + no_date + past
 
 
+# ── Venue & Typo-Tolerant Multi-Token Search Engine ──────────────────────────
+CITY_AND_CAMPUS_SYNONYMS: dict[str, str] = {
+    # Hyderabad typos, abbreviations & aliases
+    "hydrerabad": "hyderabad",
+    "hydrabad": "hyderabad",
+    "hyderbad": "hyderabad",
+    "hydrabaad": "hyderabad",
+    "hyd": "hyderabad",
+    "hyderabad": "hyderabad",
+
+    # Bengaluru / Bangalore
+    "bangalore": "bengaluru",
+    "banglore": "bengaluru",
+    "bengluru": "bengaluru",
+    "bengaluru": "bengaluru",
+    "blr": "bengaluru",
+
+    # Mumbai / Bombay
+    "bombay": "mumbai",
+    "mumbai": "mumbai",
+    "bombai": "mumbai",
+    "bom": "mumbai",
+
+    # Pune
+    "poona": "pune",
+    "pune": "pune",
+
+    # Delhi / NCR / Gurugram / Gurgaon / Noida
+    "delhi": "delhi",
+    "newdelhi": "delhi",
+    "gurgaon": "gurugram",
+    "gurugram": "gurugram",
+    "ncr": "delhi",
+    "noida": "noida",
+
+    # Chennai / Madras
+    "madras": "chennai",
+    "chennai": "chennai",
+
+    # Kolkata / Calcutta
+    "calcutta": "kolkata",
+    "kolkata": "kolkata",
+
+    # Ahmedabad
+    "ahmdabad": "ahmedabad",
+    "ahmedabad": "ahmedabad",
+    "amdavad": "ahmedabad",
+
+    # Prayagraj / Allahabad
+    "allahabad": "prayagraj",
+    "prayagraj": "prayagraj",
+
+    # Varanasi / Banaras / Kashi
+    "banaras": "varanasi",
+    "benares": "varanasi",
+    "kashi": "varanasi",
+    "varanasi": "varanasi",
+
+    # Chandigarh / Jaipur / Indore / Bhopal / Kochi / Calicut
+    "chandigrh": "chandigarh",
+    "chandigarh": "chandigarh",
+    "jaypur": "jaipur",
+    "jaipur": "jaipur",
+    "indor": "indore",
+    "indore": "indore",
+    "cochin": "kochi",
+    "kochi": "kochi",
+    "calicut": "kozhikode",
+    "kozhikode": "kozhikode",
+    "trichy": "tiruchirappalli",
+    "tiruchirappalli": "tiruchirappalli",
+    "vizag": "visakhapatnam",
+    "visakhapatnam": "visakhapatnam",
+    "trivandrum": "thiruvananthapuram",
+    "thiruvananthapuram": "thiruvananthapuram",
+
+    # IIIT Campus Aliases
+    "iiith": "iiit hyderabad",
+    "iiit-h": "iiit hyderabad",
+    "iiitb": "iiit bengaluru",
+    "iiit-b": "iiit bengaluru",
+    "iiitd": "iiit delhi",
+    "iiit-d": "iiit delhi",
+    "iiita": "iiit prayagraj",
+    "iiit-a": "iiit prayagraj",
+    "iiitm": "iiit gwalior",
+
+    # IIT Campus Aliases
+    "iitb": "iit bombay",
+    "iit-b": "iit bombay",
+    "iitd": "iit delhi",
+    "iit-d": "iit delhi",
+    "iitm": "iit madras",
+    "iit-m": "iit madras",
+    "iitk": "iit kanpur",
+    "iit-k": "iit kanpur",
+    "iitkgp": "iit kharagpur",
+    "iit-kgp": "iit kharagpur",
+    "iitr": "iit roorkee",
+    "iit-r": "iit roorkee",
+    "iitg": "iit guwahati",
+    "iit-g": "iit guwahati",
+    "iith": "iit hyderabad",
+    "iitbhu": "iit varanasi",
+    "iit-bhu": "iit varanasi",
+
+    # NIT Campus Aliases
+    "nitt": "nit tiruchirappalli",
+    "nit-t": "nit tiruchirappalli",
+    "nitk": "nit surathkal",
+    "nit-k": "nit surathkal",
+    "nitw": "nit warangal",
+    "nit-w": "nit warangal",
+    "nitc": "nit calicut",
+    "nitr": "nit rourkela",
+
+    # BITS & Premier Institutes
+    "bitsp": "bits pilani",
+    "bitsg": "bits goa",
+    "bitsh": "bits hyderabad",
+    "coep": "coep pune",
+    "pict": "pict pune",
+    "vjti": "vjti mumbai",
+    "dtu": "dtu delhi",
+    "nsut": "nsut delhi",
+    "iisc": "iisc bengaluru",
+}
+
+
+def _expand_hyphens(text: str) -> str:
+    """Expand hyphenated terms like IIIT-H into IIITH IIIT H for robust indexing."""
+    return re.sub(r"(\b[a-zA-Z0-9]+)-([a-zA-Z0-9]+\b)", r"\1\2 \1 \2", text or "")
+
+
+def _normalize_search_text(text: str) -> str:
+    """Normalize text into lowercase alphanumeric space-delimited string."""
+    expanded = _expand_hyphens((text or "").lower())
+    clean = re.sub(r"[^a-z0-9\s]", " ", expanded)
+    return " ".join(clean.split())
+
+
+def _build_document_search_corpus(doc: dict) -> tuple[str, str, set[str]]:
+    """
+    Extracts raw haystack, normalized haystack, and token word set across all venue,
+    location, college, title, and descriptive metadata fields.
+    """
+    fields = [
+        str(doc.get("title") or ""),
+        str(doc.get("venue") or ""),
+        str(doc.get("location") or ""),
+        str(doc.get("college_name") or ""),
+        str(doc.get("college_type") or ""),
+        str(doc.get("city") or ""),
+        str(doc.get("desc") or ""),
+        str(doc.get("tagline") or ""),
+        str(doc.get("opportunity_type") or ""),
+        " ".join(str(t) for t in doc.get("tags") or []),
+    ]
+    raw_haystack = " ".join(fields).lower()
+    norm_haystack = _normalize_search_text(raw_haystack)
+    words = set(norm_haystack.split())
+    for w in list(words):
+        if w in CITY_AND_CAMPUS_SYNONYMS:
+            words.update(CITY_AND_CAMPUS_SYNONYMS[w].split())
+    return raw_haystack, norm_haystack, words
+
+
+def _match_hackathon_search(doc: dict, search_query: str) -> bool:
+    """
+    Venue-aware, typo-tolerant, multi-token fuzzy search matcher.
+
+    Matches queries like 'iiit hydrerabad', 'iiit hydrabad', 'iiit hyderabad', 'iiith'
+    against hackathon documents whose venue, location, college_name, or title
+    contain 'IIIT Hyderabad', 'iiit hydrabad', or any phonetic/spelling variation.
+    """
+    if not search_query or not search_query.strip():
+        return True
+
+    raw_haystack, norm_haystack, doc_words = _build_document_search_corpus(doc)
+    q_trimmed = search_query.strip().lower()
+
+    # Direct substring matches in raw or normalized strings
+    if q_trimmed in raw_haystack:
+        return True
+
+    q_norm = _normalize_search_text(q_trimmed)
+    if not q_norm:
+        return True
+
+    if q_norm in norm_haystack:
+        return True
+
+    # Expand query tokens (e.g. 'iiith' -> ['iiit', 'hyderabad'])
+    raw_tokens = q_norm.split()
+    target_tokens: list[str] = []
+    for t in raw_tokens:
+        if t in CITY_AND_CAMPUS_SYNONYMS:
+            target_tokens.extend(CITY_AND_CAMPUS_SYNONYMS[t].split())
+        else:
+            target_tokens.append(t)
+
+    # Every target token must match
+    for tok in target_tokens:
+        if tok in doc_words or tok in norm_haystack:
+            continue
+
+        alias = CITY_AND_CAMPUS_SYNONYMS.get(tok)
+        if alias and (alias in doc_words or alias in norm_haystack):
+            continue
+
+        matched = False
+        if len(tok) >= 4:
+            for dw in doc_words:
+                if len(dw) >= 4 and abs(len(dw) - len(tok)) <= 3:
+                    if difflib.SequenceMatcher(None, tok, dw).ratio() >= 0.78:
+                        matched = True
+                        break
+        if not matched:
+            return False
+
+    return True
+
+
 # ── Visitor Telemetry & Debounced Telegram Alerts ─────────────────────────────
 _visitor_alert_cache: TTLCache = TTLCache(maxsize=2048, ttl=6 * 3600)
 _visitor_db_cache: TTLCache = TTLCache(maxsize=4096, ttl=300)  # Max 1 DB write per IP every 5 min
@@ -422,11 +646,11 @@ def get_hackathons(
             # Projection: only fetch UI fields, skipping raw debug/trace metadata to speed up MongoDB transit
             projection = {
                 "_id": 1, "title": 1, "link": 1, "source": 1, "deadline": 1,
-                "deadline_iso": 1, "mode": 1, "location": 1, "lat": 1, "lng": 1,
+                "deadline_iso": 1, "mode": 1, "location": 1, "venue": 1, "city": 1, "lat": 1, "lng": 1,
                 "tags": 1, "prize": 1, "is_top_college": 1, "college_name": 1,
                 "college_type": 1, "is_internship": 1, "status": 1,
                 "total_registrations": 1, "registrations": 1, "min_team_size": 1,
-                "max_team_size": 1, "scraped_at": 1, "desc": 1, "opportunity_type": 1
+                "max_team_size": 1, "scraped_at": 1, "desc": 1, "tagline": 1, "opportunity_type": 1
             }
             cursor = collection.find({}, projection)
             docs = []
@@ -567,13 +791,8 @@ def get_hackathons(
             any(c_low in str(t).lower() for t in d.get('tags', []))
         )]
 
-    if search:
-        q = search.lower()
-        filtered = [d for d in filtered if (
-            q in d.get('title', '').lower() or
-            q in d.get('location', '').lower() or
-            any(q in tag.lower() for tag in d.get('tags', []))
-        )]
+    if search and search.strip():
+        filtered = [d for d in filtered if _match_hackathon_search(d, search)]
         
     # Sorting
     if sort == 'deadline':
@@ -891,6 +1110,8 @@ def auto_list_hackathon(request: Request, body: HackathonAutoListRequest):
         "source": source,
         "mode": mode,
         "location": location or ("Online" if mode == "Virtual" else "TBA"),
+        "venue": (body.venue or "").strip() or None,
+        "city": (body.city or "").strip() or None,
         "deadline": body.deadline or "TBA",
         "deadline_iso": body.deadline_iso,
         "prize": body.prize or "TBA",
@@ -900,6 +1121,9 @@ def auto_list_hackathon(request: Request, body: HackathonAutoListRequest):
         "is_past": False,
         "scraped_at": now_iso,
     }
+    if doc.get("venue") and (not doc.get("location") or doc["location"] in ("TBA", "Online")):
+        if mode != "Virtual":
+            doc["location"] = doc["venue"]
 
     # Enrich with college / internship / FAANG classification
     classify_hackathon(doc)

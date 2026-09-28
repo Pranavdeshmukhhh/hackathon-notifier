@@ -118,11 +118,13 @@ def classify_hackathon(hackathon: dict) -> dict:
     parts = [
         hackathon.get("title", ""),
         " ".join(hackathon.get("tags", [])),
+        hackathon.get("venue", ""),
         hackathon.get("location", ""),
+        hackathon.get("city", ""),
         hackathon.get("tagline", ""),
         hackathon.get("desc", ""),
     ]
-    haystack = " ".join(parts)
+    haystack = " ".join(str(p or "") for p in parts)
 
     # ── College detection ─────────────────────────────────────────────────
     is_top_college = False

@@ -23,6 +23,8 @@ class HackathonOut(BaseModel):
     deadline_iso: Optional[str] = Field(default=None, description="ISO-8601 formatted date (YYYY-MM-DD)")
     mode: Optional[str] = Field(default="Virtual", description="Event format (Online, Offline, Hybrid)")
     location: Optional[str] = Field(default=None, description="Physical city/venue or Online")
+    venue: Optional[str] = Field(default=None, description="Physical campus or venue name (e.g. IIIT Hyderabad)")
+    city: Optional[str] = Field(default=None, description="Host city")
     lat: Optional[float] = Field(default=None, description="Latitude coordinate")
     lng: Optional[float] = Field(default=None, description="Longitude coordinate")
     distance_km: Optional[float] = Field(default=None, description="Calculated Haversine distance from client location")
@@ -120,6 +122,8 @@ class HackathonAutoListRequest(BaseModel):
     desc: Optional[str] = Field(default=None, description="Description or themes")
     mode: Optional[str] = Field(default="Virtual", description="Event format (Online, Offline, Hybrid)")
     location: Optional[str] = Field(default=None, description="Physical city or venue if offline")
+    venue: Optional[str] = Field(default=None, description="Specific campus or venue name (e.g. IIIT Hyderabad)")
+    city: Optional[str] = Field(default=None, description="Host city")
     deadline: Optional[str] = Field(default=None, description="Human-readable or ISO deadline")
     deadline_iso: Optional[str] = Field(default=None, description="ISO-8601 formatted date (YYYY-MM-DD)")
     prize: Optional[str] = Field(default=None, description="Prize pool information")
@@ -146,6 +150,8 @@ class HackathonPreviewResponse(BaseModel):
     source: Optional[str] = None
     mode: Optional[str] = None
     location: Optional[str] = None
+    venue: Optional[str] = None
+    city: Optional[str] = None
     tags: list[str] = Field(default_factory=list)
     image: Optional[str] = None
     message: Optional[str] = None

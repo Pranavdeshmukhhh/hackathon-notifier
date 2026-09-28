@@ -109,4 +109,16 @@ describe('HackathonCard Component', () => {
     expect(screen.getByText(/lost opportunity/i)).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /view details/i })).toBeInTheDocument();
   });
+
+  it('renders venue and campus correctly when venue is provided', () => {
+    const venueHackathon = {
+      ...mockHackathon,
+      title: 'Megathon 2026',
+      venue: 'IIIT Hyderabad',
+      location: 'Hyderabad, Telangana',
+    };
+    render(<HackathonCard hackathon={venueHackathon} />);
+
+    expect(screen.getByText(/IIIT Hyderabad/i)).toBeInTheDocument();
+  });
 });

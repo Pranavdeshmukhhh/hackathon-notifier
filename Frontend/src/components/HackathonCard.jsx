@@ -176,7 +176,11 @@ const HackathonCard = ({ hackathon, onShare, viewMode = 'grid' }) => {
   const collegeType   = hackathon.college_type || '';
   const collegeName   = hackathon.college_name || '';
   const isInternship  = hackathon.is_internship === true;
+  const venue         = cleanLocation(hackathon.venue || '');
   const location      = cleanLocation(hackathon.location || '');
+  const displayLocation = venue && location && !venue.toLowerCase().includes(location.toLowerCase()) && !location.toLowerCase().includes(venue.toLowerCase())
+    ? `${venue}, ${location}`
+    : (venue || location);
   const distanceKm    = hackathon.distance_km != null ? parseFloat(hackathon.distance_km.toFixed(1)) : undefined;
   const displayPrize  = getDisplayPrize(hackathon.prize, hackathon);
   const displayRegistrations = getDisplayRegistrations(hackathon.total_registrations ?? hackathon.registrations, hackathon);
@@ -280,7 +284,7 @@ const HackathonCard = ({ hackathon, onShare, viewMode = 'grid' }) => {
               <CalendarIcon /> {hackathon.deadline || 'TBA'}
             </span>
             <span className="flex items-center gap-1">
-              <GlobeIcon /> {location || 'Online / Virtual'}
+              <GlobeIcon /> {displayLocation || 'Online / Virtual'}
               {distanceKm !== undefined && <span className="text-[#007AFF] dark:text-[#0A84FF] font-semibold">({distanceKm} km)</span>}
             </span>
             <span className="flex items-center gap-1 text-[#007AFF] dark:text-[#0A84FF] font-medium">
@@ -424,11 +428,11 @@ const HackathonCard = ({ hackathon, onShare, viewMode = 'grid' }) => {
 
         {/* Location row: guaranteed min-h-[22px] with clean virtual/global fallback */}
         <div className="min-h-[22px] flex items-center gap-1.5 text-[13px] text-slate-600 dark:text-slate-400 font-medium">
-          {location ? (
+          {displayLocation ? (
             <>
               <span className="shrink-0 text-slate-500 dark:text-slate-400"><MapPinIcon /></span>
               <span className="line-clamp-1">
-                {location}
+                {displayLocation}
                 {distanceKm !== undefined && (
                   <span className="text-[#007AFF] dark:text-[#0A84FF] font-semibold ml-1.5">· {distanceKm} km away</span>
                 )}
