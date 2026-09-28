@@ -94,26 +94,38 @@ python -m main
        │
        ├── 1. Connect to MongoDB (fail fast if unreachable)
        │
-       ├── 2. Launch 5 scrapers concurrently (ThreadPoolExecutor, 5 workers)
+       ├── 2. Launch 8 scrapers concurrently (ThreadPoolExecutor, 8 workers)
        │       Devfolio / Unstop / Devpost / HackerEarth / Devnovate
+       │       + Instagram Scraper + Web Discovery + Autonomous Scanner
        │
-       ├── 3. Classify all results
+       ├── 3. Verify authenticity (7-Signal Heuristic Verifier)
+       │       verify_hackathon() validates candidates before ingestion:
+       │         - Title keyword relevance
+       │         - Domain reputation & authority
+       │         - Content legitimacy & description depth
+       │         - Date plausibility & range checks
+       │         - Spam, marketing, & scam penalties
+       │         - Source platform trust weight
+       │         - Live URL reachability
+       │       Candidates with confidence >= 65% are accepted.
+       │
+       ├── 4. Classify all results
        │       classify_all() adds metadata to every hackathon dict:
-       │         is_top_college  → True if IIT / NIT / IIIT / BITS / IISc / IIM / DTU
-       │         college_type    → "IIT" | "NIT" | "IIIT" | "BITS" | "IISc" | "IIM" | "CFTI"
-       │         college_name    → matched text, e.g. "NIT Raipur"
-       │         is_internship   → True if title/tags contain internship/hiring keywords
+       │         is_top_college   → True if IIT / NIT / IIIT / BITS / IISc / IIM / DTU
+       │         college_type     → "IIT" | "NIT" | "IIIT" | "BITS" | "IISc" | "IIM" | "CFTI"
+       │         college_name     → matched text, e.g. "NIT Raipur"
+       │         is_internship    → True if title/tags contain internship/hiring keywords
        │         opportunity_type → "Hackathon" | "Internship" | "Hiring Challenge"
        │
-       ├── 4. Dedup + insert
+       ├── 5. Dedup + insert
        │       For each hackathon, check if link already exists in MongoDB.
        │       If new → insert_one(). If duplicate → skip.
        │       Race-condition DuplicateKeyError is caught and skipped silently.
        │
-       ├── 5. Filter notification-worthy items
+       ├── 6. Filter notification-worthy items
        │       Keep only hackathons where is_top_college OR is_internship is True.
        │
-       └── 6. Send Telegram batch notifications
+       └── 7. Send Telegram batch notifications
                send_batch() sends one message per item with exponential back-off.
                Respects Telegram's 429 retry_after header.
 
@@ -130,7 +142,13 @@ All endpoints return JSON and are rate-limited per IP. All routes are also mirro
 |---|---|---|---|
 | `GET` | `/` | — | Root health check: `{"message": "Hackathon API is running"}` |
 | `GET` | `/health` | 60/min | Liveness & readiness probe (verifies MongoDB ping) |
-| `GET` | `/api/hackathons` | 60/min | Paginated hackathon listings, filterable by category, mode, tab, search & GPS |
+| `GET` | `/api/hackathons` | 60/min | Paginated upcoming/missed listings with search, filters & GPS distance |
+| `GET` | `/api/hackathons/all` | 60/min | Unified discovery feed across all sources, online/offline, top college, internships |
+| `POST` | `/api/hackathons/verify` | 30/min | Run 7-signal verification on arbitrary candidate hackathon payload |
+| `POST` | `/api/scanner/run` | 10/min | Trigger background sweep of continuous autonomous internet scanner |
+| `POST` | `/api/scanner/instagram` | 10/min | Scrape Instagram channels & hashtags, verify, and auto-list |
+| `POST` | `/api/scanner/web-discovery`| 10/min | Search Google, MLH, Eventbrite, KonfHub, verify, and auto-list |
+| `GET` | `/api/scanner/status` | 60/min | Telemetry: scanner running status, last scan timestamp, scraped counts |
 | `GET` | `/api/metrics` | 60/min | API telemetry: p50/p95 response latencies, request count, cache size |
 | `POST` | `/api/refresh` | 5/min | Invalidate TTLCache (requires `X-Admin-Secret` header or Bearer token) |
 
@@ -156,8 +174,8 @@ All endpoints return JSON and are rate-limited per IP. All routes are also mirro
 | File | Responsibility |
 |---|---|
 | `api.py` | FastAPI application, all HTTP routes, TTLCache, rate limiting, CORS, telemetry |
-| `schemas.py` | Pydantic v2 models for OpenAPI validation (`HackathonOut`, `StatsOut`, `HackathonsResponse`, `HealthResponse`, `MetricsResponse`, `RefreshResponse`) |
-| `main.py` | One-shot pipeline orchestrator (scrape → classify → dedup → notify) |
+| `schemas.py` | Pydantic v2 models for OpenAPI validation (`HackathonOut`, `StatsOut`, `HackathonsResponse`, `InstagramScanRequest`, `WebDiscoveryRequest`, `VerifyHackathonRequest`, etc.) |
+| `main.py` | One-shot pipeline orchestrator (scrape → verify → classify → dedup → notify) |
 | `unified_server.py` | Render entry point (API + Telegram bot polling + scheduler in one process) |
 | `scrape_job.py` | Standalone cron-friendly scraper runner |
 | `scrapers/devfolio_scraper.py` | Devfolio scraper (requests + BeautifulSoup) |
@@ -165,11 +183,16 @@ All endpoints return JSON and are rate-limited per IP. All routes are also mirro
 | `scrapers/devpost_scraper.py` | Devpost scraper (requests + BeautifulSoup) |
 | `scrapers/hackerearth_scraper.py` | HackerEarth scraper (JSON API) |
 | `scrapers/devnovate_scraper.py` | Devnovate scraper (requests + BeautifulSoup) |
+| `scrapers/instagram_scraper.py` | Instagram scraper (20+ communities & hashtags, captions, deadlines, posts) |
+| `scrapers/web_discovery_scraper.py` | Multi-engine open web search (Google, MLH, Eventbrite, KonfHub) |
+| `scrapers/hackathon_verifier.py` | 7-signal automated authenticity, legitimacy, and spam verification engine |
+| `scrapers/internet_scanner.py` | Continuous autonomous scanner targeting IIT/NIT/Pune/FAANG keywords |
 | `scrapers/geocoder.py` | Nominatim geocoding (1.1s rate-limited with cache) |
 | `filters/keyword_filter.py` | College (IIT/NIT/IIIT/BITS/IISc/IIM/CFTI) and internship regex classifier |
 | `notifier/telegram_bot.py` | Full Telegram bot: send, batch notifications, polling, interactive commands |
 | `db/mongo_client.py` | Singleton MongoClient, collection getters, subscriber CRUD |
 | `data/unique_sources.json` | Curated hackathon feed (manually maintained opportunity links) |
+| `scripts/auto_discover_hackathons.py` | CLI tool to execute multi-source discovery, verification, and auto-listing |
 | `scripts/import_unique_sources.py` | Script to populate MongoDB with curated hackathon opportunities |
 
 ---
@@ -177,7 +200,7 @@ All endpoints return JSON and are rate-limited per IP. All routes are also mirro
 ## Tests
 
 ```bash
-# Run full test suite (100 tests)
+# Run full test suite (109 tests)
 pytest tests/ -v
 
 # With coverage report
@@ -189,7 +212,7 @@ pytest tests/test_pipeline.py -v
 
 Tests use `mongomock` for in-memory MongoDB — no real Atlas connection required to run them.
 
-All 100 backend tests pass on every push to `main` via GitHub Actions CI.
+All 109 backend tests pass on every push to `main` via GitHub Actions CI.
 
 ---
 

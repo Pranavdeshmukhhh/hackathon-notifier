@@ -96,12 +96,13 @@ docker-compose up --build
 
 The system is decoupled into:
 
-- **Scraper Engine (`Backend/scrapers/`)**: Multi-source scrapers (`ThreadPoolExecutor` concurrent sweeps across Devfolio, Unstop, Devpost, HackerEarth, Devnovate) with exponential backoff and proxy resilience.
-- **Classification & Normalization (`Backend/filters/`)**: Regex keyword classification tagging Top Colleges (IIT, NIT, IIIT, BITS) and PPI/internship opportunities.
+- **Scraper & Discovery Engine (`Backend/scrapers/`)**: Multi-source scrapers (`ThreadPoolExecutor` concurrent sweeps across Devfolio, Unstop, Devpost, HackerEarth, Devnovate, Instagram, Web Discovery, and Autonomous Scanner) with exponential backoff and proxy resilience.
+- **7-Signal Verification Engine (`Backend/scrapers/hackathon_verifier.py`)**: Automated authenticity and spam verification evaluating title keywords, domain authority, content depth, date range validity, spam penalties, source trust, and live URL reachability.
+- **Classification & Normalization (`Backend/filters/`)**: Regex keyword classification tagging Top Colleges (IIT, NIT, IIIT, BITS, IISc, IIM) and PPI/internship opportunities.
 - **Data Persistence (`Backend/db/`)**: MongoDB Atlas with unique constraint on `link` to guarantee zero-duplicate ingestion.
 - **API Server (`Backend/api.py`)**: FastAPI application with in-memory TTLCache, ETag conditional 304 validation, SlowAPI rate limiting, security middleware, and Pydantic response models (`Backend/schemas.py`).
 - **Notification Daemon (`Backend/notifier/`)**: Interactive Telegram bot with pagination, search, distance filtering, and subscriber broadcast.
-- **Frontend SPA (`Frontend/src/`)**: React 19 + Tailwind CSS single-page interface with glassmorphic Apple HIG design, custom hooks (`useDarkMode`, `useGeolocation`, `useScrollProgress`), skeleton loaders, and error boundaries.
+- **Frontend SPA (`Frontend/src/`)**: React 19 + Tailwind CSS single-page interface with glassmorphic Apple HIG design, custom hooks (`useDarkMode`, `useGeolocation`, `useScrollProgress`), skeleton loaders, modals (`AutoListModal`, `TechSpecModal`, `TermsAndConditions`), and error boundaries.
 
 ---
 
@@ -161,15 +162,18 @@ To add a new discovery source (e.g. `MLH`, `Kaggle`, `Major League Hacking`):
 All PRs must pass CI automated testing and linting checks:
 
 ```bash
-# 1. Backend Tests (Must pass with 100% success)
+# 1. Backend Tests (109 tests - must pass with 100% success)
 cd Backend
 python -m pytest tests/ -v --tb=short
 
-# 2. Frontend Linting
+# 2. Frontend Tests (20 vitest tests)
 cd ../Frontend
+npm test
+
+# 3. Frontend Linting
 npm run lint
 
-# 3. Frontend Production Build
+# 4. Frontend Production Build
 npm run build
 ```
 

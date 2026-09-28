@@ -26,6 +26,11 @@ React 19 + Vite frontend for the [Hackathon Notifier](https://hackathon-notifier
 ## Features
 
 - **Apple HIG-inspired design** — clean cards with glassmorphism, category badges, team sizes, and live Unstop participant counts
+- **7-Signal Verification Badges** — clear "✓ Verified" indicators with heuristic confidence percentage tooltips
+- **Auto-Discovery & Listing modal** — trigger background scanner runs for open-web and Instagram channels directly from the web interface
+- **Instagram integration** — direct links to original community reels/posts and custom Instagram gradient styling
+- **Multi-platform source filters** — filter by Devfolio, Unstop, Devpost, HackerEarth, Devnovate, Instagram, MLH, Eventbrite, and KonfHub
+- **Student Code of Practice & Terms dialog** — transparent academic code of conduct and disclaimer modal
 - **Zero-CLS skeleton loaders** — pulsing card placeholders eliminate layout shifts during data loading
 - **Auto dark / light mode** — `@media (prefers-color-scheme: dark)`, zero JS for theming
 - **Server-side pagination** — 12 cards/page fetched efficiently from the FastAPI backend
@@ -57,7 +62,7 @@ echo "VITE_API_URL=http://localhost:8000" > .env.local
 npm run dev
 # → http://localhost:5173
 
-# Run tests
+# Run tests (20 unit tests)
 npm test
 ```
 
@@ -78,6 +83,7 @@ Frontend/
 ├── src/
 │   ├── assets/              # Logos and hero illustration assets
 │   ├── components/
+│   │   ├── AutoListModal.jsx # Auto-discovery & verification control modal
 │   │   ├── ErrorBoundary.jsx # React Error Boundary to catch render failures
 │   │   ├── HackathonCard.jsx # Card displaying hackathon details, badges, and tags
 │   │   ├── Icons.jsx         # Custom SVG icon set
@@ -85,6 +91,7 @@ Frontend/
 │   │   ├── ScrollToTop.jsx   # Smooth floating scroll button
 │   │   ├── SkeletonCard.jsx  # Zero-CLS pulsing skeleton placeholder
 │   │   ├── TechSpecModal.jsx # Architecture & system overlay modal
+│   │   ├── TermsAndConditions.jsx # Student Code of Practice & Terms dialog
 │   │   └── Toast.jsx         # Ephemeral toast feedback notifications
 │   ├── hooks/
 │   │   ├── useDarkMode.js    # OS-preference-aware dark mode state
@@ -93,9 +100,11 @@ Frontend/
 │   ├── test/
 │   │   └── setup.js          # Vitest and Testing Library matchers setup
 │   ├── __tests__/
+│   │   ├── AutoListModal.test.jsx # Unit tests for auto-list modal
 │   │   ├── HackathonCard.test.jsx # Unit tests for card rendering & interactions
 │   │   ├── Pagination.test.jsx    # Unit tests for pagination navigation
-│   │   └── SkeletonCard.test.jsx  # Unit tests for loading skeletons
+│   │   ├── SkeletonCard.test.jsx  # Unit tests for loading skeletons
+│   │   └── TermsAndConditions.test.jsx # Unit tests for terms & conditions
 │   ├── App.jsx              # Main composition root, filters, state, modals
 │   ├── index.css            # Apple HIG design system tokens & styles
 │   └── main.jsx             # React 19 bootstrap wrapped in ErrorBoundary
@@ -157,7 +166,7 @@ For our full security policy, vulnerability reporting, and coordinated disclosur
 ## Build & Test
 
 ```bash
-# Run unit test suite (13 tests)
+# Run unit test suite (20 tests)
 npm test
 
 # Run linter (oxlint)

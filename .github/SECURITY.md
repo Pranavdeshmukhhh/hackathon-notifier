@@ -111,6 +111,7 @@ Here is a plain-English explanation of how Hackathon Notifier protects users and
 
 ### 3. Backend & API Defense (`Backend/api.py`)
 - **OWASP Security Response Headers**: Automatically injected on every API response (`X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, `X-XSS-Protection`, `Permissions-Policy`, `X-Permitted-Cross-Domain-Policies`).
+- **Multi-Signal Verification Engine**: Evaluates untrusted internet and social media discoveries across 7 heuristic criteria (keyword relevance, domain authority, content depth, date range validity, spam penalties, source trust, and live URL reachability) before auto-listing to actively block phishing, scam, and fraudulent competitions.
 - **Per-IP Rate Limiting**: SlowAPI restricts incoming requests (60 req/min for hackathons, health, and metrics; 5 req/min for cache clear) to safeguard the server from spam and abusive traffic.
 - **Client IP Verification**: Proxy and Cloudflare headers (`CF-Connecting-IP`, `X-Forwarded-For`) are validated against IPv4/IPv6 syntax with Python's `ipaddress` module before trusting for rate limiting.
 - **Constant-Time Admin Authentication**: Admin actions require an `ADMIN_SECRET` checked via `secrets.compare_digest` to prevent side-channel timing attacks.

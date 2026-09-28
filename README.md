@@ -4,7 +4,7 @@
 
 **Never miss a hackathon again.**
 
-A full-stack, production-grade hackathon aggregation platform — scraping Devfolio, Unstop, Devpost, HackerEarth, and Devnovate in real-time, classifying opportunities with smart metadata, and delivering them straight to your Telegram and a sleek web dashboard.
+A full-stack, production-grade hackathon aggregation platform — scraping Devfolio, Unstop, Devpost, HackerEarth, and Devnovate in real-time, scanning the open internet and Instagram for hidden hackathons, verifying listings with an automated 7-signal verification engine, classifying opportunities with smart metadata, and delivering them straight to your Telegram and a sleek web dashboard.
 
 [![Live Demo](https://img.shields.io/badge/🌍_Live_Demo-Vercel-black?style=for-the-badge)](https://hackathon-notifier.vercel.app)
 [![Backend API](https://img.shields.io/badge/⚡_Backend_API-Render-46E3B7?style=for-the-badge)](https://hackathon-notifier.onrender.com)
@@ -14,7 +14,7 @@ A full-stack, production-grade hackathon aggregation platform — scraping Devfo
 <div style="margin-top: 8px;">
 
 [![CI Pipeline](https://github.com/Pranavdeshmukhhh/hackathon-notifier/actions/workflows/ci.yml/badge.svg)](https://github.com/Pranavdeshmukhhh/hackathon-notifier/actions)
-[![Tests](https://img.shields.io/badge/tests-113%20passed-brightgreen?style=flat-square&logo=pytest)](https://github.com/Pranavdeshmukhhh/hackathon-notifier)
+[![Tests](https://img.shields.io/badge/tests-129%20passed-brightgreen?style=flat-square&logo=pytest)](https://github.com/Pranavdeshmukhhh/hackathon-notifier)
 [![Coverage](https://img.shields.io/badge/coverage-85%2B%25-brightgreen?style=flat-square&logo=codecov)](https://github.com/Pranavdeshmukhhh/hackathon-notifier)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square)](LICENSE)
 [![Python 3.12](https://img.shields.io/badge/python-3.12-blue.svg?style=flat-square&logo=python)](https://python.org)
@@ -33,7 +33,11 @@ A full-stack, production-grade hackathon aggregation platform — scraping Devfo
 
 | Feature | Description |
 |---|---|
-| 🕷️ **5 Concurrent Scrapers** | Devfolio, Unstop, Devpost, HackerEarth, Devnovate — all scraped in parallel via `ThreadPoolExecutor` |
+| 🕷️ **8 Scrapers & Discovery Modules** | Devfolio, Unstop, Devpost, HackerEarth, Devnovate, Instagram Scraper, Web Discovery (Google, MLH, Eventbrite, KonfHub), and Continuous Autonomous Internet Scanner |
+| 🛡️ **7-Signal Verification Engine** | Automated heuristic verification (title, domain authority, content validity, dates, spam penalty, source reputation, URL reachability) ensuring scam & phishing listings are rejected |
+| 📸 **Instagram Hackathon Scanner** | Scrapes 20+ top developer communities & hashtags for hidden hackathon reels & posts with direct Instagram post links |
+| 🌐 **Multi-Engine Web Discovery** | Proactively searches Google, MLH, Eventbrite, and KonfHub for upcoming coding competitions |
+| ⚡ **Auto-Discovery & Listing Dashboard** | On-demand scanner modal in UI allowing one-click background sweeps and instant verification |
 | 🏛 **Smart Classification** | Auto-detects IIT / NIT / IIIT / BITS / IISc / IIM events + internship listings using regex patterns |
 | 📍 **Location-Aware Sorting** | Haversine great-circle distance for offline events; sort results by nearest to your GPS location |
 | 🔢 **Live Registration Counts** | Displays exact participant registrations pulled from Unstop |
@@ -41,6 +45,7 @@ A full-stack, production-grade hackathon aggregation platform — scraping Devfo
 | ⭐ **Curated Sources** | Hand-picked unique opportunity feeds alongside scraped data |
 | 🌐 / 📍 **Online / Offline Tabs** | Separate filters for remote and in-person hackathons |
 | 📲 **Telegram Bot** | Push notifications + interactive commands with inline keyboard pagination |
+| 📜 **Code of Student Practice** | Built-in Terms & Conditions and Student Ethical Charter |
 | 🌓 **Auto Dark Mode** | CSS `prefers-color-scheme` — no toggle, no JS, no cookies |
 | 🔒 **Rate Limiting** | Per-IP rate limits via SlowAPI to prevent abuse |
 | 📦 **TTL Cache** | In-memory 3-hour cache so MongoDB isn't hit on every request |
@@ -50,18 +55,24 @@ A full-stack, production-grade hackathon aggregation platform — scraping Devfo
 ## 🏗 Architecture
 
 ```
-┌──────────────────────────────────────────────────────────────┐
-│                       DATA PIPELINE                           │
-│                                                               │
-│  Devfolio   ─┐                                                │
-│  Unstop     ─┤                                                │
-│  Devpost    ─┼──► ThreadPoolExecutor ──► Classify ──► MongoDB │
-│  HackerEarth─┤       (5 workers)        (IIT/NIT/   (dedup   │
-│  Devnovate  ─┘                          internship)  insert)  │
-│                                               │               │
-│                                      Geocode locations        │
-│                                     (Nominatim, 1 req/s)      │
-└──────────────────────────────────────────────────────────────┘
+┌────────────────────────────────────────────────────────────────────────┐
+│                         DATA PIPELINE & VERIFICATION                   │
+│                                                                        │
+│  Devfolio       ─┐                                                     │
+│  Unstop         ─┤                                                     │
+│  Devpost        ─┤                                                     │
+│  HackerEarth    ─┼──► ThreadPoolExecutor ──► 7-Signal   ──► Classify  │
+│  Devnovate      ─┤     (8 workers)            Verifier        (IIT/NIT/│
+│  Instagram      ─┤                         (domain, spam,    intern)  │
+│  Web Discovery  ─┤                          date, score)        │     │
+│  Autonomous Scan─┘                                              ▼     │
+│                                                            MongoDB    │
+│                                                            (dedup     │
+│                                                            insert)    │
+│                                                                 │     │
+│                                                       Geocode locations│
+│                                                     (Nominatim, 1.1s) │
+└────────────────────────────────────────────────────────────────────────┘
            │                                     │
            ▼                                     ▼
    FastAPI + TTLCache                    Telegram Bot
@@ -77,6 +88,7 @@ A full-stack, production-grade hackathon aggregation platform — scraping Devfo
 | Decision | Reason |
 |---|---|
 | **One-shot scraper** | `main.py` runs once and exits. No while-loops, no memory leaks, easier crash recovery. Scheduler (Render Cron / GitHub Actions) re-triggers it. |
+| **7-signal verification** | Automatically filters scam / fake hackathons from untrusted open-web & social media sources before database persistence. |
 | **TTL in-memory cache** | 3-hour TTL avoids hammering MongoDB on every API hit without needing Redis. Deliberate trade-off for single-instance scale. |
 | **`curl_cffi` for Unstop** | Spoofs a real browser TLS fingerprint to bypass Cloudflare bot detection. |
 | **Tenacity retry** | Exponential back-off (2s → 4s → 8s) on Telegram 429 / 5xx, with `retry_after` respected. |
@@ -95,16 +107,19 @@ A full-stack, production-grade hackathon aggregation platform — scraping Devfo
 | ⚡ | FastAPI + Uvicorn | latest | REST API server |
 | 🌿 | PyMongo | latest | MongoDB driver |
 | 🕷️ | curl_cffi | latest | Cloudflare-bypass scraping (Unstop) |
-| 🍲 | BeautifulSoup4 | latest | HTML parsing (Devfolio, Devpost, Devnovate) |
+| 🍲 | BeautifulSoup4 | latest | HTML parsing (Devfolio, Devpost, Devnovate, Web Discovery) |
+| 🛡️ | Hackathon Verifier | internal | 7-signal automated authenticity & spam verification |
+| 📸 | Instagram Scraper | internal | Scrapes 20+ Instagram dev communities & hashtags |
+| 🌐 | Web Discovery | internal | Multi-engine open web search (Google, MLH, Eventbrite, KonfHub) |
 | 📲 | pyTelegramBotAPI | latest | Telegram bot framework |
 | 📦 | Pydantic | 2.13+ | Strongly typed OpenAPI schemas & response models |
 | 🔁 | Tenacity | latest | Retry with exponential back-off |
 | 🧰 | cachetools TTLCache | latest | In-memory API response cache |
 | 🚦 | SlowAPI | latest | Per-IP rate limiting |
-| 📡 | Requests | latest | HTTP client (geocoder, HackerEarth) |
+| 📡 | Requests | latest | HTTP client (geocoder, HackerEarth, Web Discovery) |
 | 🔐 | python-dotenv | latest | Environment variable loading |
 | 🌐 | Certifi | latest | TLS CA bundle |
-| 🧪 | pytest + pytest-cov | latest | Test suite (100 backend tests) |
+| 🧪 | pytest + pytest-cov | latest | Test suite (109 backend tests) |
 | 🗄️ | mongomock | latest | In-memory MongoDB for unit tests |
 
 ### Frontend
@@ -114,7 +129,7 @@ A full-stack, production-grade hackathon aggregation platform — scraping Devfo
 | ⚛️ | React | 19 | UI framework |
 | ⚡ | Vite | 8 | Build tool + dev server |
 | 🎨 | Tailwind CSS | 4 | Utility-first styling |
-| 🧪 | Vitest | 5 | Next-generation unit test runner |
+| 🧪 | Vitest | 5 | Next-generation unit test runner (20 unit tests) |
 | 🧪 | React Testing Library | 16 | DOM & component interaction testing |
 | 🔤 | Inter (Google Fonts) | — | Typography |
 | ✏️ | Lucide React | — | Icon set |
@@ -128,7 +143,7 @@ A full-stack, production-grade hackathon aggregation platform — scraping Devfo
 | **Vercel** | React frontend (CDN, global edge, auto-deploy on push to `main`) |
 | **MongoDB Atlas** | Free-tier M0 cluster (512 MB), collections: `hackathons` + `subscribers` + `visitors` |
 | **Docker & Compose** | Containerized reproducible environment for local dev & production |
-| **GitHub Actions** | Unified CI: Python 3.12 (100 tests) + Node.js 20 (oxlint + 13 vitest tests + build) |
+| **GitHub Actions** | Unified CI: Python 3.12 (109 tests) + Node.js 20 (oxlint + 20 vitest tests + build) |
 
 ---
 
@@ -163,6 +178,10 @@ hackathon-notifier/
 │   │   ├── devpost_scraper.py   # Devpost scraper (BeautifulSoup)
 │   │   ├── hackerearth_scraper.py # HackerEarth scraper (JSON API)
 │   │   ├── devnovate_scraper.py # Devnovate scraper (BeautifulSoup)
+│   │   ├── instagram_scraper.py # Instagram scraper (20+ communities & hashtags)
+│   │   ├── web_discovery_scraper.py # Multi-engine web search (Google, MLH, Eventbrite, KonfHub)
+│   │   ├── hackathon_verifier.py# 7-signal automated authenticity & spam verification engine
+│   │   ├── internet_scanner.py  # Continuous autonomous scanner (IIT/NIT/Pune/FAANG)
 │   │   └── geocoder.py          # Nominatim geocoding with 1.1s rate limiting
 │   │
 │   ├── filters/
@@ -181,18 +200,21 @@ hackathon-notifier/
 │   │   └── unique_sources.json  # Curated hackathon feed (hand-picked links)
 │   │
 │   ├── scripts/
-│   │   └── import_unique_sources.py # Seed curated hackathons into MongoDB
+│   │   ├── auto_discover_hackathons.py # CLI discovery & auto-listing utility
+│   │   └── import_unique_sources.py    # Seed curated hackathons into MongoDB
 │   │
 │   └── tests/
 │       ├── conftest.py          # Shared fixtures (mongomock, sample data)
 │       ├── test_api_security.py # Security, rate limits, v1 routes, OpenAPI tests
 │       ├── test_pipeline.py     # Pipeline integration & concurrent scraper tests
-│       └── ...                  # 100 comprehensive test cases
+│       └── ...                  # 109 comprehensive test cases
 │
 └── Frontend/
     ├── src/
     │   ├── components/
-    │   │   ├── HackathonCard.jsx # Premium Apple HIG hackathon card
+    │   │   ├── HackathonCard.jsx # Premium Apple HIG card with verification & Instagram badges
+    │   │   ├── AutoListModal.jsx # Auto-discovery & verification control modal
+    │   │   ├── TermsAndConditions.jsx # Student Code of Practice & Terms dialog
     │   │   ├── SkeletonCard.jsx  # Zero-CLS pulsing skeleton placeholder
     │   │   ├── Pagination.jsx    # Page navigation with ellipsis
     │   │   ├── TechSpecModal.jsx # Architecture overlay dialog
@@ -208,9 +230,11 @@ hackathon-notifier/
     │   │   └── setup.js          # Vitest and Testing Library matchers setup
     │   ├── __tests__/
     │   │   ├── HackathonCard.test.jsx
+    │   │   ├── AutoListModal.test.jsx
+    │   │   ├── TermsAndConditions.test.jsx
     │   │   ├── Pagination.test.jsx
     │   │   └── SkeletonCard.test.jsx
-    │   ├── App.jsx              # Composition root (~450 lines)
+    │   ├── App.jsx              # Composition root (~500 lines)
     │   ├── index.css            # Apple HIG design system tokens & glassmorphism
     │   └── main.jsx             # React 19 entry wrapped in ErrorBoundary
     ├── Components/
@@ -393,19 +417,19 @@ For our full security policy, vulnerability reporting guidelines, and coordinate
 ## 🧪 Tests
 
 ```bash
-# Backend tests (100 test cases)
+# Backend tests (109 test cases)
 cd Backend
 pytest tests/ -v
 
 # Run with coverage report
 pytest tests/ -v --cov=. --cov-report=term-missing
 
-# Frontend tests (13 test cases)
+# Frontend tests (20 test cases)
 cd ../Frontend
 npm test
 ```
 
-All 113 tests (100 backend + 13 frontend) pass on every push (enforced by GitHub Actions CI — see `.github/workflows/ci.yml`).
+All 129 tests (109 backend + 20 frontend) pass on every push (enforced by GitHub Actions CI — see `.github/workflows/ci.yml`).
 
 ---
 
