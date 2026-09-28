@@ -266,8 +266,21 @@ async def test_tab_all_and_source_filter():
         assert len(data["data"]) == 2
         assert data["upcoming_total"] == 1
         assert data["missed_total"] == 1
+        assert data["lost_opportunities_total"] == 1
+        # Verification: stats.total excludes lost opportunities!
+        assert data["stats"]["total"] == 1
+        assert data["stats"]["active_count"] == 1
+        assert data["stats"]["lost_opportunities_count"] == 1
+        assert data["stats"]["all_total"] == 2
         assert "source_counts" in data["stats"]
         assert data["stats"]["source_counts"]["Devfolio"] == 1
         assert data["stats"]["source_counts"]["Unstop"] == 1
+
+        # 3. Test tab=lost_opportunities returns only missed/past hackathons
+        status_lost, _, body_lost = await asgi_request("GET", "/api/hackathons", query_string=b"tab=lost_opportunities")
+        assert status_lost == 200
+        data_lost = json.loads(body_lost.decode("utf-8"))
+        assert len(data_lost["data"]) == 1
+        assert data_lost["data"][0]["title"] == "Past Hack"
 
 

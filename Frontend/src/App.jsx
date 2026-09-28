@@ -21,7 +21,7 @@ import TermsAndConditions from './components/TermsAndConditions';
 import {
   PinIcon, EmptySearchIcon, TelegramIcon,
   SunIcon, MoonIcon, HamburgerIcon, ArrowRightIcon,
-  LogoIcon, ShieldCheckIcon,
+  LogoIcon, ShieldCheckIcon, GridViewIcon, ListViewIcon,
 } from './components/Icons';
 
 // ── Extracted Hooks ─────────────────────────────────────────────────────────
@@ -38,8 +38,15 @@ if (!DEFAULT_API_URL.endsWith('/api/hackathons')) DEFAULT_API_URL += '/api/hacka
 
 const COLD_START_WARN_MS = 6_000;
 const PAGE_SIZE = 12;
+const SCAN_INTERVAL_SECONDS = 900; // 15-minute autoscan cycle
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
+const formatCountdown = (totalSec) => {
+  const m = Math.floor(totalSec / 60);
+  const s = totalSec % 60;
+  return `${m}:${s < 10 ? '0' : ''}${s}`;
+};
+
 const formatLastScraped = (isoStr) => {
   if (!isoStr) return 'Active now';
   try {
@@ -62,6 +69,11 @@ function App() {
 
   // ── Routing & View State ────────────────────────────────────────────────
   const [currentView, setCurrentView]         = useState('radar'); // 'radar' | 'terms'
+  const [viewMode, setViewMode]               = useState(() => {
+    try { return localStorage.getItem('hackathon_view_mode') || 'grid'; }
+    catch { return 'grid'; }
+  });
+  const [secondsUntilNextScan, setSecondsUntilNextScan] = useState(SCAN_INTERVAL_SECONDS);
 
   // ── State ───────────────────────────────────────────────────────────────
   const [hackathons, setHackathons]           = useState([]);
@@ -78,7 +90,7 @@ function App() {
   const [showColdStartBanner, setShowColdStartBanner] = useState(false);
   const [showTechSpecModal, setShowTechSpecModal] = useState(false);
   const [showAutoListModal, setShowAutoListModal] = useState(false);
-  const [activeTab, setActiveTab]             = useState('upcoming'); // 'upcoming' | 'all' | 'missed'
+  const [activeTab, setActiveTab]             = useState('upcoming'); // 'upcoming' | 'missed' | 'all'
   const [currentPage, setCurrentPage]         = useState(1);
   const [totalPages, setTotalPages]           = useState(1);
   const [upcomingTotal, setUpcomingTotal]     = useState(0);
@@ -88,12 +100,13 @@ function App() {
   const [clientLatency, setClientLatency]     = useState(null);
 
   const [stats, setStats] = useState({
-    total: 0, unique_tags: 0, last_scraped: '', sources: [], source_counts: {},
+    total: 0, active_count: 0, lost_opportunities_count: 0, all_total: 0,
+    unique_tags: 0, last_scraped: '', sources: [], source_counts: {},
     top_college_count: 0, internship_count: 0, college_types: [],
     online_count: 0, offline_count: 0, unique_sources_count: 0, hackathon_count: 0,
     total_prize_pool_inr: 0, total_prize_pool_formatted: '',
     total_registrations: 0, total_registrations_formatted: '',
-    p50_latency_ms: 32.0, recalculated_cadence: 'Every 3-4 hours'
+    p50_latency_ms: 32.0, recalculated_cadence: 'Every 15 minutes'
   });
 
   // ── Refs ────────────────────────────────────────────────────────────────
@@ -286,9 +299,25 @@ function App() {
   useEffect(() => {
     fetchHackathons();
     if (intervalRef.current) clearInterval(intervalRef.current);
-    intervalRef.current = setInterval(() => fetchHackathons(true), 60 * 60 * 1000);
+    intervalRef.current = setInterval(() => {
+      fetchHackathons(true);
+      setSecondsUntilNextScan(SCAN_INTERVAL_SECONDS);
+    }, SCAN_INTERVAL_SECONDS * 1000);
     return () => { clearInterval(intervalRef.current); abortControllerRef.current?.abort(); clearTimeout(coldStartTimerRef.current); };
   }, [fetchHackathons]);
+
+  // Live 1-second countdown ticker for next 15-minute auto-scan
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setSecondsUntilNextScan((prev) => {
+        if (prev <= 1) {
+          return SCAN_INTERVAL_SECONDS;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
 
   // Intersection observer for active nav highlight
   useEffect(() => {
@@ -367,18 +396,20 @@ function App() {
 
   const platformSources = [
     { key: 'All',            label: 'All Platforms',   count: stats.total },
-    { key: 'Unstop',         label: 'Unstop',          count: stats.source_counts?.['Unstop'] || 2021 },
-    { key: 'Devpost',        label: 'Devpost',         count: stats.source_counts?.['Devpost'] || 302 },
-    { key: 'Devnovate',      label: 'Devnovate',       count: stats.source_counts?.['Devnovate'] || 296 },
-    { key: 'Devfolio',       label: 'Devfolio',        count: stats.source_counts?.['Devfolio'] || 48 },
-    { key: 'HackerEarth',    label: 'HackerEarth',     count: stats.source_counts?.['HackerEarth'] || 11 },
-    { key: 'Unique Sources', label: '⭐ Curated',      count: stats.source_counts?.['Unique Sources'] || stats.unique_sources_count || 30 },
+    { key: 'Unstop',         label: 'Unstop',          count: stats.source_counts?.['Unstop'] || 0 },
+    { key: 'Devpost',        label: 'Devpost',         count: stats.source_counts?.['Devpost'] || 0 },
+    { key: 'Devnovate',      label: 'Devnovate',       count: stats.source_counts?.['Devnovate'] || 0 },
+    { key: 'Devfolio',       label: 'Devfolio',        count: stats.source_counts?.['Devfolio'] || 0 },
+    { key: 'HackerEarth',    label: 'HackerEarth',     count: stats.source_counts?.['HackerEarth'] || 0 },
+    { key: 'Instagram',      label: '📸 Instagram',    count: stats.source_counts?.['Instagram'] || 0 },
+    { key: 'Web Discovery',  label: '🌐 Open Web',     count: stats.source_counts?.['Web Discovery'] || 0 },
+    { key: 'Unique Sources', label: '⭐ Curated',      count: stats.source_counts?.['Unique Sources'] || stats.unique_sources_count || 0 },
   ];
 
   const tabs = [
-    { key: 'upcoming', label: '🚀 Upcoming',       count: upcomingTotal },
-    { key: 'all',      label: '⚡ All Hackathons', count: allTotal || (upcomingTotal + missedTotal) || stats.total },
-    { key: 'missed',   label: '📁 Past Deadlines', count: missedTotal },
+    { key: 'upcoming', label: '🚀 Active Opportunities', count: upcomingTotal },
+    { key: 'missed',   label: '💔 Lost Opportunities',   count: missedTotal },
+    { key: 'all',      label: '⚡ All Hackathons',       count: allTotal || (upcomingTotal + missedTotal) || stats.total },
   ];
 
   // ── Render ────────────────────────────────────────────────────────────
@@ -521,7 +552,7 @@ function App() {
                 </div>
                 <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight text-slate-950 dark:text-white leading-[1.12]">Stop missing hackathons while arguing in the canteen.</h1>
                 <p className="text-base sm:text-lg text-slate-600 dark:text-slate-300 leading-relaxed font-normal">
-                  Continuously scan <strong className="text-slate-900 dark:text-white font-bold">{stats.total ? `${stats.total.toLocaleString()}+` : '2,700+'} verified student hackathons</strong> across top IITs, NITs, and premier global hubs. Rigorously vetted for guaranteed cash pools, college On-Duty (OD) approval letters, and direct SDE interview shortlists.
+                  Continuously scan <strong className="text-slate-900 dark:text-white font-bold">{stats.total ? `${stats.total.toLocaleString()}` : (upcomingTotal ? upcomingTotal.toLocaleString() : '2,684')} active verified hackathons</strong> across top IITs, NITs, and premier global hubs. Old ended hackathons are strictly archived into Lost Opportunities and excluded from total active count.
                 </p>
                 <div className="flex flex-wrap items-center gap-3 pt-2">
                   <button className="h-12 min-h-[44px] px-6 rounded-[14px] apple-squircle apple-touch-target apple-spring-press apple-dual-bevel bg-[#007AFF] hover:bg-[#0066D6] dark:bg-[#0A84FF] dark:hover:bg-[#0077ED] text-white text-sm font-semibold shadow-xs hover:shadow-md hover:shadow-[#007AFF]/25 transition-all duration-200 flex items-center gap-2 cursor-pointer" onClick={() => scrollToSection('events')}>Explore Live Hacks <ArrowRightIcon /></button>
@@ -538,7 +569,7 @@ function App() {
                     <div className="text-lg sm:text-xl font-bold text-[#34C759] dark:text-[#30D158] tracking-tight">{stats.top_college_count ? `${stats.top_college_count} Premier` : '100% OD'}</div>
                     <div className="text-[10px] uppercase font-semibold text-slate-500 dark:text-slate-400 tracking-wider flex items-center justify-between mt-0.5"><span>HOD Approved</span><span className="text-[10px] text-[#34C759] opacity-0 group-hover:opacity-100 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-all duration-200">↗</span></div>
                   </button>
-                  <button type="button" onClick={() => { scrollToSection('dashboard'); showToast('⚡ Telemetry: Live sub-second radar active'); }} className="text-left bg-white/95 dark:bg-[#1C1C1E]/95 backdrop-blur-xl p-3.5 rounded-[16px] apple-squircle apple-dual-bevel apple-spring-press border border-black/[0.08] dark:border-white/[0.10] shadow-[0_2px_10px_rgba(0,0,0,0.03)] dark:shadow-[0_4px_16px_rgba(0,0,0,0.30)] hover:border-[#007AFF]/40 dark:hover:border-[#0A84FF]/40 hover:-translate-y-1 hover:shadow-lg dark:hover:shadow-[0_8px_24px_rgba(0,0,0,0.45)] transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] group cursor-pointer crystal-chamfer crystal-sheen" title="View live broadcast telemetry">
+                  <button type="button" onClick={() => { scrollToSection('dashboard'); showToast('⚡ Telemetry: Live 15-min autonomous radar active'); }} className="text-left bg-white/95 dark:bg-[#1C1C1E]/95 backdrop-blur-xl p-3.5 rounded-[16px] apple-squircle apple-dual-bevel apple-spring-press border border-black/[0.08] dark:border-white/[0.10] shadow-[0_2px_10px_rgba(0,0,0,0.03)] dark:shadow-[0_4px_16px_rgba(0,0,0,0.30)] hover:border-[#007AFF]/40 dark:hover:border-[#0A84FF]/40 hover:-translate-y-1 hover:shadow-lg dark:hover:shadow-[0_8px_24px_rgba(0,0,0,0.45)] transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] group cursor-pointer crystal-chamfer crystal-sheen" title="View live broadcast telemetry">
                     <div className="text-lg sm:text-xl font-bold text-[#007AFF] dark:text-[#0A84FF] tracking-tight">{latencyDisplay}</div>
                     <div className="text-[10px] uppercase font-semibold text-slate-500 dark:text-slate-400 tracking-wider flex items-center justify-between mt-0.5"><span>Push Latency</span><span className="text-[10px] text-[#007AFF] opacity-0 group-hover:opacity-100 transition-opacity">⚡</span></div>
                   </button>
@@ -550,21 +581,21 @@ function App() {
                 <div>
                   <div className="flex items-center justify-between border-b border-black/[0.06] dark:border-white/[0.08] pb-3 mb-4">
                     <div className="flex items-center gap-2"><span className="w-2.5 h-2.5 rounded-full bg-[#34C759] dark:bg-[#30D158] animate-pulse"></span><span className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wide">Live Telemetry</span></div>
-                    <span className="text-[10px] font-semibold uppercase px-2.5 py-0.5 rounded-full bg-[#007AFF]/10 text-[#007AFF] dark:bg-[#0A84FF]/15 dark:text-[#0A84FF] border border-[#007AFF]/20 crystal-pill" title="Recalculated every 3–4 hours">Recalculated ~3-4h</span>
+                    <span className="text-[10px] font-semibold uppercase px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20 crystal-pill" title="Autonomous 15-minute background discovery">Auto-Sweep 15m</span>
                   </div>
                   <div className="bg-[#F2F2F7]/80 dark:bg-[#2C2C2E]/60 backdrop-blur-md rounded-[16px] p-4.5 border border-black/[0.04] dark:border-white/[0.06] space-y-4 crystal-chamfer">
-                    <div className="flex items-center justify-between text-xs font-mono"><span className="text-slate-500 dark:text-slate-400">Sync Cadence</span><strong className="text-slate-900 dark:text-white">Every 3–4 hrs · {formatLastScraped(stats.last_scraped)}</strong></div>
+                    <div className="flex items-center justify-between text-xs font-mono"><span className="text-slate-500 dark:text-slate-400">Scan Cadence</span><strong className="text-slate-900 dark:text-white">Every 15 min · Next in {formatCountdown(secondsUntilNextScan)}</strong></div>
                     <div className="grid grid-cols-2 gap-4">
                       <div><div className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">{upcomingTotal}</div><div className="text-[10px] uppercase font-semibold text-slate-500 dark:text-slate-400">Active Live</div></div>
                       <div><div className="text-2xl font-bold text-[#34C759] dark:text-[#30D158] tracking-tight">{stats.top_college_count || 0}</div><div className="text-[10px] uppercase font-semibold text-slate-500 dark:text-slate-400">Premier IIT/NIT</div></div>
                       <div><div className="text-2xl font-bold text-[#AF52DE] dark:text-[#BF5AF2] tracking-tight">{stats.internship_count || 0}</div><div className="text-[10px] uppercase font-semibold text-slate-500 dark:text-slate-400">Internships</div></div>
-                      <div><div className="text-2xl font-bold text-[#007AFF] dark:text-[#0A84FF] tracking-tight">{allTotal || stats.total || 0}</div><div className="text-[10px] uppercase font-semibold text-slate-500 dark:text-slate-400">Total Tracked</div></div>
+                      <div><div className="text-2xl font-bold text-rose-600 dark:text-rose-400 tracking-tight">{missedTotal || stats.lost_opportunities_count || 0}</div><div className="text-[10px] uppercase font-semibold text-slate-500 dark:text-slate-400">Lost Opps (Past)</div></div>
                     </div>
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-2.5 pt-4 border-t border-black/[0.06] dark:border-white/[0.08] mt-4 text-center">
                   <div className="p-3 rounded-[12px] bg-[#F2F2F7]/80 dark:bg-white/[0.04] border border-black/[0.06] dark:border-white/[0.06] crystal-chamfer"><div className="text-sm font-bold text-slate-900 dark:text-white">{stats.total_registrations ? stats.total_registrations.toLocaleString() : '263,031'}</div><div className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 uppercase">Registered Students</div></div>
-                  <div className="p-3 rounded-[12px] bg-emerald-500/10 border border-emerald-500/20 crystal-chamfer crystal-pill"><div className="text-sm font-bold text-[#34C759] dark:text-[#30D158]">{stats.total_prize_pool_formatted || '₹40.6 Cr'}</div><div className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 uppercase">Total Prize Pool</div></div>
+                  <div className="p-3 rounded-[12px] bg-emerald-500/10 border border-emerald-500/20 crystal-chamfer crystal-pill"><div className="text-sm font-bold text-[#34C759] dark:text-[#30D158]">{stats.total_prize_pool_formatted || '₹40.6 Cr'}</div><div className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 uppercase">Active Prize Pool</div></div>
                 </div>
               </div>
             </section>
@@ -594,6 +625,38 @@ function App() {
                     title="Autonomous Internet Hackathon Scanner for Colleges & Cities"
                   >
                     🌐 Auto-Scanner
+                  </button>
+                </div>
+              </div>
+
+              {/* ── 15-MINUTE AUTONOMOUS RADAR STATUS BAR ── */}
+              <div className="flex flex-wrap items-center justify-between gap-3 p-3.5 rounded-[18px] bg-gradient-to-r from-blue-500/[0.08] via-indigo-500/[0.06] to-violet-500/[0.08] border border-blue-500/20 backdrop-blur-xl shadow-xs">
+                <div className="flex items-center gap-2.5">
+                  <span className="relative flex h-3 w-3 shrink-0">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+                  </span>
+                  <div>
+                    <span className="text-xs font-bold text-slate-900 dark:text-white flex flex-wrap items-center gap-1.5">
+                      <span>Autonomous Radar Engine:</span>
+                      <span className="text-[11px] font-normal text-slate-600 dark:text-slate-300">Scanning internet, Instagram & platforms every 15 min</span>
+                    </span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2.5 ml-auto">
+                  <span className="text-xs font-mono bg-white/90 dark:bg-[#1C1C1E]/90 px-3 py-1 rounded-[10px] border border-black/[0.06] dark:border-white/[0.08] text-slate-700 dark:text-slate-300">
+                    Next sweep in: <strong className="text-[#007AFF] dark:text-[#0A84FF]">{formatCountdown(secondsUntilNextScan)}</strong>
+                  </span>
+                  <button
+                    onClick={() => {
+                      setSecondsUntilNextScan(SCAN_INTERVAL_SECONDS);
+                      fetchHackathons(true);
+                      showToast('🔄 Executing live autonomous sweep across web & social...');
+                    }}
+                    className="px-3.5 py-1.5 rounded-[10px] bg-[#007AFF] hover:bg-[#0066D6] dark:bg-[#0A84FF] dark:hover:bg-[#0077ED] text-white text-xs font-bold shadow-xs hover:shadow-sm transition-all cursor-pointer flex items-center gap-1"
+                    title="Force immediate radar sweep"
+                  >
+                    <span>⚡ Scan Now</span>
                   </button>
                 </div>
               </div>
@@ -682,6 +745,44 @@ function App() {
                 ))}
 
                 <div className="ml-auto flex flex-wrap items-center gap-2.5">
+                  {/* Adjustable View Switcher: Grid vs Compact List */}
+                  <div className="flex items-center p-1 rounded-[12px] bg-black/[0.05] dark:bg-white/[0.08] border border-black/[0.04] dark:border-white/[0.06]">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setViewMode('grid');
+                        try { localStorage.setItem('hackathon_view_mode', 'grid'); } catch {}
+                      }}
+                      className={`p-2 rounded-[8px] text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+                        viewMode === 'grid'
+                          ? 'bg-white dark:bg-[#2C2C2E] text-slate-900 dark:text-white shadow-xs font-bold'
+                          : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'
+                      }`}
+                      title="Card Grid View"
+                      aria-label="Card Grid View"
+                    >
+                      <GridViewIcon />
+                      <span className="hidden sm:inline">Grid</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setViewMode('compact');
+                        try { localStorage.setItem('hackathon_view_mode', 'compact'); } catch {}
+                      }}
+                      className={`p-2 rounded-[8px] text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+                        viewMode === 'compact'
+                          ? 'bg-white dark:bg-[#2C2C2E] text-slate-900 dark:text-white shadow-xs font-bold'
+                          : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'
+                      }`}
+                      title="Compact List View"
+                      aria-label="Compact List View"
+                    >
+                      <ListViewIcon />
+                      <span className="hidden sm:inline">List</span>
+                    </button>
+                  </div>
+
                   <div className="flex items-center gap-1.5">
                     <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Show:</span>
                     <select value={pageSize} onChange={handlePageSizeChange} className="h-10 sm:h-11 min-h-[40px] sm:min-h-[44px] bg-white/95 dark:bg-[#1C1C1E]/95 border border-black/[0.08] dark:border-white/[0.10] text-slate-700 dark:text-slate-300 text-xs font-semibold rounded-[12px] apple-squircle apple-touch-target apple-dual-bevel px-2.5 py-2 focus:outline-none focus:ring-2 focus:ring-[#007AFF] cursor-pointer shadow-xs transition-all duration-200 crystal-chamfer">
@@ -718,7 +819,7 @@ function App() {
                 </div>
               )}
 
-              {/* ── TAB SWITCHER (UPCOMING / ALL / PAST) ── */}
+              {/* ── TAB SWITCHER (ACTIVE / LOST OPPORTUNITIES / ALL) ── */}
               {!loading && !error && (upcomingTotal > 0 || missedTotal > 0 || allTotal > 0) && (
                 <div className="flex flex-wrap items-center justify-between gap-4">
                   <div className="relative p-1 rounded-[16px] apple-squircle bg-black/[0.05] dark:bg-white/[0.08] backdrop-blur-md inline-flex items-center shadow-inner border border-black/[0.04] dark:border-white/[0.04] w-fit min-h-[44px] crystal-pill crystal-chamfer">
@@ -738,9 +839,9 @@ function App() {
                           activeTab === tab.key
                             ? tab.key === 'upcoming'
                               ? 'bg-[#007AFF]/12 text-[#007AFF] dark:bg-[#0A84FF]/25 dark:text-[#0A84FF] scale-105'
-                              : tab.key === 'all'
-                              ? 'bg-purple-500/15 text-purple-700 dark:text-purple-300 scale-105'
-                              : 'bg-black/10 text-black dark:bg-white/20 dark:text-white scale-105'
+                              : tab.key === 'missed'
+                              ? 'bg-rose-500/15 text-rose-700 dark:text-rose-300 scale-105'
+                              : 'bg-purple-500/15 text-purple-700 dark:text-purple-300 scale-105'
                             : 'bg-black/[0.05] dark:bg-white/10 text-slate-500 dark:text-slate-400'
                         }`}>
                           {tab.count}
@@ -758,16 +859,43 @@ function App() {
                 </div>
               )}
 
-              {/* Card Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+              {/* ── DEDICATED LOST OPPORTUNITIES SECTION BANNER ── */}
+              {activeTab === 'missed' && (
+                <div className="p-4 sm:p-5 rounded-[20px] bg-rose-500/[0.08] dark:bg-rose-500/[0.12] border border-rose-500/25 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 text-rose-950 dark:text-rose-100">
+                  <div className="space-y-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-base font-bold text-rose-900 dark:text-rose-200">💔 Lost Opportunities Archive</span>
+                      <span className="text-[10px] font-bold uppercase px-2.5 py-0.5 rounded-full bg-rose-500/20 text-rose-700 dark:text-rose-300 border border-rose-500/30">
+                        {missedTotal} Deadlines Passed
+                      </span>
+                      <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-[6px] bg-black/5 dark:bg-white/10 text-slate-700 dark:text-slate-300">
+                        Excluded from Active Total
+                      </span>
+                    </div>
+                    <p className="text-xs text-rose-800/80 dark:text-rose-300/80 max-w-2xl leading-relaxed">
+                      These hackathons have concluded or their registrations are closed. We preserve them in this dedicated section so you can inspect past themes, winning project tracks, and college OD archives without diluting your active application pipeline.
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => handleTabChange('upcoming')}
+                    className="shrink-0 px-4 py-2 rounded-[12px] bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold shadow-xs transition-all cursor-pointer flex items-center gap-1.5"
+                  >
+                    <span>🚀 Back to Active Hacks</span>
+                    <span className="opacity-80">({upcomingTotal})</span>
+                  </button>
+                </div>
+              )}
+
+              {/* Card Container (Grid or Compact List) */}
+              <div className={viewMode === 'grid' ? "grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6" : "flex flex-col gap-3.5"}>
                 {loading ? (
                   Array.from({ length: pageSize > 12 ? 12 : pageSize }).map((_, i) => (
                     <SkeletonCard key={i} />
                   ))
                 ) : !error && hackathons.length > 0 ? (
                   hackathons.map((h, index) => (
-                    <div key={h._id || h.link} className="animate-card-in scroll-reveal-card" style={{ animationDelay: `${Math.min(index * 30, 210)}ms` }}>
-                      <HackathonCard hackathon={h} onShare={(title) => showToast(`Copied link for ${title}`)} />
+                    <div key={h._id || h.link} className="animate-card-in scroll-reveal-card" style={{ animationDelay: `${Math.min(index * 25, 200)}ms` }}>
+                      <HackathonCard hackathon={h} onShare={(title) => showToast(`Copied link for ${title}`)} viewMode={viewMode} />
                     </div>
                   ))
                 ) : null}

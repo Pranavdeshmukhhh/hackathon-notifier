@@ -87,4 +87,26 @@ describe('HackathonCard Component', () => {
     expect(onShare).toHaveBeenCalledWith('HackNITR 6.0');
     expect(navigator.clipboard.writeText).toHaveBeenCalledWith('https://hacknitr.devfolio.co');
   });
+
+  it('renders correctly in compact list view mode', () => {
+    render(<HackathonCard hackathon={mockHackathon} viewMode="compact" />);
+
+    expect(screen.getByText('HackNITR 6.0')).toBeInTheDocument();
+    expect(screen.getByText('Devfolio')).toBeInTheDocument();
+    expect(screen.getByText('🏆 ₹5,00,000')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /register now/i })).toBeInTheDocument();
+  });
+
+  it('renders lost opportunity badge when is_past is true', () => {
+    const pastHackathon = {
+      ...mockHackathon,
+      title: 'Old Concluded Hack',
+      is_past: true,
+      status: 'Ended',
+    };
+    render(<HackathonCard hackathon={pastHackathon} />);
+
+    expect(screen.getByText(/lost opportunity/i)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /view details/i })).toBeInTheDocument();
+  });
 });

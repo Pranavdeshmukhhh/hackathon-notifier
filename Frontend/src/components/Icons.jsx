@@ -77,3 +77,23 @@ export const ShieldCheckIcon = () => (
 export const LogoIcon = () => (
   <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2L2 19.5h20L12 2zm0 3.84L18.66 17.5H5.34L12 5.84zM11 10h2v4h-2zm0 5h2v2h-2z"/></svg>
 );
+
+export const GridViewIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="3" y="3" width="7" height="7" rx="1.5" />
+    <rect x="14" y="3" width="7" height="7" rx="1.5" />
+    <rect x="14" y="14" width="7" height="7" rx="1.5" />
+    <rect x="3" y="14" width="7" height="7" rx="1.5" />
+  </svg>
+);
+
+export const ListViewIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <line x1="8" y1="6" x2="21" y2="6" />
+    <line x1="8" y1="12" x2="21" y2="12" />
+    <line x1="8" y1="18" x2="21" y2="18" />
+    <line x1="3" y1="6" x2="3.01" y2="6" strokeWidth="3" />
+    <line x1="3" y1="12" x2="3.01" y2="12" strokeWidth="3" />
+    <line x1="3" y1="18" x2="3.01" y2="18" strokeWidth="3" />
+  </svg>
+);

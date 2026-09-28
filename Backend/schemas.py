@@ -55,7 +55,10 @@ class HackathonOut(BaseModel):
 
 
 class StatsOut(BaseModel):
-    total: int = Field(default=0, description="Total hackathons currently indexed")
+    total: int = Field(default=0, description="Active upcoming hackathons currently indexed (excluding lost opportunities)")
+    active_count: Optional[int] = Field(default=0, description="Count of active/upcoming hackathons")
+    lost_opportunities_count: Optional[int] = Field(default=0, description="Count of past/expired hackathons (lost opportunities)")
+    all_total: Optional[int] = Field(default=0, description="Total count across all active and lost opportunities")
     unique_tags: int = Field(default=0, description="Count of distinct tech/theme tags")
     sources: list[str] = Field(default_factory=list, description="List of active scraper sources")
     source_counts: dict[str, int] = Field(default_factory=dict, description="Count of hackathons per source platform")
@@ -72,7 +75,7 @@ class StatsOut(BaseModel):
     total_registrations: int = Field(default=0, description="Sum of registered participants across all events")
     total_registrations_formatted: str = Field(default="0", description="Formatted registration count (e.g. 42.5k)")
     p50_latency_ms: float = Field(default=32.0, description="Median API server response latency")
-    recalculated_cadence: str = Field(default="Every 3-4 hours", description="Background refresh schedule")
+    recalculated_cadence: str = Field(default="Every 15 minutes", description="Background refresh schedule")
     calculated_at: str = Field(default="", description="ISO timestamp of statistics aggregation")
 
 
@@ -82,6 +85,7 @@ class HackathonsResponse(BaseModel):
     data: list[HackathonOut] = Field(default_factory=list, description="Paginated hackathon entities")
     upcoming_total: int = Field(default=0, description="Total upcoming opportunities matching filter")
     missed_total: int = Field(default=0, description="Total past opportunities matching filter")
+    lost_opportunities_total: Optional[int] = Field(default=0, description="Total lost opportunities matching filter")
     all_total: Optional[int] = Field(default=0, description="Total opportunities matching filter across all tabs")
     stats: Optional[StatsOut] = Field(default=None, description="System-wide aggregate radar telemetry")
 

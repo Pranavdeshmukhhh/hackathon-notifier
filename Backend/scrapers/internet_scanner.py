@@ -467,10 +467,11 @@ def run_internet_scan(keywords: list[str] = None) -> dict:
             _scanner_state["is_scanning"] = False
 
 
-def start_continuous_background_scanner(interval_hours: float = 2.0):
-    """Launch a continuous daemon worker that periodically sweeps the web."""
+def start_continuous_background_scanner(interval_hours: float = 0.25):
+    """Launch a continuous daemon worker that periodically sweeps the web every 15 minutes."""
     def worker():
-        logger.info("Continuous background internet scanner daemon launched (interval=%.1f hrs)", interval_hours)
+        mins = int(interval_hours * 60)
+        logger.info("Continuous background internet scanner daemon launched (interval=%d mins)", mins)
         while True:
             try:
                 run_internet_scan()

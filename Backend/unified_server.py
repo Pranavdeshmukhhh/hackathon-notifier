@@ -50,35 +50,34 @@ def _run_bot_polling():
             time.sleep(15)
 
 
-# ── Background: Scheduled Scraping ───────────────────────────────────────────
-
+# ── Background: Scheduled Scraping (Every 15 Minutes) ────────────────────────
 def _run_scheduler():
-    """Run the scraping pipeline every 1 hour."""
-    INTERVAL_HOURS = 1
-    INTERVAL_SECONDS = INTERVAL_HOURS * 3600
+    """Run the scraping pipeline across all platforms, Instagram, and open-web every 15 minutes."""
+    INTERVAL_MINUTES = 15
+    INTERVAL_SECONDS = INTERVAL_MINUTES * 60
 
-    # Wait 30 seconds on startup to let the API server finish booting
-    time.sleep(30)
+    # Wait 20 seconds on startup to let the API server finish booting
+    time.sleep(20)
 
-    logger.info("⏰ Scheduler started — scraping every %d hours.", INTERVAL_HOURS)
+    logger.info("⏰ Scheduler started — auto-scanning open internet, Instagram & platforms every %d minutes.", INTERVAL_MINUTES)
     while True:
         try:
-            logger.info("⏰ Scheduled scrape starting...")
+            logger.info("⏰ 15-minute scheduled scrape & verification starting...")
             main_module.run_pipeline()
             try:
                 from api import _cache
                 _cache.clear()
-                logger.info("⏰ Cache cleared in-memory after scheduled scrape.")
+                logger.info("⏰ Cache cleared in-memory after 15-minute scheduled scrape.")
             except Exception as e:
                 logger.warning("Could not clear cache after scrape: %s", e)
-            logger.info("⏰ Scheduled scrape complete.")
+            logger.info("⏰ 15-minute scheduled scrape complete.")
         except Exception:
             logger.exception(
-                "⏰ Scheduled scrape failed (e.g. no internet). "
-                "Will retry next cycle."
+                "⏰ Scheduled scrape failed (e.g. temporary network issue). "
+                "Will retry in %d minutes.", INTERVAL_MINUTES
             )
 
-        logger.info("⏰ Sleeping %d hours until next scrape...", INTERVAL_HOURS)
+        logger.info("⏰ Sleeping %d minutes until next auto-scan cycle...", INTERVAL_MINUTES)
         time.sleep(INTERVAL_SECONDS)
 
 

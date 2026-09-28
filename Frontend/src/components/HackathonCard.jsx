@@ -168,7 +168,7 @@ function getDisplayRegistrations(rawRegs, hackathon) {
   return 'Active Registrations';
 }
 
-const HackathonCard = ({ hackathon, onShare }) => {
+const HackathonCard = ({ hackathon, onShare, viewMode = 'grid' }) => {
   const [copied, setCopied] = React.useState(false);
   const isPast        = hackathon.is_past === true;
   const source        = hackathon.source || 'Unknown';
@@ -220,12 +220,132 @@ const HackathonCard = ({ hackathon, onShare }) => {
     ? (minTeam && maxTeam && minTeam !== maxTeam ? `Team ${minTeam}–${maxTeam}` : `Team ${minTeam || maxTeam}`)
     : 'Open Participation';
 
+  // ── COMPACT LIST / TABLE ROW VIEW ──
+  if (viewMode === 'compact') {
+    return (
+      <div 
+        className={`group relative overflow-hidden rounded-[16px] apple-squircle border bg-white/95 dark:bg-[#1C1C1E]/90 backdrop-blur-xl p-3.5 sm:p-4 transition-all duration-200 flex flex-col md:flex-row md:items-center justify-between gap-3 shadow-xs hover:shadow-md ${
+          isPast 
+            ? 'border-rose-500/25 dark:border-rose-500/20 bg-rose-500/[0.02] dark:bg-rose-500/[0.04] opacity-80' 
+            : 'border-black/[0.08] dark:border-white/[0.12] hover:border-[#007AFF]/40 dark:hover:border-[#0A84FF]/40'
+        }`}
+      >
+        <div className={`hidden md:block absolute left-0 top-0 bottom-0 w-1.5 bg-gradient-to-b ${bannerGradient}`} />
+        <div className="flex flex-col gap-1.5 md:pl-2 flex-1 min-w-0">
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="inline-flex items-center px-2 py-0.5 rounded-[6px] text-[10px] font-bold uppercase bg-[#007AFF]/10 text-[#007AFF] dark:bg-[#0A84FF]/15 dark:text-[#0A84FF]">
+              {source}
+            </span>
+            {isPast ? (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-[6px] text-[10px] font-bold bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20">
+                💔 Lost Opportunity · Ended
+              </span>
+            ) : hackathon.status ? (
+              <span className={`inline-flex items-center px-2 py-0.5 rounded-[6px] text-[10px] font-bold ${
+                hackathon.status.toLowerCase() === 'live'
+                  ? 'bg-[#34C759]/10 text-[#34C759] dark:bg-[#30D158]/15 dark:text-[#30D158]'
+                  : 'bg-black/[0.04] text-slate-700 dark:bg-white/[0.08] dark:text-slate-300'
+              }`}>
+                {hackathon.status}
+              </span>
+            ) : null}
+            {isTopCollege && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-[6px] text-[10px] font-bold bg-[#5856D6]/10 text-[#5856D6] dark:bg-[#5E5CE6]/15 dark:text-[#5E5CE6]" title={collegeName}>
+                <BuildingIcon /> {collegeType}
+              </span>
+            )}
+            {isInternship && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-[6px] text-[10px] font-bold bg-[#AF52DE]/10 text-[#AF52DE] dark:bg-[#BF5AF2]/15 dark:text-[#BF5AF2]">
+                <BriefcaseIcon /> Internship
+              </span>
+            )}
+            {hackathon.verified && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-[6px] text-[10px] font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+                <CheckIcon /> Verified
+              </span>
+            )}
+            {hackathon.discovery_source === 'instagram' && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-[6px] text-[10px] font-bold text-[#DD2A7B] dark:text-[#E1306C] bg-pink-500/10 border border-pink-500/20">
+                IG: {hackathon.source_account || 'Social'}
+              </span>
+            )}
+          </div>
+
+          <h3 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white truncate group-hover:text-[#007AFF] dark:group-hover:text-[#0A84FF] transition-colors">
+            {hackathon.title}
+          </h3>
+
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500 dark:text-slate-400">
+            <span className="flex items-center gap-1">
+              <CalendarIcon /> {hackathon.deadline || 'TBA'}
+            </span>
+            <span className="flex items-center gap-1">
+              <GlobeIcon /> {location || 'Online / Virtual'}
+              {distanceKm !== undefined && <span className="text-[#007AFF] dark:text-[#0A84FF] font-semibold">({distanceKm} km)</span>}
+            </span>
+            <span className="flex items-center gap-1 text-[#007AFF] dark:text-[#0A84FF] font-medium">
+              <UsersIcon /> {displayRegistrations}
+            </span>
+          </div>
+        </div>
+
+        <div className="flex items-center justify-between md:justify-end gap-3 shrink-0 pt-2 md:pt-0 border-t md:border-t-0 border-black/[0.06] dark:border-white/[0.08]">
+          <div className={`px-2.5 py-1 rounded-[8px] text-xs font-bold border whitespace-nowrap ${
+            displayPrize.isExplicit
+              ? 'text-emerald-800 dark:text-emerald-300 bg-emerald-500/10 dark:bg-emerald-500/15 border-emerald-500/25 dark:border-emerald-500/30'
+              : 'text-slate-700 dark:text-slate-300 bg-black/[0.03] dark:bg-white/[0.06] border-black/[0.06] dark:border-white/[0.08]'
+          }`}>
+            🏆 {displayPrize.text}
+          </div>
+
+          <div className="flex items-center gap-2">
+            <a
+              href={safeLink}
+              target={safeLink !== '#' ? "_blank" : undefined}
+              rel={safeLink !== '#' ? "noopener noreferrer" : undefined}
+              onClick={(e) => {
+                if (safeLink === '#') { e.preventDefault(); return; }
+                onShare?.(`Opening ${source} portal for ${hackathon.title}`);
+              }}
+              className={`h-9 px-3.5 rounded-[10px] font-semibold text-xs inline-flex items-center justify-center gap-1.5 shadow-xs transition-all ${
+                safeLink === '#'
+                  ? 'bg-slate-300 dark:bg-slate-700 text-slate-500 cursor-not-allowed'
+                  : isPast
+                  ? 'bg-slate-200 dark:bg-white/[0.12] text-slate-800 dark:text-slate-200 hover:bg-slate-300 dark:hover:bg-white/[0.18]'
+                  : 'bg-[#007AFF] hover:bg-[#0066D6] dark:bg-[#0A84FF] text-white hover:shadow-sm'
+              }`}
+            >
+              <span>{safeLink === '#' ? 'Link Unavailable' : isPast ? 'View Details' : 'Register Now'}</span>
+              {safeLink !== '#' && <ExternalLinkIcon />}
+            </a>
+            <button
+              type="button"
+              className={`h-9 w-9 rounded-[10px] border flex items-center justify-center transition-all cursor-pointer ${
+                copied ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-600' : 'bg-white dark:bg-white/[0.08] border-black/[0.08] dark:border-white/[0.10] text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/[0.14]'
+              }`}
+              onClick={handleCopy}
+              title={copied ? "Link copied!" : "Copy link"}
+              aria-label="Copy link"
+            >
+              {copied ? <CheckIcon /> : <ShareIcon />}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ── STANDARD CARD VIEW (GRID) ──
   return (
     <div 
       onMouseMove={handleMouseMove}
       onMouseLeave={handleMouseLeave}
       style={{ transform: 'perspective(1000px) rotateX(var(--tilt-x, 0deg)) rotateY(var(--tilt-y, 0deg)) translateZ(0)' }}
-      className={`group relative overflow-hidden rounded-[24px] apple-squircle border border-black/[0.08] dark:border-white/[0.12] bg-white/95 dark:bg-[#1C1C1E]/90 backdrop-blur-xl shadow-[0_2px_14px_-2px_rgba(0,0,0,0.04)] dark:shadow-[0_4px_24px_-2px_rgba(0,0,0,0.45)] hover:shadow-2xl dark:hover:shadow-[0_24px_52px_rgba(0,0,0,0.75)] hover:border-[#007AFF]/40 dark:hover:border-[#0A84FF]/50 ios-card-spring apple-touch-layer apple-specular-spotlight crystal-chamfer crystal-sheen apple-card-contain apple-dual-bevel flex flex-col justify-between h-full ${isPast ? 'opacity-75 grayscale-[0.15]' : ''}`}
+      className={`group relative overflow-hidden rounded-[24px] apple-squircle border bg-white/95 dark:bg-[#1C1C1E]/90 backdrop-blur-xl shadow-[0_2px_14px_-2px_rgba(0,0,0,0.04)] dark:shadow-[0_4px_24px_-2px_rgba(0,0,0,0.45)] hover:shadow-2xl dark:hover:shadow-[0_24px_52px_rgba(0,0,0,0.75)] hover:border-[#007AFF]/40 dark:hover:border-[#0A84FF]/50 ios-card-spring apple-touch-layer apple-specular-spotlight crystal-chamfer crystal-sheen apple-card-contain apple-dual-bevel flex flex-col justify-between h-full ${
+        isPast 
+          ? 'border-rose-500/25 dark:border-rose-500/20 bg-rose-500/[0.015] dark:bg-rose-500/[0.03] opacity-80' 
+          : 'border-black/[0.08] dark:border-white/[0.12]'
+      }`}
     >
       {/* Platform Branded Subtle Accent Hairline */}
       <div className={`h-1 group-hover:h-1.5 w-full bg-gradient-to-r ${bannerGradient} opacity-90 transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:opacity-100`} />
@@ -238,11 +358,15 @@ const HackathonCard = ({ hackathon, onShare }) => {
           <span className="inline-flex items-center px-2.5 py-0.5 rounded-[8px] text-[11px] font-semibold uppercase bg-[#007AFF]/10 text-[#007AFF] dark:bg-[#0A84FF]/15 dark:text-[#0A84FF] border border-[#007AFF]/20 dark:border-[#0A84FF]/30 crystal-pill apple-caption">
             {source}
           </span>
-          {hackathon.status && (
+          {isPast ? (
+            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-[8px] text-[11px] font-bold bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20 crystal-pill apple-caption">
+              💔 Lost Opportunity (Ended)
+            </span>
+          ) : hackathon.status ? (
             <span className={`inline-flex items-center px-2.5 py-0.5 rounded-[8px] text-[11px] font-semibold crystal-pill apple-caption ${hackathon.status.toLowerCase() === 'live' ? 'bg-[#34C759]/10 text-[#34C759] dark:bg-[#30D158]/15 dark:text-[#30D158] border border-[#34C759]/25 dark:border-[#30D158]/30' : 'bg-black/[0.04] text-slate-700 dark:bg-white/[0.08] dark:text-slate-300 border border-black/[0.06] dark:border-white/[0.08]'}`}>
               {hackathon.status}
             </span>
-          )}
+          ) : null}
           {isTopCollege && (
             <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-[8px] text-[11px] font-semibold bg-[#5856D6]/10 text-[#5856D6] dark:bg-[#5E5CE6]/15 dark:text-[#5E5CE6] border border-[#5856D6]/20 dark:border-[#5E5CE6]/30 crystal-pill apple-caption" title={collegeName}>
               <BuildingIcon /> {collegeType}
@@ -378,6 +502,8 @@ const HackathonCard = ({ hackathon, onShare }) => {
           className={`h-11 min-h-[44px] flex-1 apple-touch-target apple-squircle inline-flex items-center justify-center gap-2 px-4 rounded-[14px] font-semibold text-xs sm:text-sm shadow-xs transition-all duration-250 ease-[cubic-bezier(0.16,1,0.3,1)] apple-spring-press apple-touch-layer crystal-chamfer apple-dual-bevel ${
             safeLink === '#'
               ? 'bg-slate-300 dark:bg-slate-700 text-slate-500 dark:text-slate-400 cursor-not-allowed'
+              : isPast
+              ? 'bg-slate-200 dark:bg-white/[0.12] text-slate-800 dark:text-slate-200 hover:bg-slate-300 dark:hover:bg-white/[0.18]'
               : 'bg-[#007AFF] hover:bg-[#0066D6] dark:bg-[#0A84FF] dark:hover:bg-[#0077ED] text-white cursor-pointer hover:shadow-md hover:shadow-[#007AFF]/25'
           }`}
         >

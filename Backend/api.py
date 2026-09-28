@@ -93,8 +93,8 @@ limiter = Limiter(key_func=get_client_ip)
 async def lifespan(app: FastAPI):
     """Lifecycle manager: launches continuous autonomous internet scanner daemon on startup."""
     try:
-        start_continuous_background_scanner(interval_hours=2.0)
-        logger.info("Continuous autonomous internet scanner started.")
+        start_continuous_background_scanner(interval_hours=0.25)
+        logger.info("Continuous autonomous internet scanner started (15-minute interval).")
     except Exception as e:
         logger.warning("Could not launch background scanner daemon: %s", e)
     yield
@@ -117,31 +117,14 @@ v1_router = APIRouter(prefix="/api/v1", tags=["v1"])
 
 # ── In-memory TTL cache ──────────────────────────────────────────────────────────────
 #
-# Why TTLCache instead of Redis / Memcached?
-#   At this scale (single Render instance, ~100 requests/day), in-process
-#   caching has zero infrastructure cost and <1ms latency. A distributed
-#   cache would add complexity and a new failure mode without measurable
-#   benefit. This is a deliberate trade-off, documented here so future
-#   contributors understand it wasn't an oversight.
-#
 # Strategy:
 #   - maxsize=32 (one slot per unique (lat, lng) pair plus the "all" key)
-#   - TTL = CACHE_TTL_SECONDS (default 3600s = 1 hour)
+#   - TTL = CACHE_TTL_SECONDS (default 900s = 15 minutes)
 #   - Cache is keyed by rounded (lat, lng) so proximity-sorted results are also
 #     cached per unique user location area without allowing cache exhaustion attacks.
-#   - On a cache HIT the MongoDB round-trip is skipped entirely —
-#     a query that takes ~80ms from cold becomes ~0.2ms from cache.
-#   - After a scrape job runs (scrape_job.py / Render cron), the frontend
-#     would normally wait up to TTL for fresh data. To avoid this, POST
-#     /api/refresh clears the cache immediately. The scrape cron should
-#     call that endpoint as its final step.
+#   - On a cache HIT the MongoDB round-trip is skipped entirely.
 #
-# Tuning:
-#   Set CACHE_TTL_SECONDS env var to override. Recommended values:
-#     - Development / testing : 60    (1 minute — see changes quickly)
-#     - Production            : 10800 (3 hours — calculated every 3-4 hours)
-#
-_CACHE_TTL = int(os.getenv("CACHE_TTL_SECONDS", 3 * 3600))
+_CACHE_TTL = int(os.getenv("CACHE_TTL_SECONDS", 900))
 _cache: TTLCache = TTLCache(maxsize=32, ttl=_CACHE_TTL)
 _CACHE_KEY = "hackathons"
 
@@ -452,6 +435,8 @@ def get_hackathons(
                 docs.append(doc)
 
             sorted_docs = _sort_hackathons(docs)
+            active_docs = [d for d in sorted_docs if not d.get("is_past", False)]
+            lost_docs = [d for d in sorted_docs if d.get("is_past", False)]
 
             # Collect stats
             all_tags = set()
@@ -473,17 +458,18 @@ def get_hackathons(
                 if sa > latest_scrape:
                     latest_scrape = sa
 
-                # Classification stats
-                if doc.get("is_top_college"):
-                    top_college_count += 1
-                    ct = doc.get("college_type")
-                    if ct:
-                        college_types.add(ct)
-                if doc.get("is_internship"):
-                    internship_count += 1
+                # Classification stats on active opportunities
+                if not doc.get("is_past", False):
+                    if doc.get("is_top_college"):
+                        top_college_count += 1
+                        ct = doc.get("college_type")
+                        if ct:
+                            college_types.add(ct)
+                    if doc.get("is_internship"):
+                        internship_count += 1
 
-            # Calculate real prize pool & real total registrations
-            total_prize_inr = sum(_clean_prize_to_inr(d.get("prize", "")) for d in sorted_docs)
+            # Calculate real prize pool & real total registrations on active docs
+            total_prize_inr = sum(_clean_prize_to_inr(d.get("prize", "")) for d in active_docs)
             if total_prize_inr >= 10_000_000:
                 total_prize_formatted = f"₹{total_prize_inr / 10_000_000:.1f} Cr"
             elif total_prize_inr >= 100_000:
@@ -493,7 +479,7 @@ def get_hackathons(
             else:
                 total_prize_formatted = "₹0"
 
-            total_registrations = sum(int(d.get("total_registrations") or d.get("registrations") or 0) for d in sorted_docs)
+            total_registrations = sum(int(d.get("total_registrations") or d.get("registrations") or 0) for d in active_docs)
             if total_registrations >= 1_000:
                 total_registrations_formatted = f"{total_registrations / 1000:.1f}k"
             else:
@@ -502,7 +488,10 @@ def get_hackathons(
             p50_lat = round(statistics.median(_latencies), 1) if _latencies else 32.0
 
             stats = {
-                "total": len(sorted_docs),
+                "total": len(active_docs),  # User constraint: Lost opportunities are not counted in total found
+                "active_count": len(active_docs),
+                "lost_opportunities_count": len(lost_docs),
+                "all_total": len(sorted_docs),
                 "unique_tags": len(all_tags),
                 "sources": list(sources),
                 "source_counts": source_counts,
@@ -510,16 +499,16 @@ def get_hackathons(
                 "top_college_count": top_college_count,
                 "internship_count": internship_count,
                 "college_types": sorted(college_types),
-                "online_count": sum(1 for d in sorted_docs if "online" in d.get("mode", "").lower()),
-                "offline_count": sum(1 for d in sorted_docs if "offline" in d.get("mode", "").lower()),
-                "unique_sources_count": sum(1 for d in sorted_docs if d.get("source") == "Unique Sources"),
-                "hackathon_count": sum(1 for d in sorted_docs if d.get("opportunity_type") == "Hackathon"),
+                "online_count": sum(1 for d in active_docs if "online" in d.get("mode", "").lower()),
+                "offline_count": sum(1 for d in active_docs if "offline" in d.get("mode", "").lower()),
+                "unique_sources_count": sum(1 for d in active_docs if d.get("source") == "Unique Sources"),
+                "hackathon_count": sum(1 for d in active_docs if d.get("opportunity_type") == "Hackathon"),
                 "total_prize_pool_inr": total_prize_inr,
                 "total_prize_pool_formatted": total_prize_formatted,
                 "total_registrations": total_registrations,
                 "total_registrations_formatted": total_registrations_formatted,
                 "p50_latency_ms": p50_lat,
-                "recalculated_cadence": "Every 3-4 hours",
+                "recalculated_cadence": "Every 15 minutes",
                 "calculated_at": datetime.now(timezone.utc).isoformat()
             }
 
@@ -596,13 +585,13 @@ def get_hackathons(
     elif sort == 'newest':
         filtered = sorted(filtered, key=lambda d: str(d.get('scraped_at') or ''), reverse=True)
 
-    # Split into Upcoming / Missed / All
+    # Split into Upcoming / Missed (Lost Opportunities) / All
     upcoming = [d for d in filtered if not d.get('is_past', False)]
     missed = [d for d in filtered if d.get('is_past', False)]
     
     if tab == 'all':
         target_list = filtered
-    elif tab == 'missed':
+    elif tab in ('missed', 'lost', 'lost_opportunities'):
         target_list = missed
     else: # upcoming
         target_list = upcoming
@@ -618,6 +607,7 @@ def get_hackathons(
         "data": page_data, 
         "upcoming_total": len(upcoming),
         "missed_total": len(missed),
+        "lost_opportunities_total": len(missed),
         "all_total": len(filtered),
         "stats": cached["stats"]
     }
