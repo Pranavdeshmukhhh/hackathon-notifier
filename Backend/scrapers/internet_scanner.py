@@ -32,7 +32,7 @@ logger = logging.getLogger("internet_scanner")
 COLLEGE_KEYWORDS = [
     "iit", "nit", "iiit", "bits pilani", "coep", "pict", "vjti",
     "dtu", "nsut", "vit pune", "iiit hyderabad", "iiit bangalore",
-    "iiit delhi", "iisc"
+    "iiit delhi", "iisc", "megathon", "singularity"
 ]
 
 CITY_KEYWORDS = [
@@ -45,7 +45,7 @@ FAANG_KEYWORDS = [
 
 DEFAULT_KEYWORDS = [
     "iit", "nit", "iiit", "iiit hyderabad", "pune", "coep", "pict",
-    "hyderabad", "bengaluru", "faang", "mango", "meta", "google"
+    "hyderabad", "bengaluru", "faang", "mango", "meta", "google", "megathon"
 ]
 
 _scanner_lock = threading.Lock()

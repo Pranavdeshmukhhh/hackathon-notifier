@@ -1097,5 +1097,37 @@
     "min_team_size": 1,
     "max_team_size": 4,
     "total_registrations": 1400
+  },
+  {
+    "title": "Megathon X: Singularity",
+    "link": "https://megathon.in/",
+    "source": "Unique Sources",
+    "mode": "Offline",
+    "venue": "IIIT Hyderabad Campus",
+    "location": "IIIT Hyderabad, Hyderabad, Telangana, India",
+    "city": "Hyderabad",
+    "lat": 17.4455,
+    "lng": 78.3489,
+    "deadline": "10 Oct 2026",
+    "deadline_iso": "2026-10-10",
+    "tags": [
+      "iiit hyderabad",
+      "singularity",
+      "megathon",
+      "hyderabad",
+      "ai",
+      "ml",
+      "web3",
+      "top college"
+    ],
+    "status": "upcoming",
+    "prize": "₹8,00,000",
+    "min_team_size": 2,
+    "max_team_size": 5,
+    "total_registrations": 1200,
+    "college_name": "IIIT Hyderabad",
+    "college_type": "IIIT",
+    "is_top_college": true,
+    "desc": "Megathon X: Singularity is Hyderabad's largest 24-hour student-run flagship hackathon organized by E-Cell, IIIT Hyderabad at the IIIT Hyderabad campus. Powered by Lloyds Banking Group with Qualcomm, Vanguard, and Bhashini."
   }
 ]

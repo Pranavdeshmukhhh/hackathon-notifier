@@ -59,6 +59,8 @@ DISCOVERY_QUERIES = [
     "delhi hackathon 2026",
     "devfolio hackathon open",
     "unstop hackathon open registration",
+    "megathon iiit hyderabad register",
+    "megathon x singularity",
 ]
 
 # ── Known Hackathon Platform Domains (high trust) ────────────────────────────
@@ -66,7 +68,7 @@ TRUSTED_DOMAINS = {
     "devfolio.co", "unstop.com", "devpost.com", "hackerearth.com",
     "dare2compete.com", "kaggle.com", "mlh.io", "lu.ma", "luma.com",
     "konfhub.com", "eventbrite.com", "eventbrite.in",
-    "meetup.com", "techfest.org", "hackon.live",
+    "meetup.com", "techfest.org", "hackon.live", "megathon.in",
 }
 
 # ── Reject domains that are never hackathon registrations ────────────────────
