@@ -211,12 +211,12 @@ const HackathonCard = ({ hackathon, onShare, viewMode = 'grid' }) => {
           )}
         </div>
 
-        <div className="flex items-center gap-2">
-          <a {...linkProps} className={`btn ${isPast || isLinkDead ? 'btn-ghost' : 'btn-ink'}`}>
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          <a {...linkProps} className={`btn flex-1 sm:flex-initial justify-center ${isPast || isLinkDead ? 'btn-ghost' : 'btn-ink'}`}>
             <span>{ctaLabel}</span>
             {!isLinkDead && <ArrowUpRightIcon size={14} />}
           </a>
-          <button type="button" className="icon-btn" data-copied={copied} onClick={handleCopy} title={copied ? 'Link copied!' : 'Copy link'} aria-label="Copy link">
+          <button type="button" className="icon-btn shrink-0" data-copied={copied} onClick={handleCopy} title={copied ? 'Link copied!' : 'Copy link'} aria-label="Copy link">
             {copied ? <CheckIcon size={15} /> : <ShareIcon />}
           </button>
         </div>

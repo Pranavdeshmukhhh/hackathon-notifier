@@ -55,7 +55,7 @@ export function CursorSpotlight() {
 
 export function TiltCard({ children, index = 0, className = '' }) {
   const reduce = useReducedMotion();
-  const [tiltOn] = useState(canHover);
+  const [tiltOn, setTiltOn] = useState(canHover);
   const [hovered, setHovered] = useState(false);
   const px = useMotionValue(0.5);
   const py = useMotionValue(0.5);
@@ -63,6 +63,14 @@ export function TiltCard({ children, index = 0, className = '' }) {
   const rotateY = useSpring(useTransform(px, [0, 1], [-5, 5]), spring);
   const rotateX = useSpring(useTransform(py, [0, 1], [5, -5]), spring);
   const sheen = useMotionTemplate`radial-gradient(260px circle at ${useTransform(px, (v) => v * 100)}% ${useTransform(py, (v) => v * 100)}%, rgba(255,255,255,0.10), transparent 60%)`;
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.matchMedia) return undefined;
+    const mq = window.matchMedia('(hover: hover) and (pointer: fine)');
+    const onChange = (e) => setTiltOn(e.matches);
+    mq.addEventListener?.('change', onChange);
+    return () => mq.removeEventListener?.('change', onChange);
+  }, []);
 
   const onMove = (e) => {
     const r = e.currentTarget.getBoundingClientRect();
@@ -74,7 +82,7 @@ export function TiltCard({ children, index = 0, className = '' }) {
   const entrance = reduce
     ? {}
     : {
-        initial: { opacity: 0, y: 28, scale: 0.97 },
+        initial: { opacity: 0, y: 24, scale: 0.98 },
         animate: { opacity: 1, y: 0, scale: 1 },
         exit: { opacity: 0, scale: 0.96 },
         transition: {
@@ -87,14 +95,14 @@ export function TiltCard({ children, index = 0, className = '' }) {
 
   return (
     <motion.div
-      layout={!reduce}
+      layout={tiltOn && !reduce}
       {...entrance}
       onPointerMove={tiltOn && !reduce ? onMove : undefined}
       onPointerEnter={tiltOn && !reduce ? () => setHovered(true) : undefined}
       onPointerLeave={tiltOn && !reduce ? onLeave : undefined}
       style={tiltOn && !reduce ? { rotateX, rotateY, transformPerspective: 900 } : undefined}
       whileHover={tiltOn && !reduce ? { y: -4 } : undefined}
-      className={`relative ${className}`}
+      className={`relative w-full h-full flex flex-col ${className}`}
     >
       {children}
       {tiltOn && !reduce && (

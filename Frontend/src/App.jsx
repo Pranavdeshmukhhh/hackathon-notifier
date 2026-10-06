@@ -343,6 +343,16 @@ function App() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userLocation]);
 
+  // Lock body scroll when mobile navigation drawer is open
+  useEffect(() => {
+    if (mobileMenuOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => { document.body.style.overflow = ''; };
+  }, [mobileMenuOpen]);
+
   // ── Event Handlers ────────────────────────────────────────────────────
   const handleCategoryChange = (cat) => { setActiveCategory(cat); setCurrentPage(1); };
   const handleSourceChange   = (src) => { setActiveSource(src); setCurrentPage(1); };
@@ -454,6 +464,7 @@ function App() {
     (currentView === 'radar' && activeSection === key && key !== 'terms');
   const handleNav = (e, key) => {
     e.preventDefault();
+    setMobileMenuOpen(false);
     if (key === 'terms') navigateToTerms();
     else navigateToRadar(key);
   };
@@ -488,15 +499,15 @@ function App() {
       <CursorSpotlight />
       <header className="site-header">
         <div className="header-progress" style={{ transform: `scaleX(${isScrolled ? scrollProgress / 100 : 0})` }} />
-        <div className="shell flex items-center justify-between gap-6 h-16">
+        <div className="shell flex items-center justify-between gap-3 sm:gap-6 h-16">
           <a
             href="#"
-            className="brand"
+            className="brand min-w-0"
             aria-label="Hackathon Notifier — home"
             onClick={(e) => { e.preventDefault(); navigateToRadar('home'); }}
           >
             <LogoIcon />
-            <span>Hackathon Notifier</span>
+            <span className="truncate">Hackathon Notifier</span>
           </a>
 
           <nav className="hidden md:flex items-center gap-9" aria-label="Primary">
@@ -513,7 +524,7 @@ function App() {
             ))}
           </nav>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
             <button className="icon-btn" onClick={toggleDarkMode} title="Toggle theme" aria-label="Toggle theme">
               {isDarkMode ? <SunIcon /> : <MoonIcon />}
             </button>
@@ -548,14 +559,14 @@ function App() {
 
         {/* Mobile menu */}
         {mobileMenuOpen && (
-          <div className="md:hidden absolute top-full left-0 right-0 bg-paper border-b border-line-strong animate-sheet-pop">
-            <nav className="shell py-3" aria-label="Mobile">
+          <div className="md:hidden absolute top-full left-0 right-0 bg-paper border-b border-line-strong animate-sheet-pop max-h-[calc(100dvh-4rem)] overflow-y-auto shadow-2xl">
+            <nav className="shell py-2" aria-label="Mobile">
               {navItems.map(({ key, label }) => (
                 <a
                   key={key}
                   href={`#${key}`}
                   onClick={(e) => handleNav(e, key)}
-                  className={`flex items-center justify-between py-4 border-b border-line display text-[30px] ${isNavActive(key) ? 'text-accent-text' : 'text-ink'}`}
+                  className={`flex items-center justify-between py-3.5 border-b border-line display text-[26px] ${isNavActive(key) ? 'text-accent-text' : 'text-ink'}`}
                 >
                   {label}
                   <ArrowUpRightIcon size={18} />
@@ -563,9 +574,13 @@ function App() {
               ))}
             </nav>
             <div className="shell pb-5 pt-3 grid grid-cols-3 gap-2">
-              <button className="btn btn-ghost" onClick={openScanner}>Scanner</button>
-              <button className="btn btn-ghost" onClick={() => { setMobileMenuOpen(false); handleNearMe(); }}>Near me</button>
-              <button className="btn btn-ink" onClick={() => { setMobileMenuOpen(false); handleSync(); }}>Sync</button>
+              <button className="btn btn-ghost !px-2 !text-xs truncate" onClick={openScanner}>Scanner</button>
+              <button className="btn btn-ghost !px-2 !text-xs truncate" onClick={() => { setMobileMenuOpen(false); handleNearMe(); }}>
+                {isLocating ? 'Locating…' : 'Near me'}
+              </button>
+              <button className="btn btn-ink !px-2 !text-xs truncate" onClick={() => { setMobileMenuOpen(false); handleSync(); }}>
+                {loading ? 'Syncing…' : 'Sync'}
+              </button>
             </div>
           </div>
         )}
@@ -597,7 +612,7 @@ function App() {
                     Native OD system · Zero amber tolerance
                   </p>
                   <h1
-                    className="display rise mt-7 [font-size:clamp(3.25rem,8.6vw,7.75rem)]"
+                    className="display rise mt-7 [font-size:clamp(2.35rem,7.5vw,7.75rem)]"
                     style={{ '--d': 1 }}
                   >
                     Stop missing hackathons <em>while arguing in the canteen.</em>
@@ -640,7 +655,7 @@ function App() {
 
                   <div className="px-5 pb-6 pt-1">
                     <div className="eyebrow">Next sweep in</div>
-                    <div className="num mt-3 text-[68px] text-ink" aria-live="off">
+                    <div className="num mt-3 text-[clamp(2.75rem,8vw,4.25rem)] text-ink" aria-live="off">
                       {formatCountdown(secondsUntilNextScan)}
                     </div>
                     <div className="sweep-track mt-5" role="presentation">
@@ -657,9 +672,9 @@ function App() {
                     ].map((cell, i) => (
                       <div
                         key={cell.l}
-                        className={`p-5 ${i % 2 === 0 ? 'border-r border-line' : ''} ${i < 2 ? 'border-b border-line' : ''}`}
+                        className={`p-3.5 sm:p-5 ${i % 2 === 0 ? 'border-r border-line' : ''} ${i < 2 ? 'border-b border-line' : ''}`}
                       >
-                        <div className={`num text-[40px] ${cell.tone}`}><CountUp value={cell.v} format={fmt} /></div>
+                        <div className={`num text-[clamp(1.75rem,5.5vw,2.5rem)] ${cell.tone}`}><CountUp value={cell.v} format={fmt} /></div>
                         <div className="eyebrow mt-2.5">{cell.l}</div>
                       </div>
                     ))}
@@ -726,7 +741,7 @@ function App() {
                     Zero scam portals. Direct links. Every major platform, aggregated across India and globally.
                   </p>
                 </div>
-                <div className="lg:col-span-5 flex items-end gap-4">
+                <div className="lg:col-span-5 flex flex-col sm:flex-row items-stretch sm:items-end gap-3 sm:gap-4">
                   <div className="search flex-1">
                     <span className="search-icon"><SearchIcon /></span>
                     <input
@@ -838,14 +853,14 @@ function App() {
 
               {/* Tabs + view controls */}
               <div className="mt-10 border-t border-line-strong flex flex-wrap items-center justify-between gap-x-8 gap-y-3">
-                <div role="tablist" aria-label="Opportunity status" className="flex flex-wrap">
+                <div role="tablist" aria-label="Opportunity status" className="flex items-center overflow-x-auto no-scrollbar max-w-full pb-1 sm:pb-0 touch-pan-x">
                   {tabs.map((tab) => (
                     <button
                       key={tab.key}
                       type="button"
                       role="tab"
                       aria-selected={activeTab === tab.key}
-                      className="tab"
+                      className="tab shrink-0"
                       onClick={() => handleTabChange(tab.key)}
                     >
                       {tab.label}
@@ -854,8 +869,8 @@ function App() {
                   ))}
                 </div>
 
-                <div className="flex flex-wrap items-center gap-2.5 py-2.5">
-                  <div className="seg" role="group" aria-label="Layout">
+                <div className="flex flex-wrap items-center gap-2 sm:gap-2.5 py-2.5 w-full sm:w-auto justify-between sm:justify-start">
+                  <div className="seg shrink-0" role="group" aria-label="Layout">
                     <button
                       type="button"
                       aria-pressed={viewMode === 'grid'}
@@ -875,13 +890,13 @@ function App() {
                       <ListViewIcon /> <span className="hidden sm:inline">List</span>
                     </button>
                   </div>
-                  <select value={pageSize} onChange={handlePageSizeChange} className="field" aria-label="Results per page">
+                  <select value={pageSize} onChange={handlePageSizeChange} className="field flex-1 sm:flex-initial min-w-[110px]" aria-label="Results per page">
                     <option value={12}>12 / page</option>
                     <option value={24}>24 / page</option>
                     <option value={48}>48 / page</option>
                     <option value={96}>96 / page</option>
                   </select>
-                  <select value={sortBy} onChange={handleSortChange} className="field" aria-label="Sort order">
+                  <select value={sortBy} onChange={handleSortChange} className="field flex-1 sm:flex-initial min-w-[130px]" aria-label="Sort order">
                     <option value="deadline">Deadline — soonest</option>
                     <option value="newest">Recently added</option>
                     <option value="name">Name A–Z</option>

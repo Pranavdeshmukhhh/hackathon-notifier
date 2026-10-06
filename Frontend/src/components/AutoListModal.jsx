@@ -217,7 +217,7 @@ export default function AutoListModal({ onClose, onSuccess, apiBase }) {
       onClick={onClose}
     >
       <div
-        className="bg-white/95 dark:bg-[#18181B]/95 backdrop-blur-2xl border border-black/[0.1] dark:border-white/[0.12] rounded-[24px] p-5 sm:p-7 w-full max-w-3xl shadow-2xl relative my-auto animate-sheet-pop max-h-[92vh] flex flex-col"
+        className="bg-white/95 dark:bg-[#18181B]/95 backdrop-blur-2xl border border-black/[0.1] dark:border-white/[0.12] rounded-[20px] sm:rounded-[24px] p-4 sm:p-7 w-full max-w-3xl shadow-2xl relative my-auto animate-sheet-pop max-h-[94dvh] flex flex-col"
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
@@ -355,7 +355,7 @@ export default function AutoListModal({ onClose, onSuccess, apiBase }) {
                 }
               }}
               disabled={isInstagramScanning || isTriggering}
-              className={`shrink-0 px-4 py-2.5 rounded-[12px] font-bold text-xs shadow-md transition-all flex items-center gap-2 cursor-pointer ${
+              className={`w-full sm:w-auto justify-center shrink-0 px-4 py-2.5 rounded-[12px] font-bold text-xs shadow-md transition-all flex items-center gap-2 cursor-pointer ${
                 isInstagramScanning
                   ? 'bg-slate-400 text-white cursor-not-allowed opacity-80'
                   : 'bg-gradient-to-r from-[#F58529] via-[#DD2A7B] to-[#8134AF] hover:from-[#E07420] hover:via-[#CC1E6C] hover:to-[#7029A0] text-white shadow-[#DD2A7B]/25 active:scale-95'
@@ -419,7 +419,7 @@ export default function AutoListModal({ onClose, onSuccess, apiBase }) {
                 }
               }}
               disabled={isWebDiscovering || isTriggering}
-              className={`shrink-0 px-4 py-2.5 rounded-[12px] font-bold text-xs shadow-md transition-all flex items-center gap-2 cursor-pointer ${
+              className={`w-full sm:w-auto justify-center shrink-0 px-4 py-2.5 rounded-[12px] font-bold text-xs shadow-md transition-all flex items-center gap-2 cursor-pointer ${
                 isWebDiscovering
                   ? 'bg-slate-400 text-white cursor-not-allowed opacity-80'
                   : 'bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white shadow-emerald-500/25 active:scale-95'

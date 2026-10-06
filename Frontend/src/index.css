@@ -157,6 +157,8 @@
     background: var(--bg);
     scroll-behavior: smooth;
     -webkit-text-size-adjust: 100%;
+    overflow-x: hidden;
+    max-width: 100vw;
   }
 
   body {
@@ -166,6 +168,9 @@
     font-size: 15px;
     line-height: 1.55;
     min-height: 100vh;
+    overflow-x: hidden;
+    max-width: 100vw;
+    position: relative;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
@@ -233,7 +238,7 @@
   width: 100%;
   max-width: 1360px;
   margin-inline: auto;
-  padding-inline: clamp(1.25rem, 3.4vw, 2.75rem);
+  padding-inline: clamp(1rem, 3.2vw, 2.75rem);
 }
 
 .display {
@@ -667,17 +672,29 @@ select.field option {
 /* Stat strip --------------------------------------------------------------- */
 .stat-strip {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: 1fr;
   border-block: 1px solid var(--line);
+}
+@media (min-width: 640px) {
+  .stat-strip {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
 }
 .stat-cell {
   position: relative;
   text-align: left;
-  padding: 22px clamp(14px, 2.4vw, 32px) 24px;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--line);
   transition: background-color 0.3s var(--ease);
 }
-.stat-cell + .stat-cell {
-  border-left: 1px solid var(--line);
+@media (min-width: 640px) {
+  .stat-cell {
+    padding: 22px clamp(14px, 2.4vw, 32px) 24px;
+    border-bottom: none;
+  }
+  .stat-cell + .stat-cell {
+    border-left: 1px solid var(--line);
+  }
 }
 .stat-cell:hover {
   background: var(--surface);
@@ -747,6 +764,8 @@ select.field option {
   border: 1px solid var(--line-strong);
   margin: -1px 0 0 -1px;
   min-width: 0;
+  width: 100%;
+  container-type: inline-size;
 }
 
 .hcard {
@@ -783,10 +802,16 @@ select.field option {
 .hcard-body {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 14px;
   flex: 1;
-  padding: 22px 24px 20px;
+  padding: 18px 18px 16px;
   transition: opacity 0.3s var(--ease);
+}
+@media (min-width: 640px) {
+  .hcard-body {
+    padding: 22px 24px 20px;
+    gap: 16px;
+  }
 }
 .hcard-source {
   font-family: var(--font-mono);
@@ -809,15 +834,15 @@ select.field option {
 .hcard-title {
   font-family: var(--font-display);
   font-weight: 400;
-  font-size: 28px;
-  line-height: 1.04;
+  font-size: clamp(22px, 5.6vw, 28px);
+  line-height: 1.08;
   letter-spacing: -0.015em;
   color: var(--ink);
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
-  min-height: 2.08em;
+  min-height: 2.16em;
   text-wrap: balance;
 }
 .tag {
@@ -960,9 +985,9 @@ select.field option {
   flex: 1;
   min-width: 0;
   display: grid;
-  gap: 14px 24px;
+  gap: 12px 20px;
   align-items: center;
-  padding: 16px 24px;
+  padding: 14px 16px;
   background: var(--bg);
   transition: background-color 0.25s var(--ease);
 }
@@ -972,6 +997,12 @@ select.field option {
 .hrow[data-past="true"] .hrow-main {
   opacity: 0.62;
 }
+@media (min-width: 640px) {
+  .hrow {
+    padding: 16px 24px;
+    gap: 14px 24px;
+  }
+}
 @media (min-width: 900px) {
   .hrow {
     grid-template-columns: 130px minmax(0, 1fr) 190px auto;
@@ -979,13 +1010,14 @@ select.field option {
 }
 .hrow-title {
   font-family: var(--font-display);
-  font-size: 24px;
-  line-height: 1.1;
+  font-size: clamp(20px, 4.8vw, 24px);
+  line-height: 1.15;
   letter-spacing: -0.01em;
   color: var(--ink);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 /* Pagination */
@@ -1045,10 +1077,13 @@ select.field option {
 
 .foot-word {
   font-family: var(--font-display);
-  font-size: clamp(3.5rem, 15.5vw, 15rem);
-  line-height: 0.8;
+  font-size: clamp(2.25rem, 11vw, 15rem);
+  line-height: 0.85;
   letter-spacing: -0.04em;
   white-space: nowrap;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: clip;
   color: transparent;
   -webkit-text-stroke: 1px var(--line-strong);
   user-select: none;
@@ -1170,3 +1205,12 @@ select.field option {
     scroll-behavior: auto;
   }
 }
+
+.no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
