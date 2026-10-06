@@ -4,17 +4,18 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="color-scheme" content="light dark" />
     <title>Hackathon Notifier — Real-Time Student Hackathon Discovery</title>
-    <meta name="description" content="Discover 3,400+ verified student hackathons across IITs, NITs, IIIT, and global tech hubs. Real-time scanning from Unstop, Devpost, Devfolio & HackerEarth with instant Telegram alerts." />
-    <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)" />
-    <meta name="theme-color" content="#FFFFFF" media="(prefers-color-scheme: light)" />
+    <meta name="description" content="Discover verified student hackathons across IITs, NITs, IIITs and global tech hubs. Real-time scanning of Unstop, Devpost, Devfolio &amp; HackerEarth with instant Telegram alerts." />
+    <meta name="theme-color" content="#0C0B0A" media="(prefers-color-scheme: dark)" />
+    <meta name="theme-color" content="#F3F0E8" media="(prefers-color-scheme: light)" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 
     <!-- Open Graph -->
     <meta property="og:type" content="website" />
     <meta property="og:title" content="Hackathon Notifier — Real-Time Student Hackathon Discovery" />
-    <meta property="og:description" content="Discover 3,400+ verified student hackathons across IITs, NITs, and global tech hubs with real-time alerts." />
+    <meta property="og:description" content="Verified hackathons across IITs, NITs, and global tech hubs, with real-time alerts." />
     <meta property="og:site_name" content="Hackathon Notifier" />
 
     <!-- Twitter Card -->
@@ -22,9 +23,23 @@
     <meta name="twitter:title" content="Hackathon Notifier" />
     <meta name="twitter:description" content="Real-time hackathon discovery for Indian engineering students. Zero spam, verified events only." />
 
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Public+Sans:ital,wght@0,100..900;1,100..900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <!-- Apply the theme before first paint to avoid a light/dark flash -->
+    <script>
+      (function () {
+        try {
+          if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+            document.documentElement.classList.add('dark');
+          }
+        } catch (e) {}
+      })();
+    </script>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Geist:wght@300..700&family=Geist+Mono:wght@400..600&family=Instrument+Serif:ital@0;1&display=swap"
+      rel="stylesheet"
+    />
   </head>
   <body>
     <div id="root"></div>

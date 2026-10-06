@@ -93,7 +93,7 @@ describe('HackathonCard Component', () => {
 
     expect(screen.getByText('HackNITR 6.0')).toBeInTheDocument();
     expect(screen.getByText('Devfolio')).toBeInTheDocument();
-    expect(screen.getByText('🏆 ₹5,00,000')).toBeInTheDocument();
+    expect(screen.getByText('₹5,00,000')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /register now/i })).toBeInTheDocument();
   });
 

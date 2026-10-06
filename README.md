@@ -14,7 +14,7 @@ A full-stack, production-grade hackathon aggregation platform — scraping Devfo
 <div style="margin-top: 8px;">
 
 [![CI Pipeline](https://github.com/Pranavdeshmukhhh/hackathon-notifier/actions/workflows/ci.yml/badge.svg)](https://github.com/Pranavdeshmukhhh/hackathon-notifier/actions)
-[![Tests](https://img.shields.io/badge/tests-129%20passed-brightgreen?style=flat-square&logo=pytest)](https://github.com/Pranavdeshmukhhh/hackathon-notifier)
+[![Tests](https://img.shields.io/badge/tests-138%20passed-brightgreen?style=flat-square&logo=pytest)](https://github.com/Pranavdeshmukhhh/hackathon-notifier)
 [![Coverage](https://img.shields.io/badge/coverage-85%2B%25-brightgreen?style=flat-square&logo=codecov)](https://github.com/Pranavdeshmukhhh/hackathon-notifier)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square)](LICENSE)
 [![Python 3.12](https://img.shields.io/badge/python-3.12-blue.svg?style=flat-square&logo=python)](https://python.org)
@@ -119,7 +119,7 @@ A full-stack, production-grade hackathon aggregation platform — scraping Devfo
 | 📡 | Requests | latest | HTTP client (geocoder, HackerEarth, Web Discovery) |
 | 🔐 | python-dotenv | latest | Environment variable loading |
 | 🌐 | Certifi | latest | TLS CA bundle |
-| 🧪 | pytest + pytest-cov | latest | Test suite (109 backend tests) |
+| 🧪 | pytest + pytest-cov | latest | Test suite (115 backend tests) |
 | 🗄️ | mongomock | latest | In-memory MongoDB for unit tests |
 
 ### Frontend
@@ -129,7 +129,7 @@ A full-stack, production-grade hackathon aggregation platform — scraping Devfo
 | ⚛️ | React | 19 | UI framework |
 | ⚡ | Vite | 8 | Build tool + dev server |
 | 🎨 | Tailwind CSS | 4 | Utility-first styling |
-| 🧪 | Vitest | 5 | Next-generation unit test runner (20 unit tests) |
+| 🧪 | Vitest | 5 | Next-generation unit test runner (23 unit tests) |
 | 🧪 | React Testing Library | 16 | DOM & component interaction testing |
 | 🔤 | Inter (Google Fonts) | — | Typography |
 | ✏️ | Lucide React | — | Icon set |
@@ -143,7 +143,7 @@ A full-stack, production-grade hackathon aggregation platform — scraping Devfo
 | **Vercel** | React frontend (CDN, global edge, auto-deploy on push to `main`) |
 | **MongoDB Atlas** | Free-tier M0 cluster (512 MB), collections: `hackathons` + `subscribers` + `visitors` |
 | **Docker & Compose** | Containerized reproducible environment for local dev & production |
-| **GitHub Actions** | Unified CI: Python 3.12 (109 tests) + Node.js 20 (oxlint + 20 vitest tests + build) |
+| **GitHub Actions** | Unified CI: Python 3.12 (115 tests) + Node.js 20 (oxlint + 23 vitest tests + build) |
 
 ---
 
@@ -417,19 +417,19 @@ For our full security policy, vulnerability reporting guidelines, and coordinate
 ## 🧪 Tests
 
 ```bash
-# Backend tests (109 test cases)
+# Backend tests (115 test cases)
 cd Backend
 pytest tests/ -v
 
 # Run with coverage report
 pytest tests/ -v --cov=. --cov-report=term-missing
 
-# Frontend tests (20 test cases)
+# Frontend tests (23 test cases)
 cd ../Frontend
 npm test
 ```
 
-All 129 tests (109 backend + 20 frontend) pass on every push (enforced by GitHub Actions CI — see `.github/workflows/ci.yml`).
+All 138 tests (115 backend + 23 frontend) pass on every push (enforced by GitHub Actions CI — see `.github/workflows/ci.yml`).
 
 ---
 

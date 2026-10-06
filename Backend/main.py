@@ -30,8 +30,8 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from pymongo.errors import DuplicateKeyError
 
 from db.mongo_client import get_collection
-from filters.keyword_filter import classify_all, filter_hackathons, is_duplicate
-from notifier.telegram_bot import send_batch, start_polling
+from filters.keyword_filter import classify_all, is_duplicate
+from notifier.telegram_bot import send_batch
 from scrapers.devfolio_scraper import scrape_devfolio
 from scrapers.unstop_scraper import scrape_unstop
 from scrapers.devpost_scraper import scrape_devpost
@@ -117,98 +117,13 @@ def run_pipeline(dry_run: bool = False) -> int:
     Returns:
         Number of Telegram notifications sent (0 on dry run or no new items).
     """
-    t0 = time.time()  # for RUN_SUMMARY duration
+    from run_scan import execute_scan  # local import: avoids import cycles at module load
 
-    logger.info("=" * 60)
-    logger.info("Hackathon pipeline starting%s…", " (DRY RUN)" if dry_run else "")
-    logger.info("=" * 60)
-
-    # ── Step 1: DB connection ─────────────────────────────────────────────────
-    collection = None if dry_run else get_collection()
-    if not dry_run and collection is None:
-        logger.error("Cannot connect to MongoDB — aborting.")
+    summary = execute_scan(dry_run=dry_run)
+    if not summary.get("success", False):
+        logger.error("Pipeline failed: %s", summary.get("error", "unknown error"))
         return 0
-
-    # ── Step 2: Concurrent scraping ───────────────────────────────────────────
-    logger.info("Launching scrapers concurrently…")
-    scrape_output = _run_scrapers()
-    all_hackathons = scrape_output["results"]
-    source_counts  = scrape_output["counts"]
-
-    if not all_hackathons:
-        logger.info("No hackathons scraped from any source.")
-        return 0
-
-    logger.info("Total scraped (before classification): %d", len(all_hackathons))
-
-
-    # ── Step 3: Verify ALL hackathons (multi-signal verification pipeline) ────
-    logger.info("Running multi-signal verification on %d hackathons...", len(all_hackathons))
-    all_hackathons = batch_verify(all_hackathons, check_url=False)  # Skip URL check for speed in batch
-    logger.info("Verified hackathons: %d passed verification", len(all_hackathons))
-
-    # ── Step 4: Classify ALL hackathons with metadata ─────────────────────────
-    classify_all(all_hackathons)
-
-    # ── Step 5: Dedup + DB insert ─────────────────────────────────────────────
-    new_hackathons: list[dict] = []
-    if dry_run:
-        # In dry-run, treat everything as "new" for reporting but don't insert
-        new_hackathons = all_hackathons
-        logger.info("[DRY RUN] Skipping DB insert — would have inserted %d items.", len(new_hackathons))
-    else:
-        for hackathon in all_hackathons:
-            link = hackathon.get("link", "")
-            if is_duplicate(link, collection):
-                continue
-            try:
-                collection.insert_one(hackathon)
-                new_hackathons.append(hackathon)
-                logger.info("New: %s", hackathon.get("title", link))
-            except DuplicateKeyError:
-                logger.debug("Race-condition duplicate skipped: %s", link)
-            except Exception:
-                logger.exception("DB insert failed for: %s", link)
-
-    # ── Step 6: Filter for notification-worthy items ──────────────────────────
-    notify_list = [
-        h for h in new_hackathons
-        if h.get("is_top_college") or h.get("is_internship")
-    ]
-
-    logger.info(
-        "New hackathons: %d total, %d notification-worthy.",
-        len(new_hackathons), len(notify_list),
-    )
-
-    # ── Step 7: Telegram notifications ───────────────────────────────────────
-    sent_count = 0
-    if notify_list and not dry_run:
-        logger.info("Sending %d Telegram notification(s)…", len(notify_list))
-        result = send_batch(notify_list)
-        sent_count = result["sent"]
-        logger.info("Notifications: %d sent, %d failed.", sent_count, result["failed"])
-    elif dry_run and notify_list:
-        logger.info("[DRY RUN] Would have sent %d Telegram notification(s).", len(notify_list))
-    else:
-        logger.info("No notification-worthy hackathons — all up-to-date.")
-
-    # ── Structured run summary (one grep-able JSON line per run) ─────────────
-    # To extract a history table from Render logs:
-    #   grep 'RUN_SUMMARY' app.log | python -c \
-    #   "import sys,json;[print(l.split('RUN_SUMMARY')[1]) for l in sys.stdin]"
-    duration = round(time.time() - t0, 1)
-    logger.info("RUN_SUMMARY %s", json.dumps({
-        "dry_run":    dry_run,
-        "scraped":    len(all_hackathons),
-        "new":        len(new_hackathons),
-        "notified":   sent_count,
-        "duration_s": duration,
-        "sources":    source_counts,
-    }))
-
-    logger.info("Pipeline complete in %.1fs.", duration)
-    return sent_count
+    return int(summary.get("notified", 0))
 
 
 def main():

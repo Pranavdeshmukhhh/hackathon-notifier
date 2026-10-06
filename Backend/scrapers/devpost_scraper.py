@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 
 # ── Constants ─────────────────────────────────────────────────────────────────
 DEVPOST_API = "https://devpost.com/api/hackathons"
-MAX_PAGES = 20         # 20 pages × ~9 per page = ~180 hackathons
+MAX_PAGES = 10         # 10 pages × ~9 per page = ~90 hackathons
 REQUEST_TIMEOUT = 12
 
 _HEADERS = {

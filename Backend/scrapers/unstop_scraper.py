@@ -16,19 +16,9 @@ UNSTOP_API_BASE = (
 )
 
 _SEARCH_QUERIES = [
-    "",                          # generic
+    "",                          # all open hackathons
     "&searchTerm=college",       # college-affiliated hackathons
     "&searchTerm=internship",    # internship / hiring challenges
-    "&searchTerm=IIT",           # IIT specific
-    "&searchTerm=NIT",           # NIT specific
-    "&searchTerm=IIIT",          # IIIT specific (IIIT Hyderabad, etc.)
-    "&searchTerm=BITS",          # BITS Pilani specific
-    "&searchTerm=COEP",          # COEP Pune specific
-    "&searchTerm=PICT",          # PICT Pune specific
-    "&searchTerm=Pune",          # Pune tech hub
-    "&searchTerm=Hyderabad",     # Hyderabad tech hub
-    "&searchTerm=Bengaluru",     # Bengaluru tech hub
-    "&searchTerm=FAANG",         # FAANG/MANGO challenges
 ]
 
 REQUEST_TIMEOUT = 15
@@ -230,7 +220,7 @@ def _fetch_via_api() -> list[dict]:
     all_items = {}
 
     for query in _SEARCH_QUERIES:
-        for page in range(1, 51):  # up to 50 pages (5000 items) per query
+        for page in range(1, 11):  # up to 10 pages (100 items) per query
             url = f"{UNSTOP_API_BASE}&page={page}{query}"
             try:
                 parsed, current_page, last_page = _fetch_query(session, url)
@@ -246,10 +236,19 @@ def _fetch_via_api() -> list[dict]:
                     break
 
             except Exception as e:
+                err_str = str(e).lower()
+                is_blocked = "connection was reset" in err_str or "ssl" in err_str or "10054" in err_str or "403" in err_str
+                if is_blocked:
+                    logger.warning(
+                        "Unstop edge firewall / Cloudflare TLS block detected: %s. "
+                        "Skipping further Unstop queries this cycle.", e
+                    )
+                    return list(all_items.values())
+
                 logger.warning("Unstop API query '%s' page %d failed after retries: %s", query, page, e)
                 break
 
-            time.sleep(random.uniform(1.5, 3.0))  # Be nice to the API
+            time.sleep(random.uniform(1.0, 2.0))
 
     return list(all_items.values())
 

@@ -80,7 +80,7 @@ def _scrape_unstop_feed(keyword: str) -> list[dict]:
     try:
         from curl_cffi import requests as cffi_requests
         url = f"https://unstop.com/api/public/opportunity/search-result?opportunity=hackathons&size=20&status=open&searchTerm={keyword}"
-        res = cffi_requests.get(url, impersonate="chrome107", timeout=10)
+        res = cffi_requests.get(url, impersonate="chrome120", timeout=10)
         if res.status_code == 200:
             data = res.json()
             items = data.get("data", {}).get("data", [])

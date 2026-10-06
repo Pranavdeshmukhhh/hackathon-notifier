@@ -366,65 +366,86 @@ def _scrape_eventbrite(keyword: str = "hackathon") -> list[dict]:
     return discovered
 
 
+def _strip_utm(link: str) -> str:
+    """Drop tracking params so the same event always maps to one canonical link."""
+    try:
+        parts = urlparse(link)
+        return parts._replace(query="", fragment="").geturl()
+    except Exception:
+        return link
+
+
 def _scrape_mlh_events() -> list[dict]:
-    """Scrape Major League Hacking event listings."""
-    discovered = []
-    url = "https://mlh.io/seasons/2026/events"
+    """
+    Scrape Major League Hacking's season listing.
+
+    MLH renders every event as a schema.org ``Event`` microdata node, which is
+    far more stable than CSS classes: each node carries its own canonical URL,
+    ISO start/end dates, attendance mode and location.
+    """
+    discovered: list[dict] = []
+    resp = None
+    for url in ("https://mlh.io/seasons/2026/events", "https://mlh.io/events"):
+        try:
+            resp = requests.get(url, headers=_HEADERS, timeout=12)
+            if resp.status_code == 200:
+                break
+        except requests.RequestException as e:
+            logger.debug("MLH fetch failed for %s: %s", url, e)
+            resp = None
+    if resp is None or resp.status_code != 200:
+        return discovered
 
     try:
-        resp = requests.get(url, headers=_HEADERS, timeout=10)
-        if resp.status_code != 200:
-            # Try alternate URL
-            resp = requests.get("https://mlh.io/events", headers=_HEADERS, timeout=10)
-            if resp.status_code != 200:
-                return discovered
-
         soup = BeautifulSoup(resp.text, "html.parser")
+        for node in soup.select("[itemtype*='schema.org/Event']"):
+            def _meta(prop: str) -> str:
+                el = node.find(attrs={"itemprop": prop})
+                if el is None:
+                    return ""
+                return (el.get("content") or el.get_text(strip=True) or "").strip()
 
-        # MLH lists events as cards with links
-        event_links = set()
-        for a_tag in soup.find_all("a", href=True):
-            href = a_tag["href"]
-            if href.startswith("http") and "mlh.io" not in href.lower():
-                # External event links from MLH
-                if _is_hackathon_url(href):
-                    event_links.add(href)
+            link = _strip_utm(_meta("url") or node.get("href", ""))
+            if not link.startswith("http"):
+                continue
 
-        # Also extract event titles and dates from the page
-        for card in soup.find_all(class_=re.compile(r"event", re.IGNORECASE)):
-            title_el = card.find(["h3", "h4", "h2", "a"])
-            if title_el:
-                title = title_el.get_text(strip=True)
-                link = title_el.get("href") if title_el.name == "a" else None
+            # The event's own name — skip the nested Place name.
+            title = ""
+            for el in node.find_all(attrs={"itemprop": "name"}):
+                if el.find_parent(attrs={"itemprop": "location"}) is None:
+                    title = el.get_text(strip=True)
+                    break
+            if len(title) < 4:
+                continue
 
-                if title and len(title) > 5:
-                    # Find date info in the card
-                    date_el = card.find(class_=re.compile(r"date", re.IGNORECASE))
-                    date_text = date_el.get_text(strip=True) if date_el else ""
+            end_iso = (_meta("endDate") or _meta("startDate"))[:10] or None
+            attendance = _meta("eventAttendanceMode").lower()
+            loc_el = node.find(attrs={"itemprop": "location"})
+            loc_text = loc_el.get_text(" ", strip=True) if loc_el else ""
+            if "online" in attendance and "offline" not in attendance and "mixed" not in attendance:
+                mode, location = "Virtual", "Online"
+            elif "mixed" in attendance:
+                mode, location = "Hybrid", loc_text or "Hybrid"
+            else:
+                mode, location = "Offline", loc_text or "TBA"
 
-                    loc_el = card.find(class_=re.compile(r"location", re.IGNORECASE))
-                    loc_text = loc_el.get_text(strip=True) if loc_el else "Online"
-
-                    mode = "Offline" if loc_text and loc_text.lower() != "online" else "Virtual"
-
-                    discovered.append({
-                        "title": title,
-                        "link": link or url,
-                        "source": "MLH",
-                        "mode": mode,
-                        "location": loc_text or "Online",
-                        "deadline": date_text or "TBA",
-                        "deadline_iso": None,
-                        "prize": "TBA",
-                        "tags": ["mlh"],
-                        "desc": f"MLH Season event: {title}",
-                        "status": "Open",
-                        "is_past": False,
-                        "scraped_at": datetime.now(timezone.utc).isoformat(),
-                        "verified": True,
-                        "discovery_source": "web_discovery",
-                    })
-
+            discovered.append({
+                "title": title,
+                "link": link,
+                "source": "MLH",
+                "mode": mode,
+                "location": location,
+                "deadline": end_iso or "TBA",
+                "deadline_iso": end_iso,
+                "prize": "TBA",
+                "tags": ["mlh", "student-hackathon"],
+                "desc": f"Major League Hacking season event: {title}",
+                "status": "Open",
+                "is_past": False,
+                "scraped_at": datetime.now(timezone.utc).isoformat(),
+                "verified": True,
+                "discovery_source": "web_discovery",
+            })
     except Exception as e:
         logger.warning("MLH scan error: %s", e)
 

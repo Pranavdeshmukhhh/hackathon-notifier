@@ -9,6 +9,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import HackathonCard from './components/HackathonCard';
 import SkeletonCard  from './components/SkeletonCard';
+import { CursorSpotlight, TiltCard, CountUp } from './components/MotionKit';
 import './index.css';
 
 // ── Extracted Components ────────────────────────────────────────────────────
@@ -21,7 +22,7 @@ import TermsAndConditions from './components/TermsAndConditions';
 import {
   PinIcon, EmptySearchIcon, TelegramIcon,
   SunIcon, MoonIcon, HamburgerIcon, ArrowRightIcon,
-  LogoIcon, ShieldCheckIcon, GridViewIcon, ListViewIcon,
+  LogoIcon, ShieldCheckIcon, GridViewIcon, ListViewIcon, ArrowUpRightIcon, SearchIcon,
 } from './components/Icons';
 
 // ── Extracted Hooks ─────────────────────────────────────────────────────────
@@ -351,30 +352,50 @@ function App() {
     if (v === 'distance' && !userLocation) { setSortBy('distance'); requestLocation(); return; }
     setSortBy(v); setCurrentPage(1);
   };
+  const smoothScrollToEvents = useCallback(() => {
+    if (eventsRef.current) {
+      const headerOffset = 76;
+      const elementPosition = eventsRef.current.getBoundingClientRect().top;
+      const offsetPosition = elementPosition + window.pageYOffset - headerOffset;
+      if (Math.abs(window.pageYOffset - offsetPosition) > 60) {
+        window.scrollTo({
+          top: Math.max(0, offsetPosition),
+          behavior: 'smooth'
+        });
+      }
+    }
+  }, []);
+
   const handlePageSizeChange = (e)   => { setPageSize(Number(e.target.value)); setCurrentPage(1); };
-  const handleTabChange      = (tab) => { setActiveTab(tab); setCurrentPage(1); eventsRef.current?.scrollIntoView({ behavior: 'smooth' }); };
-  const handlePageChange     = (p)   => { setCurrentPage(p); eventsRef.current?.scrollIntoView({ behavior: 'smooth' }); };
+  const handleTabChange      = (tab) => { setActiveTab(tab); setCurrentPage(1); smoothScrollToEvents(); };
+  const handlePageChange     = (p)   => { setCurrentPage(p); smoothScrollToEvents(); };
 
   const scrollToSection = (section) => {
     setActiveSection(section); setMobileMenuOpen(false);
     const refMap = { home: homeRef, dashboard: dashboardRef, features: featuresRef, events: eventsRef, about: aboutRef };
-    refMap[section]?.current?.scrollIntoView({ behavior: 'smooth' });
+    const target = refMap[section]?.current;
+    if (target) {
+      const headerOffset = 76;
+      const elementPosition = target.getBoundingClientRect().top;
+      const offsetPosition = elementPosition + window.pageYOffset - headerOffset;
+      window.scrollTo({ top: Math.max(0, offsetPosition), behavior: 'smooth' });
+    }
   };
 
   const handleQuickFilter = (type) => {
-    if (type === 'prizes')   { setSortBy('newest'); setActiveCategory('All'); setActiveSource('All'); setSearchQuery(''); showToast('⚡ Filter: Highest Cash Pools'); }
-    if (type === 'college')  { setSearchQuery('IIT'); setActiveCategory('All'); setActiveSource('All'); showToast('🎓 Filter: Premier Colleges (IIT/NIT/BITS)'); }
-    if (type === 'faang')    { setSearchQuery('faang'); setActiveCategory('All'); setActiveSource('All'); showToast('🔥 Filter: FAANG & MANGO Global Hackathons'); }
-    if (type === 'pune')     { setSearchQuery('pune'); setActiveCategory('All'); setActiveSource('All'); showToast('🏙️ Filter: Pune Engineering Hackathons (COEP/PICT)'); }
-    if (type === 'iiit')     { setSearchQuery('iiit hyderabad'); setActiveCategory('All'); setActiveSource('All'); showToast('🏛️ Filter: IIIT Hyderabad & Premier Campus Hackathons'); }
-    if (type === 'inperson') { setActiveCategory('Offline'); setActiveSource('All'); setSearchQuery(''); showToast('📍 Filter: In-Person Hackathons Near You'); }
-    if (type === 'online')   { setActiveCategory('Online'); setActiveSource('All'); setSearchQuery(''); showToast('🌐 Filter: 100% Online & Global Hackathons'); }
+    if (type === 'prizes')   { setSortBy('newest'); setActiveCategory('All'); setActiveSource('All'); setSearchQuery(''); showToast('Filter: highest cash pools'); }
+    if (type === 'college')  { setSearchQuery('IIT'); setActiveCategory('All'); setActiveSource('All'); showToast('Filter: premier colleges (IIT / NIT / BITS)'); }
+    if (type === 'faang')    { setSearchQuery('faang'); setActiveCategory('All'); setActiveSource('All'); showToast('Filter: FAANG & MANGO global hackathons'); }
+    if (type === 'pune')     { setSearchQuery('pune'); setActiveCategory('All'); setActiveSource('All'); showToast('Filter: Pune engineering hackathons (COEP / PICT)'); }
+    if (type === 'iiit')     { setSearchQuery('iiit hyderabad'); setActiveCategory('All'); setActiveSource('All'); showToast('Filter: IIIT Hyderabad & premier campus hackathons'); }
+    if (type === 'inperson') { setActiveCategory('Offline'); setActiveSource('All'); setSearchQuery(''); showToast('Filter: in-person hackathons near you'); }
+    if (type === 'online')   { setActiveCategory('Online'); setActiveSource('All'); setSearchQuery(''); showToast('Filter: 100% online & global hackathons'); }
     if (currentView === 'terms') navigateToRadar('events');
     else scrollToSection('events');
   };
 
   const handleHackathonListed = (newHackathon) => {
-    showToast(`⚡ Successfully listed "${newHackathon?.title || 'Hackathon'}" into radar!`);
+    showToast(`Listed "${newHackathon?.title || 'Hackathon'}" on the radar`);
     queryCacheRef.current.clear();
     fetchHackathons(true);
     if (currentView === 'terms') navigateToRadar('events');
@@ -386,12 +407,12 @@ function App() {
 
   const categories = [
     { key: 'All',            label: 'All Categories', count: stats.total },
-    { key: 'Online',         label: '🌐 Online',      count: stats.online_count || 0 },
-    { key: 'Offline',        label: '📍 In-Person',   count: stats.offline_count || 0 },
-    { key: 'Top College',    label: '🏛 Top College', count: stats.top_college_count || 0 },
-    { key: 'Internship',     label: '💼 Internships', count: stats.internship_count || 0 },
+    { key: 'Online',         label: 'Online',         count: stats.online_count || 0 },
+    { key: 'Offline',        label: 'In-person',      count: stats.offline_count || 0 },
+    { key: 'Top College',    label: 'Top college',    count: stats.top_college_count || 0 },
+    { key: 'Internship',     label: 'Internships',    count: stats.internship_count || 0 },
     { key: 'Hackathon',      label: 'Hackathons',     count: stats.hackathon_count || 0 },
-    { key: 'Unique Sources', label: '⭐ Curated',     count: stats.unique_sources_count || 0 },
+    { key: 'Unique Sources', label: 'Curated',        count: stats.unique_sources_count || 0 },
   ];
 
   const platformSources = [
@@ -401,27 +422,54 @@ function App() {
     { key: 'Devnovate',      label: 'Devnovate',       count: stats.source_counts?.['Devnovate'] || 0 },
     { key: 'Devfolio',       label: 'Devfolio',        count: stats.source_counts?.['Devfolio'] || 0 },
     { key: 'HackerEarth',    label: 'HackerEarth',     count: stats.source_counts?.['HackerEarth'] || 0 },
-    { key: 'Instagram',      label: '📸 Instagram',    count: stats.source_counts?.['Instagram'] || 0 },
-    { key: 'Web Discovery',  label: '🌐 Open Web',     count: stats.source_counts?.['Web Discovery'] || 0 },
-    { key: 'Unique Sources', label: '⭐ Curated',      count: stats.source_counts?.['Unique Sources'] || stats.unique_sources_count || 0 },
+    { key: 'Instagram',      label: 'Instagram',       count: stats.source_counts?.['Instagram'] || 0 },
+    { key: 'Web Discovery',  label: 'Open web',        count: stats.source_counts?.['Web Discovery'] || 0 },
+    { key: 'Unique Sources', label: 'Curated',         count: stats.source_counts?.['Unique Sources'] || stats.unique_sources_count || 0 },
   ];
 
   const tabs = [
-    { key: 'upcoming', label: '🚀 Active Opportunities', count: upcomingTotal },
-    { key: 'missed',   label: '💔 Lost Opportunities',   count: missedTotal },
-    { key: 'all',      label: '⚡ All Hackathons',       count: allTotal || (upcomingTotal + missedTotal) || stats.total },
+    { key: 'upcoming', label: 'Active opportunities', count: upcomingTotal },
+    { key: 'missed',   label: 'Lost opportunities',   count: missedTotal },
+    { key: 'all',      label: 'All hackathons',       count: allTotal || (upcomingTotal + missedTotal) || stats.total },
   ];
+
+  // ── Derived display values ────────────────────────────────────────────
+  const activeCount = stats.total || upcomingTotal || 0;
+  const fmt = (n) => (n || n === 0 ? Number(n).toLocaleString('en-IN') : '—');
+  const prizeDisplay = stats.total_prize_pool_formatted || '—';
+  const sweepProgress = Math.min(1, Math.max(0, 1 - secondsUntilNextScan / SCAN_INTERVAL_SECONDS));
+  const sourceTicker = platformSources.filter((s) => s.key !== 'All' && s.count > 0);
+  const tickerItems = [...sourceTicker, ...sourceTicker, ...sourceTicker, ...sourceTicker];
+  const activeTabTotal = activeTab === 'upcoming' ? upcomingTotal : activeTab === 'all' ? (allTotal || upcomingTotal + missedTotal) : missedTotal;
+  const hasFilters = Boolean(searchQuery) || activeCategory !== 'All' || activeSource !== 'All';
+
+  const navItems = [
+    { key: 'events',    label: 'Radar' },
+    { key: 'dashboard', label: 'Telemetry' },
+    { key: 'about',     label: 'Dev Desk' },
+    { key: 'terms',     label: 'Terms' },
+  ];
+  const isNavActive = (key) =>
+    (currentView === 'terms' && key === 'terms') ||
+    (currentView === 'radar' && activeSection === key && key !== 'terms');
+  const handleNav = (e, key) => {
+    e.preventDefault();
+    if (key === 'terms') navigateToTerms();
+    else navigateToRadar(key);
+  };
+  const handleNearMe = () => {
+    if (currentView === 'terms') navigateToRadar('events');
+    requestLocation();
+  };
+  const handleSync = () => {
+    if (currentView === 'terms') navigateToRadar('events');
+    fetchHackathons();
+  };
+  const openScanner = () => { setMobileMenuOpen(false); setShowAutoListModal(true); };
 
   // ── Render ────────────────────────────────────────────────────────────
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-obsidian text-slate-900 dark:text-slate-100 font-sans transition-colors duration-300 flex flex-col relative overflow-hidden">
-      {/* ── AMBIENT GLASSMORPHIC BLUR ORBS ── */}
-      <div className="absolute inset-0 pointer-events-none overflow-hidden z-0" aria-hidden="true">
-        <div className="absolute w-[520px] h-[520px] -top-[120px] left-[5%] rounded-full opacity-35 dark:opacity-30 blur-[120px] bg-gradient-to-br from-[#007AFF]/25 to-[#5856D6]/15 animate-orb-slow pointer-events-none transition-transform duration-75 ease-out will-change-transform" style={{ transform: `translate3d(0, ${Math.min(scrollProgress * 1.5, 140)}px, 0)` }} />
-        <div className="absolute w-[620px] h-[620px] top-[28%] -right-[120px] rounded-full opacity-30 dark:opacity-25 blur-[140px] bg-gradient-to-br from-[#5856D6]/20 to-[#30B0C7]/15 animate-orb-reverse pointer-events-none transition-transform duration-75 ease-out will-change-transform" style={{ transform: `translate3d(0, -${Math.min(scrollProgress * 1.2, 120)}px, 0)` }} />
-        <div className="absolute inset-0 bg-[radial-gradient(rgba(15,23,42,0.04)_1px,transparent_1px)] dark:bg-[radial-gradient(rgba(255,255,255,0.03)_1px,transparent_1px)] [background-size:32px_32px] opacity-60"></div>
-      </div>
-
+    <div className="min-h-screen flex flex-col relative">
       {showTechSpecModal && <TechSpecModal onClose={() => setShowTechSpecModal(false)} />}
       {showAutoListModal && (
         <AutoListModal
@@ -431,530 +479,563 @@ function App() {
         />
       )}
 
-      {/* ── MOBILE BACKDROP OVERLAY ── */}
+      {/* ── MOBILE BACKDROP ── */}
       {mobileMenuOpen && (
-        <div className="fixed inset-0 bg-slate-900/60 dark:bg-black/60 backdrop-blur-sm z-40 md:hidden transition-opacity" onClick={() => setMobileMenuOpen(false)} />
+        <div className="fixed inset-0 z-40 bg-black/50 md:hidden" onClick={() => setMobileMenuOpen(false)} />
       )}
 
       {/* ── NAVIGATION ── */}
-      <header className={`sticky top-0 z-50 transition-all duration-300 crystal-chamfer ${
-        isScrolled
-          ? 'border-b border-black/[0.08] dark:border-white/[0.12] bg-white/85 dark:bg-black/85 backdrop-blur-2xl shadow-[0_4px_24px_rgba(0,0,0,0.06)] dark:shadow-[0_4px_32px_rgba(0,0,0,0.75)] py-2.5'
-          : 'border-b border-black/[0.04] dark:border-white/[0.06] bg-white/70 dark:bg-black/70 backdrop-blur-xl py-3.5'
-      } px-4 sm:px-6 lg:px-8`}>
-        <div className="absolute bottom-0 left-0 h-[2px] bg-gradient-to-r from-[#007AFF] via-[#5856D6] to-[#30B0C7] transition-all duration-75 ease-out" style={{ width: `${scrollProgress}%`, opacity: isScrolled ? 1 : 0 }} />
-        <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3 cursor-pointer" onClick={() => navigateToRadar('home')}>
-            <div className="w-8 h-8 rounded-[10px] bg-gradient-to-br from-[#007AFF] to-[#0055D4] flex items-center justify-center shadow-sm shrink-0"><LogoIcon /></div>
-            <span className="font-semibold text-sm tracking-tight text-slate-900 dark:text-white">Hackathon Notifier</span>
-          </div>
+      <CursorSpotlight />
+      <header className="site-header">
+        <div className="header-progress" style={{ transform: `scaleX(${isScrolled ? scrollProgress / 100 : 0})` }} />
+        <div className="shell flex items-center justify-between gap-6 h-16">
+          <a
+            href="#"
+            className="brand"
+            aria-label="Hackathon Notifier — home"
+            onClick={(e) => { e.preventDefault(); navigateToRadar('home'); }}
+          >
+            <LogoIcon />
+            <span>Hackathon Notifier</span>
+          </a>
 
-          <div className="flex items-center gap-3">
-            <div className="hidden md:flex items-center gap-4 text-sm font-semibold text-slate-600 dark:text-slate-300">
-              {['events', 'dashboard', 'about', 'terms'].map(section => (
-                <a
-                  key={section}
-                  href={`#${section}`}
-                  onClick={e => {
-                    e.preventDefault();
-                    if (section === 'terms') {
-                      navigateToTerms();
-                    } else {
-                      navigateToRadar(section);
-                    }
-                  }}
-                  className={`hover:text-slate-900 dark:hover:text-white transition-colors ${
-                    (currentView === 'terms' && section === 'terms') || (currentView === 'radar' && activeSection === section && section !== 'terms')
-                      ? 'text-[#007AFF] dark:text-[#0A84FF]'
-                      : ''
-                  }`}
-                >
-                  {section === 'events' ? 'Radar' : section === 'dashboard' ? 'Telemetry' : section === 'about' ? 'Dev Desk' : 'Terms & Conditions'}
-                </a>
-              ))}
-            </div>
-            <div className="flex items-center gap-2 ml-4 border-l border-black/[0.08] dark:border-white/[0.12] pl-4">
-              <button onClick={toggleDarkMode} className="w-10 h-10 min-h-[40px] min-w-[40px] rounded-[12px] apple-squircle apple-touch-target apple-spring-press apple-dual-bevel bg-black/[0.04] text-slate-700 hover:bg-black/[0.08] dark:bg-white/[0.08] dark:text-slate-300 dark:hover:bg-white/[0.14] transition-all flex items-center justify-center cursor-pointer shadow-xs" title="Toggle Theme">
-                <div className="transition-transform duration-500 ease-[cubic-bezier(0.34,1.56,0.64,1)] transform hover:rotate-12 active:rotate-45">{isDarkMode ? <SunIcon /> : <MoonIcon />}</div>
-              </button>
-              <button className={`hidden sm:flex items-center gap-1.5 px-3.5 h-10 min-h-[40px] rounded-[12px] apple-squircle apple-touch-target apple-spring-press apple-dual-bevel text-xs font-semibold transition-all cursor-pointer shadow-xs ${
-                userLocation ? 'bg-[#007AFF]/15 text-[#007AFF] dark:bg-[#0A84FF]/20 dark:text-[#0A84FF] border border-[#007AFF]/30' : 'bg-black/[0.04] text-slate-700 hover:bg-black/[0.08] dark:bg-white/[0.08] dark:text-slate-300 dark:hover:bg-white/[0.14] border border-black/[0.06] dark:border-white/[0.08]'
-              }`} onClick={() => { if (currentView === 'terms') navigateToRadar('events'); requestLocation(); }}><PinIcon /> {isLocating ? 'Locating...' : 'Near Me'}</button>
-              <button
-                onClick={() => setShowAutoListModal(true)}
-                className="hidden sm:flex items-center gap-1.5 px-3.5 h-10 min-h-[40px] rounded-[12px] apple-squircle apple-touch-target apple-spring-press apple-dual-bevel text-xs font-bold bg-gradient-to-r from-blue-600/15 via-indigo-600/15 to-violet-600/15 text-blue-700 dark:text-blue-300 border border-blue-500/30 hover:border-blue-500/50 shadow-xs hover:shadow-md transition-all cursor-pointer"
-                title="Autonomous Internet Hackathon Scanner for Colleges & Cities"
+          <nav className="hidden md:flex items-center gap-9" aria-label="Primary">
+            {navItems.map(({ key, label }) => (
+              <a
+                key={key}
+                href={`#${key}`}
+                onClick={(e) => handleNav(e, key)}
+                className="nav-link"
+                aria-current={isNavActive(key) ? 'true' : undefined}
               >
-                🌐 Auto-Scanner
-              </button>
-              <button className="hidden sm:flex items-center gap-1.5 px-4 h-10 min-h-[40px] rounded-[12px] apple-squircle apple-touch-target apple-spring-press apple-dual-bevel text-xs font-bold bg-[#007AFF] hover:bg-[#0066D6] dark:bg-[#0A84FF] dark:hover:bg-[#0077ED] text-white shadow-xs hover:shadow-md hover:shadow-[#007AFF]/25 transition-all cursor-pointer" onClick={() => { if (currentView === 'terms') navigateToRadar('events'); fetchHackathons(); }}>{loading ? <><span className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></span> Syncing</> : 'Sync'}</button>
-              <button className="md:hidden p-2 text-slate-600 dark:text-slate-300" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}><HamburgerIcon /></button>
-            </div>
+                {label}
+              </a>
+            ))}
+          </nav>
+
+          <div className="flex items-center gap-2">
+            <button className="icon-btn" onClick={toggleDarkMode} title="Toggle theme" aria-label="Toggle theme">
+              {isDarkMode ? <SunIcon /> : <MoonIcon />}
+            </button>
+            <button className="btn btn-ghost hidden lg:inline-flex" data-on={Boolean(userLocation)} onClick={handleNearMe}>
+              <PinIcon /> {isLocating ? 'Locating…' : 'Near me'}
+            </button>
+            <button
+              className="btn btn-ghost hidden sm:inline-flex"
+              onClick={() => setShowAutoListModal(true)}
+              title="Autonomous internet hackathon scanner for colleges and cities"
+            >
+              Auto-scanner
+            </button>
+            <button className="btn btn-ink hidden sm:inline-flex min-w-[76px]" onClick={handleSync}>
+              {loading ? (
+                <>
+                  <span className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                  Syncing
+                </>
+              ) : 'Sync'}
+            </button>
+            <button
+              className="icon-btn md:hidden"
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              aria-label="Toggle menu"
+              aria-expanded={mobileMenuOpen}
+            >
+              <HamburgerIcon />
+            </button>
           </div>
         </div>
 
-        {/* Mobile Nav Dropdown */}
+        {/* Mobile menu */}
         {mobileMenuOpen && (
-          <div className="md:hidden absolute top-full left-0 right-0 bg-white/95 dark:bg-[#1C1C1E]/95 backdrop-blur-2xl border-b border-black/[0.08] dark:border-white/[0.12] shadow-xl p-4 flex flex-col gap-3 animate-sheet-pop">
-            {['events', 'dashboard', 'about', 'terms'].map(section => (
-              <a
-                key={section}
-                href={`#${section}`}
-                onClick={e => {
-                  e.preventDefault();
-                  if (section === 'terms') {
-                    navigateToTerms();
-                  } else {
-                    navigateToRadar(section);
-                  }
-                }}
-                className={`block py-2 text-sm font-semibold ${
-                  (currentView === 'terms' && section === 'terms') || (currentView === 'radar' && activeSection === section && section !== 'terms')
-                    ? 'text-[#007AFF] dark:text-[#0A84FF]'
-                    : 'text-slate-800 dark:text-slate-200'
-                }`}
-              >
-                {section === 'events' ? 'Radar' : section === 'dashboard' ? 'Telemetry' : section === 'about' ? 'Dev Desk' : 'Terms & Conditions'}
-              </a>
-            ))}
-            <div className="h-px bg-black/[0.06] dark:bg-white/[0.08] my-1"></div>
-            <button className="flex items-center justify-center gap-2 py-2.5 rounded-[12px] bg-gradient-to-r from-blue-600/20 to-indigo-600/20 text-blue-800 dark:text-blue-200 border border-blue-500/30 text-sm font-bold cursor-pointer" onClick={() => { setMobileMenuOpen(false); setShowAutoListModal(true); }}>🌐 Autonomous Internet Scanner</button>
-            <button className="flex items-center justify-center gap-2 py-2.5 rounded-[12px] bg-black/[0.04] dark:bg-white/[0.08] text-sm font-semibold" onClick={() => { if (currentView === 'terms') navigateToRadar('events'); requestLocation(); }}><PinIcon /> Use GPS Location</button>
-            <button className="flex items-center justify-center gap-2 py-2.5 rounded-[12px] bg-[#007AFF] text-white text-sm font-semibold" onClick={() => { if (currentView === 'terms') navigateToRadar('events'); fetchHackathons(); }}>Force Sync Now</button>
+          <div className="md:hidden absolute top-full left-0 right-0 bg-paper border-b border-line-strong animate-sheet-pop">
+            <nav className="shell py-3" aria-label="Mobile">
+              {navItems.map(({ key, label }) => (
+                <a
+                  key={key}
+                  href={`#${key}`}
+                  onClick={(e) => handleNav(e, key)}
+                  className={`flex items-center justify-between py-4 border-b border-line display text-[30px] ${isNavActive(key) ? 'text-accent-text' : 'text-ink'}`}
+                >
+                  {label}
+                  <ArrowUpRightIcon size={18} />
+                </a>
+              ))}
+            </nav>
+            <div className="shell pb-5 pt-3 grid grid-cols-3 gap-2">
+              <button className="btn btn-ghost" onClick={openScanner}>Scanner</button>
+              <button className="btn btn-ghost" onClick={() => { setMobileMenuOpen(false); handleNearMe(); }}>Near me</button>
+              <button className="btn btn-ink" onClick={() => { setMobileMenuOpen(false); handleSync(); }}>Sync</button>
+            </div>
           </div>
         )}
       </header>
 
       {/* ── COLD START BANNER ── */}
       {showColdStartBanner && (
-        <div className="bg-blue-50 dark:bg-blue-900/20 border-b border-blue-200 dark:border-blue-500/30 text-blue-800 dark:text-blue-300 px-4 py-2 text-xs font-medium flex items-center justify-center gap-2 backdrop-blur-md">
-          <span className="w-3 h-3 border-2 border-blue-400 border-t-transparent rounded-full animate-spin"></span>
-          Cloud server waking up · Render free tier initial spin-up (~25s). Loading live database…
+        <div className="border-b border-line bg-sunken text-muted mono text-xs px-4 py-2.5 flex items-center justify-center gap-3">
+          <span className="w-3 h-3 border-2 border-accent border-t-transparent rounded-full animate-spin" />
+          Cloud server waking up — free-tier spin-up takes ~25s. Loading live database…
         </div>
       )}
 
-      {/* ── MAIN CONTENT (SWITCHES BETWEEN RADAR & TERMS) ── */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12 space-y-12 w-full flex-1 relative z-10">
-
+      {/* ── MAIN CONTENT (RADAR or TERMS) ── */}
+      <main className="flex-1 w-full">
         {currentView === 'terms' ? (
-          <TermsAndConditions
-            onBack={() => navigateToRadar('home')}
-            onShowToast={showToast}
-          />
+          <div className="shell py-10 md:py-14">
+            <TermsAndConditions onBack={() => navigateToRadar('home')} onShowToast={showToast} />
+          </div>
         ) : (
           <>
-            {/* HERO SECTION */}
-            <section ref={homeRef} className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
-              <div className="lg:col-span-7 space-y-5">
-                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 text-xs font-semibold tracking-wide border border-emerald-500/20">
-                  <span className="w-2 h-2 rounded-full bg-emerald-500 dark:bg-emerald-400 animate-pulse"></span>
-                  NATIVE OD SYSTEM • ZERO AMBER TOLERANCE
-                </div>
-                <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight text-slate-950 dark:text-white leading-[1.12]">Stop missing hackathons while arguing in the canteen.</h1>
-                <p className="text-base sm:text-lg text-slate-600 dark:text-slate-300 leading-relaxed font-normal">
-                  Continuously scan <strong className="text-slate-900 dark:text-white font-bold">{stats.total ? `${stats.total.toLocaleString()}` : (upcomingTotal ? upcomingTotal.toLocaleString() : '2,684')} active verified hackathons</strong> across top IITs, NITs, and premier global hubs. Old ended hackathons are strictly archived into Lost Opportunities and excluded from total active count.
-                </p>
-                <div className="flex flex-wrap items-center gap-3 pt-2">
-                  <button className="h-12 min-h-[44px] px-6 rounded-[14px] apple-squircle apple-touch-target apple-spring-press apple-dual-bevel bg-[#007AFF] hover:bg-[#0066D6] dark:bg-[#0A84FF] dark:hover:bg-[#0077ED] text-white text-sm font-semibold shadow-xs hover:shadow-md hover:shadow-[#007AFF]/25 transition-all duration-200 flex items-center gap-2 cursor-pointer" onClick={() => scrollToSection('events')}>Explore Live Hacks <ArrowRightIcon /></button>
-                  <a href="https://t.me/Pranavhakathon_bot" target="_blank" rel="noreferrer" className="h-12 min-h-[44px] px-6 rounded-[14px] apple-squircle apple-touch-target apple-spring-press apple-dual-bevel bg-white dark:bg-[#1C1C1E] border border-black/[0.08] dark:border-white/[0.12] hover:bg-slate-50 dark:hover:bg-white/[0.06] text-slate-800 dark:text-slate-200 text-sm font-semibold flex items-center gap-2 shadow-xs hover:shadow-md transition-all duration-200 cursor-pointer"><TelegramIcon /> Telegram Alerts</a>
-                </div>
-
-                {/* Interactive Stats Triplet */}
-                <div className="grid grid-cols-3 gap-3 pt-4">
-                  <button type="button" onClick={() => handleQuickFilter('prizes')} className="text-left bg-white/95 dark:bg-[#1C1C1E]/95 backdrop-blur-xl p-3.5 rounded-[16px] apple-squircle apple-dual-bevel apple-spring-press border border-black/[0.08] dark:border-white/[0.10] shadow-[0_2px_10px_rgba(0,0,0,0.03)] dark:shadow-[0_4px_16px_rgba(0,0,0,0.30)] hover:border-[#007AFF]/40 dark:hover:border-[#0A84FF]/40 hover:-translate-y-1 hover:shadow-lg dark:hover:shadow-[0_8px_24px_rgba(0,0,0,0.45)] transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] group cursor-pointer crystal-chamfer crystal-sheen" title="Filter highest cash prize pools">
-                    <div className="text-lg sm:text-xl font-bold text-slate-900 dark:text-white tracking-tight group-hover:text-[#007AFF] dark:group-hover:text-[#0A84FF] transition-colors">{stats.total_prize_pool_formatted || '₹40.6 Cr'}</div>
-                    <div className="text-[10px] uppercase font-semibold text-slate-500 dark:text-slate-400 tracking-wider flex items-center justify-between mt-0.5"><span>Verified Prizes</span><span className="text-[10px] text-[#007AFF] opacity-0 group-hover:opacity-100 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-all duration-200">↗</span></div>
-                  </button>
-                  <button type="button" onClick={() => handleQuickFilter('college')} className="text-left bg-white/95 dark:bg-[#1C1C1E]/95 backdrop-blur-xl p-3.5 rounded-[16px] apple-squircle apple-dual-bevel apple-spring-press border border-black/[0.08] dark:border-white/[0.10] shadow-[0_2px_10px_rgba(0,0,0,0.03)] dark:shadow-[0_4px_16px_rgba(0,0,0,0.30)] hover:border-[#34C759]/40 dark:hover:border-[#30D158]/40 hover:-translate-y-1 hover:shadow-lg dark:hover:shadow-[0_8px_24px_rgba(0,0,0,0.45)] transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] group cursor-pointer crystal-chamfer crystal-sheen" title="Filter premier IIT/NIT college hackathons">
-                    <div className="text-lg sm:text-xl font-bold text-[#34C759] dark:text-[#30D158] tracking-tight">{stats.top_college_count ? `${stats.top_college_count} Premier` : '100% OD'}</div>
-                    <div className="text-[10px] uppercase font-semibold text-slate-500 dark:text-slate-400 tracking-wider flex items-center justify-between mt-0.5"><span>HOD Approved</span><span className="text-[10px] text-[#34C759] opacity-0 group-hover:opacity-100 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-all duration-200">↗</span></div>
-                  </button>
-                  <button type="button" onClick={() => { scrollToSection('dashboard'); showToast('⚡ Telemetry: Live 15-min autonomous radar active'); }} className="text-left bg-white/95 dark:bg-[#1C1C1E]/95 backdrop-blur-xl p-3.5 rounded-[16px] apple-squircle apple-dual-bevel apple-spring-press border border-black/[0.08] dark:border-white/[0.10] shadow-[0_2px_10px_rgba(0,0,0,0.03)] dark:shadow-[0_4px_16px_rgba(0,0,0,0.30)] hover:border-[#007AFF]/40 dark:hover:border-[#0A84FF]/40 hover:-translate-y-1 hover:shadow-lg dark:hover:shadow-[0_8px_24px_rgba(0,0,0,0.45)] transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] group cursor-pointer crystal-chamfer crystal-sheen" title="View live broadcast telemetry">
-                    <div className="text-lg sm:text-xl font-bold text-[#007AFF] dark:text-[#0A84FF] tracking-tight">{latencyDisplay}</div>
-                    <div className="text-[10px] uppercase font-semibold text-slate-500 dark:text-slate-400 tracking-wider flex items-center justify-between mt-0.5"><span>Push Latency</span><span className="text-[10px] text-[#007AFF] opacity-0 group-hover:opacity-100 transition-opacity">⚡</span></div>
-                  </button>
-                </div>
-              </div>
-
-              {/* TELEMETRY CARD */}
-              <div ref={dashboardRef} className="lg:col-span-5 bg-white/95 dark:bg-[#1C1C1E]/95 backdrop-blur-2xl p-6 rounded-[24px] border border-black/[0.08] dark:border-white/[0.10] shadow-[0_4px_24px_rgba(0,0,0,0.05)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.40)] flex flex-col justify-between h-full min-h-[340px] crystal-chamfer crystal-sheen">
-                <div>
-                  <div className="flex items-center justify-between border-b border-black/[0.06] dark:border-white/[0.08] pb-3 mb-4">
-                    <div className="flex items-center gap-2"><span className="w-2.5 h-2.5 rounded-full bg-[#34C759] dark:bg-[#30D158] animate-pulse"></span><span className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wide">Live Telemetry</span></div>
-                    <span className="text-[10px] font-semibold uppercase px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20 crystal-pill" title="Autonomous 15-minute background discovery">Auto-Sweep 15m</span>
+            {/* ── HERO ── */}
+            <section ref={homeRef} className="hero overflow-hidden">
+              <div className="hero-rings" aria-hidden="true" />
+              <div className="shell pt-14 pb-16 md:pt-24 md:pb-24 grid grid-cols-1 lg:grid-cols-12 gap-14 lg:gap-8 items-end">
+                <div className="lg:col-span-8">
+                  <p className="eyebrow inline-flex items-center gap-2.5 rise" style={{ '--d': 0 }}>
+                    <span className="dot dot-live" />
+                    Native OD system · Zero amber tolerance
+                  </p>
+                  <h1
+                    className="display rise mt-7 [font-size:clamp(3.25rem,8.6vw,7.75rem)]"
+                    style={{ '--d': 1 }}
+                  >
+                    Stop missing hackathons <em>while arguing in the canteen.</em>
+                  </h1>
+                  <p className="rise mt-9 text-[17px] md:text-[19px] leading-relaxed text-ink-2 max-w-[54ch]" style={{ '--d': 2 }}>
+                    Continuously scanning{' '}
+                    <strong className="font-medium text-ink">{fmt(activeCount)} active, verified hackathons</strong>{' '}
+                    across top IITs, NITs and premier global hubs. Ended events are archived under Lost
+                    Opportunities and never counted in the active total.
+                  </p>
+                  <div className="rise mt-10 flex flex-wrap items-center gap-3" style={{ '--d': 3 }}>
+                    <button className="btn btn-accent btn-lg" onClick={() => scrollToSection('events')}>
+                      Explore live hacks <ArrowRightIcon />
+                    </button>
+                    <a
+                      href="https://t.me/Pranavhakathon_bot"
+                      target="_blank"
+                      rel="noreferrer"
+                      className="btn btn-ghost btn-lg"
+                    >
+                      <TelegramIcon /> Telegram alerts
+                    </a>
                   </div>
-                  <div className="bg-[#F2F2F7]/80 dark:bg-[#2C2C2E]/60 backdrop-blur-md rounded-[16px] p-4.5 border border-black/[0.04] dark:border-white/[0.06] space-y-4 crystal-chamfer">
-                    <div className="flex items-center justify-between text-xs font-mono"><span className="text-slate-500 dark:text-slate-400">Scan Cadence</span><strong className="text-slate-900 dark:text-white">Every 15 min · Next in {formatCountdown(secondsUntilNextScan)}</strong></div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div><div className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">{upcomingTotal}</div><div className="text-[10px] uppercase font-semibold text-slate-500 dark:text-slate-400">Active Live</div></div>
-                      <div><div className="text-2xl font-bold text-[#34C759] dark:text-[#30D158] tracking-tight">{stats.top_college_count || 0}</div><div className="text-[10px] uppercase font-semibold text-slate-500 dark:text-slate-400">Premier IIT/NIT</div></div>
-                      <div><div className="text-2xl font-bold text-[#AF52DE] dark:text-[#BF5AF2] tracking-tight">{stats.internship_count || 0}</div><div className="text-[10px] uppercase font-semibold text-slate-500 dark:text-slate-400">Internships</div></div>
-                      <div><div className="text-2xl font-bold text-rose-600 dark:text-rose-400 tracking-tight">{missedTotal || stats.lost_opportunities_count || 0}</div><div className="text-[10px] uppercase font-semibold text-slate-500 dark:text-slate-400">Lost Opps (Past)</div></div>
+                </div>
+
+                {/* Telemetry ledger */}
+                <aside
+                  ref={dashboardRef}
+                  className="lg:col-span-4 panel rise scroll-mt-24"
+                  style={{ '--d': 4 }}
+                  aria-label="Live telemetry"
+                >
+                  <div className="flex items-center justify-between px-5 py-4">
+                    <span className="eyebrow inline-flex items-center gap-2.5 !text-ink">
+                      <span className="dot dot-live" />
+                      Live telemetry
+                    </span>
+                    <span className="tag tag-quiet" title="Autonomous 15-minute background discovery">Auto-sweep 15m</span>
+                  </div>
+
+                  <div className="px-5 pb-6 pt-1">
+                    <div className="eyebrow">Next sweep in</div>
+                    <div className="num mt-3 text-[68px] text-ink" aria-live="off">
+                      {formatCountdown(secondsUntilNextScan)}
+                    </div>
+                    <div className="sweep-track mt-5" role="presentation">
+                      <div className="sweep-fill" style={{ transform: `scaleX(${sweepProgress})` }} />
                     </div>
                   </div>
-                </div>
-                <div className="grid grid-cols-2 gap-2.5 pt-4 border-t border-black/[0.06] dark:border-white/[0.08] mt-4 text-center">
-                  <div className="p-3 rounded-[12px] bg-[#F2F2F7]/80 dark:bg-white/[0.04] border border-black/[0.06] dark:border-white/[0.06] crystal-chamfer"><div className="text-sm font-bold text-slate-900 dark:text-white">{stats.total_registrations ? stats.total_registrations.toLocaleString() : '263,031'}</div><div className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 uppercase">Registered Students</div></div>
-                  <div className="p-3 rounded-[12px] bg-emerald-500/10 border border-emerald-500/20 crystal-chamfer crystal-pill"><div className="text-sm font-bold text-[#34C759] dark:text-[#30D158]">{stats.total_prize_pool_formatted || '₹40.6 Cr'}</div><div className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 uppercase">Active Prize Pool</div></div>
-                </div>
+
+                  <div className="grid grid-cols-2 border-t border-line">
+                    {[
+                      { v: upcomingTotal, l: 'Active live', tone: 'text-ink' },
+                      { v: stats.top_college_count || 0, l: 'Premier IIT / NIT', tone: 'text-accent-text' },
+                      { v: stats.internship_count || 0, l: 'Internships', tone: 'text-ink' },
+                      { v: missedTotal || stats.lost_opportunities_count || 0, l: 'Lost opps (past)', tone: 'text-muted' },
+                    ].map((cell, i) => (
+                      <div
+                        key={cell.l}
+                        className={`p-5 ${i % 2 === 0 ? 'border-r border-line' : ''} ${i < 2 ? 'border-b border-line' : ''}`}
+                      >
+                        <div className={`num text-[40px] ${cell.tone}`}><CountUp value={cell.v} format={fmt} /></div>
+                        <div className="eyebrow mt-2.5">{cell.l}</div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <dl>
+                    <div className="panel-row"><dt>Last scraped</dt><dd className="!text-accent-text">{formatLastScraped(stats.last_scraped)}</dd></div>
+                    <div className="panel-row"><dt>Registered students</dt><dd>{stats.total_registrations ? stats.total_registrations.toLocaleString('en-IN') : '—'}</dd></div>
+                    <div className="panel-row"><dt>Active prize pool</dt><dd>{prizeDisplay}</dd></div>
+                  </dl>
+                </aside>
               </div>
             </section>
 
-            {/* ── DISCOVER EVENTS SECTION (RADAR) ── */}
-            <section ref={eventsRef} className="space-y-6 pt-8 border-t border-border-light dark:border-border-dark">
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                <div>
-                  <h2 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-2"><span className="w-3 h-3 rounded-full bg-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.6)]"></span>Verified Hackathon Radar</h2>
-                  <p className="text-sm text-slate-600 dark:text-slate-400 mt-1 font-medium">Zero scam portals • Direct API links • All platforms aggregated across India & globally</p>
+            {/* ── STAT STRIP ── */}
+            <div className="stat-strip" role="group" aria-label="Quick stats">
+              <button type="button" className="stat-cell" onClick={() => handleQuickFilter('prizes')} title="Filter highest cash prize pools">
+                <ArrowUpRightIcon size={18} />
+                <div className="num text-[clamp(2rem,4.6vw,4rem)]">{prizeDisplay}</div>
+                <div className="eyebrow mt-3">Verified prizes</div>
+              </button>
+              <button type="button" className="stat-cell" onClick={() => handleQuickFilter('college')} title="Filter premier IIT / NIT hackathons">
+                <ArrowUpRightIcon size={18} />
+                <div className="num text-[clamp(2rem,4.6vw,4rem)]">
+                  {stats.top_college_count ? stats.top_college_count : '—'}
+                  <span className="text-accent-text italic text-[0.5em] ml-2">premier</span>
                 </div>
-                <div className="flex items-center gap-2.5 w-full sm:w-auto">
-                  <div className="relative group w-full sm:w-72">
-                    <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400 dark:text-slate-500 group-focus-within:text-[#007AFF] dark:group-focus-within:text-[#0A84FF] group-focus-within:scale-110 transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]">
-                      <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
-                    </div>
-                    <input type="text" placeholder="Search by hackathon, venue, or campus (e.g. IIIT Hyderabad, Pune, AI)..." className="w-full pl-10 pr-9 h-11 min-h-[44px] bg-black/[0.05] dark:bg-white/[0.08] border border-transparent focus:border-[#007AFF]/40 focus:bg-white dark:focus:bg-[#1C1C1E] rounded-[14px] apple-squircle text-xs sm:text-sm text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-[#007AFF]/25 focus:shadow-[0_0_24px_rgba(0,122,255,0.12)] transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] shadow-xs crystal-search crystal-chamfer" value={searchQuery} onChange={handleSearchChange} />
+                <div className="eyebrow mt-3">HOD approved</div>
+              </button>
+              <button
+                type="button"
+                className="stat-cell"
+                onClick={() => { scrollToSection('dashboard'); showToast('Telemetry: live 15-minute autonomous radar active'); }}
+                title="View live broadcast telemetry"
+              >
+                <ArrowUpRightIcon size={18} />
+                <div className="num text-[clamp(2rem,4.6vw,4rem)]">{latencyDisplay}</div>
+                <div className="eyebrow mt-3">Push latency</div>
+              </button>
+            </div>
+
+            {/* ── PLATFORM TICKER ── */}
+            {sourceTicker.length > 0 && (
+              <div className="marquee" aria-label="Platforms monitored">
+                <div className="marquee-track">
+                  {tickerItems.map((s, i) => (
+                    <span key={`${s.key}-${i}`} className="marquee-item" aria-hidden={i >= sourceTicker.length ? 'true' : undefined}>
+                      <b>{s.label}</b> {fmt(s.count)}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* ── RADAR ── */}
+            <section ref={eventsRef} className="shell pt-20 md:pt-28 scroll-mt-16">
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-end reveal">
+                <div className="lg:col-span-7">
+                  <span className="eyebrow">01 — Radar</span>
+                  <h2 className="display mt-4 [font-size:clamp(2.6rem,5.6vw,4.75rem)]">
+                    Verified hackathon <em>radar</em>
+                  </h2>
+                  <p className="mt-5 text-muted max-w-[52ch]">
+                    Zero scam portals. Direct links. Every major platform, aggregated across India and globally.
+                  </p>
+                </div>
+                <div className="lg:col-span-5 flex items-end gap-4">
+                  <div className="search flex-1">
+                    <span className="search-icon"><SearchIcon /></span>
+                    <input
+                      type="text"
+                      aria-label="Search hackathons"
+                      placeholder="Search hackathon, venue or campus"
+                      value={searchQuery}
+                      onChange={handleSearchChange}
+                    />
                     {searchQuery && (
-                      <button type="button" onClick={() => setSearchQuery('')} className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-all duration-200 active:scale-85 cursor-pointer" title="Clear search" aria-label="Clear search">
-                        <span className="w-4 h-4 rounded-full bg-black/10 dark:bg-white/20 flex items-center justify-center text-[10px] leading-none">✕</span>
+                      <button
+                        type="button"
+                        onClick={() => setSearchQuery('')}
+                        className="absolute right-0 top-1/2 -translate-y-1/2 w-7 h-7 flex items-center justify-center text-muted hover:text-ink"
+                        title="Clear search"
+                        aria-label="Clear search"
+                      >
+                        ✕
                       </button>
                     )}
                   </div>
-                  <button
-                    onClick={() => setShowAutoListModal(true)}
-                    className="shrink-0 flex items-center gap-1.5 px-3.5 h-11 min-h-[44px] rounded-[14px] bg-gradient-to-r from-blue-600 via-indigo-600 to-violet-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-xs shadow-md hover:shadow-blue-500/25 transition-all cursor-pointer"
-                    title="Autonomous Internet Hackathon Scanner for Colleges & Cities"
-                  >
-                    🌐 Auto-Scanner
+                  <button className="btn btn-ghost shrink-0" onClick={() => setShowAutoListModal(true)} title="Autonomous internet hackathon scanner for colleges and cities">
+                    Auto-scanner
                   </button>
                 </div>
               </div>
 
-              {/* ── 15-MINUTE AUTONOMOUS RADAR STATUS BAR ── */}
-              <div className="flex flex-wrap items-center justify-between gap-3 p-3.5 rounded-[18px] bg-gradient-to-r from-blue-500/[0.08] via-indigo-500/[0.06] to-violet-500/[0.08] border border-blue-500/20 backdrop-blur-xl shadow-xs">
-                <div className="flex items-center gap-2.5">
-                  <span className="relative flex h-3 w-3 shrink-0">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                    <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+              {/* Autonomous engine status */}
+              <div className="mt-12 flex flex-wrap items-center justify-between gap-4 border-y border-line py-4">
+                <div className="flex items-center gap-3 text-sm">
+                  <span className="dot dot-live" />
+                  <span>
+                    <strong className="font-medium">Autonomous radar engine</strong>
+                    <span className="text-muted"> — scanning the web, Instagram &amp; platforms every 15 minutes</span>
                   </span>
-                  <div>
-                    <span className="text-xs font-bold text-slate-900 dark:text-white flex flex-wrap items-center gap-1.5">
-                      <span>Autonomous Radar Engine:</span>
-                      <span className="text-[11px] font-normal text-slate-600 dark:text-slate-300">Scanning internet, Instagram & platforms every 15 min</span>
-                    </span>
-                  </div>
                 </div>
-                <div className="flex items-center gap-2.5 ml-auto">
-                  <span className="text-xs font-mono bg-white/90 dark:bg-[#1C1C1E]/90 px-3 py-1 rounded-[10px] border border-black/[0.06] dark:border-white/[0.08] text-slate-700 dark:text-slate-300">
-                    Next sweep in: <strong className="text-[#007AFF] dark:text-[#0A84FF]">{formatCountdown(secondsUntilNextScan)}</strong>
+                <div className="flex items-center gap-4">
+                  <span className="mono text-xs text-muted">
+                    Next sweep <span className="text-ink">{formatCountdown(secondsUntilNextScan)}</span>
                   </span>
                   <button
+                    className="btn btn-ghost !h-[30px] !px-3 !text-xs"
                     onClick={() => {
                       setSecondsUntilNextScan(SCAN_INTERVAL_SECONDS);
                       fetchHackathons(true);
-                      showToast('🔄 Executing live autonomous sweep across web & social...');
+                      showToast('Running a live autonomous sweep across web and social…');
                     }}
-                    className="px-3.5 py-1.5 rounded-[10px] bg-[#007AFF] hover:bg-[#0066D6] dark:bg-[#0A84FF] dark:hover:bg-[#0077ED] text-white text-xs font-bold shadow-xs hover:shadow-sm transition-all cursor-pointer flex items-center gap-1"
                     title="Force immediate radar sweep"
                   >
-                    <span>⚡ Scan Now</span>
+                    Scan now
                   </button>
                 </div>
               </div>
 
-              {/* ── QUICK FOCUS SHORTCUTS ── */}
-              <div className="flex flex-wrap items-center gap-1.5">
-                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mr-1">Quick Focus:</span>
-                <button
-                  type="button"
-                  onClick={() => handleQuickFilter('faang')}
-                  className={`px-2.5 py-1 rounded-[8px] text-[11px] font-bold tracking-tight transition-all cursor-pointer ${
-                    searchQuery.toLowerCase() === 'faang'
-                      ? 'bg-amber-500 text-white shadow-xs'
-                      : 'bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/20 hover:bg-amber-500/20'
-                  }`}
-                >
-                  🔥 FAANG / MANGO
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleQuickFilter('pune')}
-                  className={`px-2.5 py-1 rounded-[8px] text-[11px] font-bold tracking-tight transition-all cursor-pointer ${
-                    searchQuery.toLowerCase() === 'pune'
-                      ? 'bg-[#007AFF] text-white shadow-xs'
-                      : 'bg-[#007AFF]/10 text-[#007AFF] dark:text-[#0A84FF] border border-[#007AFF]/20 hover:bg-[#007AFF]/20'
-                  }`}
-                >
-                  🏙️ Pune Tech (COEP/PICT)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleQuickFilter('iiit')}
-                  className={`px-2.5 py-1 rounded-[8px] text-[11px] font-bold tracking-tight transition-all cursor-pointer ${
-                    searchQuery.toLowerCase() === 'iiit'
-                      ? 'bg-purple-600 text-white shadow-xs'
-                      : 'bg-purple-500/10 text-purple-700 dark:text-purple-300 border border-purple-500/20 hover:bg-purple-500/20'
-                  }`}
-                >
-                  🏛️ IIIT Hyderabad
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleQuickFilter('college')}
-                  className={`px-2.5 py-1 rounded-[8px] text-[11px] font-bold tracking-tight transition-all cursor-pointer ${
-                    searchQuery.toLowerCase() === 'iit'
-                      ? 'bg-emerald-600 text-white shadow-xs'
-                      : 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/20'
-                  }`}
-                >
-                  🎓 Premier IITs
-                </button>
-              </div>
-
-              {/* ── PLATFORM SOURCE FILTER BAR ── */}
-              <div className="space-y-1.5">
-                <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
-                  <span>Platform Sources:</span>
-                  <span className="text-[10px] px-1.5 py-0.2 rounded bg-black/[0.05] dark:bg-white/[0.08] font-mono">Include All</span>
+              {/* Filters */}
+              <div className="mt-8 grid grid-cols-1 lg:grid-cols-[120px_1fr] gap-x-6 gap-y-5 items-center">
+                <span className="eyebrow">Quick focus</span>
+                <div className="flex flex-wrap items-center gap-2">
+                  {[
+                    { k: 'faang', l: 'FAANG / MANGO', q: 'faang' },
+                    { k: 'pune',  l: 'Pune tech (COEP / PICT)', q: 'pune' },
+                    { k: 'iiit',  l: 'IIIT Hyderabad', q: 'iiit hyderabad' },
+                    { k: 'college', l: 'Premier IITs', q: 'iit' },
+                  ].map((f) => (
+                    <button
+                      key={f.k}
+                      type="button"
+                      className="chip chip-sm"
+                      data-active={searchQuery.toLowerCase() === f.q}
+                      onClick={() => handleQuickFilter(f.k)}
+                    >
+                      {f.l}
+                    </button>
+                  ))}
                 </div>
-                <div className="flex flex-wrap items-center gap-1.5">
-                  {platformSources.map(src => (
+
+                <span className="eyebrow">Platform</span>
+                <div className="flex flex-wrap items-center gap-2">
+                  {platformSources.map((src) => (
                     <button
                       key={src.key}
+                      type="button"
+                      className="chip chip-sm"
+                      data-active={activeSource === src.key}
                       onClick={() => handleSourceChange(src.key)}
-                      className={`px-3 py-1.5 rounded-[10px] text-xs font-semibold transition-all duration-200 cursor-pointer flex items-center gap-1.5 ${
-                        activeSource === src.key
-                          ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 shadow-xs scale-[1.02]'
-                          : 'bg-black/[0.04] dark:bg-white/[0.06] text-slate-700 dark:text-slate-300 hover:bg-black/[0.08] dark:hover:bg-white/[0.12]'
-                      }`}
                     >
-                      <span>{src.label}</span>
-                      <span className={`text-[10px] font-mono ${activeSource === src.key ? 'opacity-80' : 'opacity-60'}`}>
-                        ({src.count})
-                      </span>
+                      {src.label}
+                      <span className="count">{src.count}</span>
+                    </button>
+                  ))}
+                </div>
+
+                <span className="eyebrow">Category</span>
+                <div className="flex flex-wrap items-center gap-2">
+                  {categories.map((cat) => (
+                    <button
+                      key={cat.key}
+                      type="button"
+                      className="chip"
+                      data-active={activeCategory === cat.key}
+                      onClick={() => handleCategoryChange(cat.key)}
+                    >
+                      {cat.label}
+                      <span className="count">{cat.count}</span>
                     </button>
                   ))}
                 </div>
               </div>
 
-              {/* ── CATEGORY PILL BAR & CONTROLS ── */}
-              <div className="flex flex-wrap items-center gap-2 pb-2">
-                {categories.map(cat => (
-                  <button key={cat.key} onClick={() => handleCategoryChange(cat.key)} className={`px-4 py-2 min-h-[38px] sm:min-h-[40px] rounded-full apple-touch-target apple-spring-press apple-dual-bevel text-xs font-semibold transition-all duration-200 cursor-pointer crystal-chamfer ${
-                    activeCategory === cat.key ? 'bg-[#007AFF] text-white shadow-xs shadow-[#007AFF]/25 scale-[1.02]' : 'bg-white/90 dark:bg-[#1C1C1E]/90 border border-black/[0.08] dark:border-white/[0.10] text-slate-700 dark:text-slate-300 hover:bg-black/[0.03] dark:hover:bg-white/[0.06] hover:border-black/[0.15] dark:border-white/[0.20]'
-                  }`}>{cat.label} <span className="opacity-70 ml-1">({cat.count})</span></button>
-                ))}
+              {/* Tabs + view controls */}
+              <div className="mt-10 border-t border-line-strong flex flex-wrap items-center justify-between gap-x-8 gap-y-3">
+                <div role="tablist" aria-label="Opportunity status" className="flex flex-wrap">
+                  {tabs.map((tab) => (
+                    <button
+                      key={tab.key}
+                      type="button"
+                      role="tab"
+                      aria-selected={activeTab === tab.key}
+                      className="tab"
+                      onClick={() => handleTabChange(tab.key)}
+                    >
+                      {tab.label}
+                      <span className="count">{fmt(tab.count)}</span>
+                    </button>
+                  ))}
+                </div>
 
-                <div className="ml-auto flex flex-wrap items-center gap-2.5">
-                  {/* Adjustable View Switcher: Grid vs Compact List */}
-                  <div className="flex items-center p-1 rounded-[12px] bg-black/[0.05] dark:bg-white/[0.08] border border-black/[0.04] dark:border-white/[0.06]">
+                <div className="flex flex-wrap items-center gap-2.5 py-2.5">
+                  <div className="seg" role="group" aria-label="Layout">
                     <button
                       type="button"
-                      onClick={() => {
-                        setViewMode('grid');
-                        try { localStorage.setItem('hackathon_view_mode', 'grid'); } catch {}
-                      }}
-                      className={`p-2 rounded-[8px] text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
-                        viewMode === 'grid'
-                          ? 'bg-white dark:bg-[#2C2C2E] text-slate-900 dark:text-white shadow-xs font-bold'
-                          : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'
-                      }`}
-                      title="Card Grid View"
-                      aria-label="Card Grid View"
+                      aria-pressed={viewMode === 'grid'}
+                      onClick={() => { setViewMode('grid'); try { localStorage.setItem('hackathon_view_mode', 'grid'); } catch { /* storage unavailable */ } }}
+                      title="Card grid view"
+                      aria-label="Card grid view"
                     >
-                      <GridViewIcon />
-                      <span className="hidden sm:inline">Grid</span>
+                      <GridViewIcon /> <span className="hidden sm:inline">Grid</span>
                     </button>
                     <button
                       type="button"
-                      onClick={() => {
-                        setViewMode('compact');
-                        try { localStorage.setItem('hackathon_view_mode', 'compact'); } catch {}
-                      }}
-                      className={`p-2 rounded-[8px] text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
-                        viewMode === 'compact'
-                          ? 'bg-white dark:bg-[#2C2C2E] text-slate-900 dark:text-white shadow-xs font-bold'
-                          : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'
-                      }`}
-                      title="Compact List View"
-                      aria-label="Compact List View"
+                      aria-pressed={viewMode === 'compact'}
+                      onClick={() => { setViewMode('compact'); try { localStorage.setItem('hackathon_view_mode', 'compact'); } catch { /* storage unavailable */ } }}
+                      title="Compact list view"
+                      aria-label="Compact list view"
                     >
-                      <ListViewIcon />
-                      <span className="hidden sm:inline">List</span>
+                      <ListViewIcon /> <span className="hidden sm:inline">List</span>
                     </button>
                   </div>
-
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Show:</span>
-                    <select value={pageSize} onChange={handlePageSizeChange} className="h-10 sm:h-11 min-h-[40px] sm:min-h-[44px] bg-white/95 dark:bg-[#1C1C1E]/95 border border-black/[0.08] dark:border-white/[0.10] text-slate-700 dark:text-slate-300 text-xs font-semibold rounded-[12px] apple-squircle apple-touch-target apple-dual-bevel px-2.5 py-2 focus:outline-none focus:ring-2 focus:ring-[#007AFF] cursor-pointer shadow-xs transition-all duration-200 crystal-chamfer">
-                      <option value={12}>12 / page</option>
-                      <option value={24}>24 / page</option>
-                      <option value={48}>48 / page</option>
-                      <option value={96}>96 / page</option>
-                    </select>
-                  </div>
-
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Sort:</span>
-                    <select value={sortBy} onChange={handleSortChange} className="h-10 sm:h-11 min-h-[40px] sm:min-h-[44px] bg-white/95 dark:bg-[#1C1C1E]/95 border border-black/[0.08] dark:border-white/[0.10] text-slate-700 dark:text-slate-300 text-xs font-semibold rounded-[12px] apple-squircle apple-touch-target apple-dual-bevel px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#007AFF] cursor-pointer shadow-xs transition-all duration-200 crystal-chamfer">
-                      <option value="deadline">⏳ Deadline (Soonest)</option>
-                      <option value="newest">✨ Recently Added</option>
-                      <option value="name">🔤 Name (A–Z)</option>
-                      <option value="distance">📍 Nearest {!userLocation && '(uses GPS)'}</option>
-                    </select>
-                  </div>
+                  <select value={pageSize} onChange={handlePageSizeChange} className="field" aria-label="Results per page">
+                    <option value={12}>12 / page</option>
+                    <option value={24}>24 / page</option>
+                    <option value={48}>48 / page</option>
+                    <option value={96}>96 / page</option>
+                  </select>
+                  <select value={sortBy} onChange={handleSortChange} className="field" aria-label="Sort order">
+                    <option value="deadline">Deadline — soonest</option>
+                    <option value="newest">Recently added</option>
+                    <option value="name">Name A–Z</option>
+                    <option value="distance">Nearest {!userLocation && '(uses GPS)'}</option>
+                  </select>
                 </div>
               </div>
 
-              {/* Error / Location States */}
+              <div className="flex items-center justify-between py-3 mono text-xs text-muted">
+                <span>
+                  {!loading && !error && (
+                    <>Showing <span className="text-ink">{hackathons.length}</span> of <span className="text-ink">{fmt(activeTabTotal)}</span> opportunities</>
+                  )}
+                </span>
+              </div>
+
+              {/* Notices */}
               {locationError && (
-                <div className="bg-sky-500/10 border border-sky-500/20 text-sky-800 dark:text-sky-300 px-4 py-3 rounded-[14px] text-xs sm:text-sm font-semibold flex items-center justify-between gap-2 shadow-xs">
+                <div className="mb-4 border border-line border-l-2 border-l-accent px-4 py-3 text-sm flex items-center justify-between gap-3">
                   <span className="flex items-center gap-2"><PinIcon /> {locationError}</span>
-                  <button onClick={() => setLocationError(null)} className="text-[#007AFF] dark:text-[#0A84FF] hover:underline text-xs font-bold">Dismiss</button>
+                  <button onClick={() => setLocationError(null)} className="text-accent-text hover:underline text-xs font-medium">Dismiss</button>
                 </div>
               )}
               {error && (
-                <div className="bg-rose-500/10 border border-rose-500/20 text-rose-800 dark:text-rose-300 px-4 py-3 rounded-[14px] text-xs sm:text-sm font-semibold flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs">
-                  <div>Connection Notice: {error}</div>
-                  <button className="px-3.5 py-1 bg-rose-600 hover:bg-rose-700 text-white rounded-[8px] text-xs font-bold transition shadow-xs" onClick={() => fetchHackathons()}>Retry</button>
+                <div className="mb-4 border border-line border-l-2 border-l-bad px-4 py-3 text-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div>Connection notice: {error}</div>
+                  <button className="btn btn-ink !h-8 !text-xs" onClick={() => fetchHackathons()}>Retry</button>
                 </div>
               )}
 
-              {/* ── TAB SWITCHER (ACTIVE / LOST OPPORTUNITIES / ALL) ── */}
-              {!loading && !error && (upcomingTotal > 0 || missedTotal > 0 || allTotal > 0) && (
-                <div className="flex flex-wrap items-center justify-between gap-4">
-                  <div className="relative p-1 rounded-[16px] apple-squircle bg-black/[0.05] dark:bg-white/[0.08] backdrop-blur-md inline-flex items-center shadow-inner border border-black/[0.04] dark:border-white/[0.04] w-fit min-h-[44px] crystal-pill crystal-chamfer">
-                    {tabs.map(tab => (
-                      <button
-                        key={tab.key}
-                        type="button"
-                        className={`relative z-10 px-4 sm:px-5 py-2 min-h-[38px] text-xs sm:text-sm font-semibold rounded-[12px] apple-squircle apple-touch-target apple-spring-press transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer select-none ${
-                          activeTab === tab.key
-                            ? 'bg-white dark:bg-[#2C2C2E] text-slate-950 dark:text-white font-bold shadow-sm crystal-chamfer'
-                            : 'text-slate-500 dark:text-slate-400 hover:text-black dark:hover:text-white'
-                        }`}
-                        onClick={() => handleTabChange(tab.key)}
-                      >
-                        <span>{tab.label}</span>
-                        <span className={`py-0.5 px-2 rounded-full text-[10px] font-bold transition-all duration-300 ${
-                          activeTab === tab.key
-                            ? tab.key === 'upcoming'
-                              ? 'bg-[#007AFF]/12 text-[#007AFF] dark:bg-[#0A84FF]/25 dark:text-[#0A84FF] scale-105'
-                              : tab.key === 'missed'
-                              ? 'bg-rose-500/15 text-rose-700 dark:text-rose-300 scale-105'
-                              : 'bg-purple-500/15 text-purple-700 dark:text-purple-300 scale-105'
-                            : 'bg-black/[0.05] dark:bg-white/10 text-slate-500 dark:text-slate-400'
-                        }`}>
-                          {tab.count}
-                        </span>
-                      </button>
-                    ))}
-                  </div>
-
-                  <div className="text-xs text-slate-500 dark:text-slate-400 font-medium">
-                    Showing <strong className="text-slate-900 dark:text-white">{hackathons.length}</strong> of{' '}
-                    <strong className="text-slate-900 dark:text-white">
-                      {activeTab === 'upcoming' ? upcomingTotal : activeTab === 'all' ? (allTotal || upcomingTotal + missedTotal) : missedTotal}
-                    </strong> opportunities
-                  </div>
-                </div>
-              )}
-
-              {/* ── DEDICATED LOST OPPORTUNITIES SECTION BANNER ── */}
+              {/* Lost opportunities banner */}
               {activeTab === 'missed' && (
-                <div className="p-4 sm:p-5 rounded-[20px] bg-rose-500/[0.08] dark:bg-rose-500/[0.12] border border-rose-500/25 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 text-rose-950 dark:text-rose-100">
-                  <div className="space-y-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="text-base font-bold text-rose-900 dark:text-rose-200">💔 Lost Opportunities Archive</span>
-                      <span className="text-[10px] font-bold uppercase px-2.5 py-0.5 rounded-full bg-rose-500/20 text-rose-700 dark:text-rose-300 border border-rose-500/30">
-                        {missedTotal} Deadlines Passed
-                      </span>
-                      <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-[6px] bg-black/5 dark:bg-white/10 text-slate-700 dark:text-slate-300">
-                        Excluded from Active Total
-                      </span>
+                <div className="mb-6 border border-line border-l-2 border-l-bad p-5 sm:p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-5">
+                  <div className="space-y-2 max-w-3xl">
+                    <div className="flex flex-wrap items-center gap-3">
+                      <span className="display text-[28px]">Lost opportunities archive</span>
+                      <span className="tag tag-bad">{fmt(missedTotal)} deadlines passed</span>
+                      <span className="tag tag-quiet">Excluded from active total</span>
                     </div>
-                    <p className="text-xs text-rose-800/80 dark:text-rose-300/80 max-w-2xl leading-relaxed">
-                      These hackathons have concluded or their registrations are closed. We preserve them in this dedicated section so you can inspect past themes, winning project tracks, and college OD archives without diluting your active application pipeline.
+                    <p className="text-sm text-muted leading-relaxed">
+                      These hackathons have concluded or closed registrations. They stay here so you can study past
+                      themes, winning tracks and college OD archives without cluttering your active pipeline.
                     </p>
                   </div>
-                  <button
-                    onClick={() => handleTabChange('upcoming')}
-                    className="shrink-0 px-4 py-2 rounded-[12px] bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold shadow-xs transition-all cursor-pointer flex items-center gap-1.5"
-                  >
-                    <span>🚀 Back to Active Hacks</span>
-                    <span className="opacity-80">({upcomingTotal})</span>
+                  <button onClick={() => handleTabChange('upcoming')} className="btn btn-ink shrink-0">
+                    Back to active hacks <span className="mono text-[11px] opacity-70">{fmt(upcomingTotal)}</span>
                   </button>
                 </div>
               )}
 
-              {/* Card Container (Grid or Compact List) */}
-              <div className={viewMode === 'grid' ? "grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6" : "flex flex-col gap-3.5"}>
+              {/* Results ledger */}
+              <div className={`ledger ${viewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3' : 'flex flex-col'}`}>
                 {loading ? (
-                  Array.from({ length: pageSize > 12 ? 12 : pageSize }).map((_, i) => (
-                    <SkeletonCard key={i} />
+                  Array.from({ length: Math.min(pageSize, viewMode === 'grid' ? 12 : 6) }).map((_, i) => (
+                    <div key={i} className="ledger-cell"><SkeletonCard /></div>
                   ))
                 ) : !error && hackathons.length > 0 ? (
                   hackathons.map((h, index) => (
-                    <div key={h._id || h.link} className="animate-card-in scroll-reveal-card" style={{ animationDelay: `${Math.min(index * 25, 200)}ms` }}>
+                    <TiltCard
+                      key={h._id || h.link}
+                      className="ledger-cell"
+                      index={index}
+                    >
                       <HackathonCard hackathon={h} onShare={(title) => showToast(`Copied link for ${title}`)} viewMode={viewMode} />
-                    </div>
+                    </TiltCard>
                   ))
                 ) : null}
               </div>
 
               <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={handlePageChange} />
 
-              {/* Empty State */}
+              {/* Empty state */}
               {!loading && !error && hackathons.length === 0 && (
-                <div className="flex flex-col items-center justify-center p-12 text-center border border-dashed border-slate-300 dark:border-white/20 rounded-[24px] bg-white/40 dark:bg-white/[0.02]">
+                <div className="border border-line-strong px-6 py-20 flex flex-col items-center text-center">
                   <EmptySearchIcon />
-                  <h3 className="mt-4 text-lg font-bold text-slate-900 dark:text-white">{searchQuery || activeCategory !== 'All' || activeSource !== 'All' ? 'No hackathons found matching your active filters' : activeTab === 'missed' ? 'No past deadline records available.' : 'Nothing new right now — check back soon.'}</h3>
-                  <p className="text-sm text-slate-500 dark:text-slate-400 mt-1 max-w-md leading-relaxed">{searchQuery || activeCategory !== 'All' || activeSource !== 'All' ? `Zero matches for "${searchQuery || activeCategory || activeSource}". Try searching for broader terms (e.g. AI, Web3, Beginner) or reset filters.` : 'The scraper pipeline runs autonomous sweeps across Unstop, Devfolio, HackerEarth, Devnovate and Devpost.'}</p>
-                  <button className="mt-5 px-6 h-11 min-h-[44px] apple-squircle apple-touch-target apple-spring-press apple-dual-bevel bg-[#007AFF] hover:bg-[#0066D6] dark:bg-[#0A84FF] text-white rounded-[12px] text-xs font-bold shadow-md shadow-blue-600/20 transition-all cursor-pointer" onClick={() => { setSearchQuery(''); setActiveCategory('All'); setActiveSource('All'); }}>Reset All Filters</button>
+                  <h3 className="display mt-6 text-[clamp(1.75rem,3.4vw,2.75rem)] max-w-[22ch]">
+                    {hasFilters
+                      ? 'Nothing matches those filters.'
+                      : activeTab === 'missed'
+                        ? 'No past deadline records yet.'
+                        : 'Nothing new right now — check back soon.'}
+                  </h3>
+                  <p className="text-muted mt-4 max-w-md leading-relaxed">
+                    {hasFilters
+                      ? `Zero matches for “${searchQuery || activeCategory || activeSource}”. Try broader terms like AI, Web3 or Beginner, or reset the filters.`
+                      : 'The scraper pipeline sweeps Unstop, Devfolio, HackerEarth, Devnovate and Devpost around the clock.'}
+                  </p>
+                  <button
+                    className="btn btn-ink mt-8"
+                    onClick={() => { setSearchQuery(''); setActiveCategory('All'); setActiveSource('All'); }}
+                  >
+                    Reset all filters
+                  </button>
                 </div>
               )}
             </section>
 
-            {/* ── ABOUT & MAKER SECTION ── */}
-            <section ref={aboutRef} className="pt-8 border-t border-black/[0.08] dark:border-white/[0.10] grid grid-cols-1 lg:grid-cols-12 gap-8">
-              <div className="lg:col-span-6 bg-white dark:bg-[#1C1C1E] p-6 rounded-[24px] border border-black/[0.08] dark:border-white/[0.10] shadow-sm space-y-4">
-                <div className="flex items-center justify-between border-b border-black/[0.06] dark:border-white/[0.08] pb-3">
-                  <span className="text-xs font-semibold text-[#007AFF] dark:text-[#0A84FF] uppercase tracking-wider">Developer Spotlight • Maker</span>
-                  <span className="text-[10px] px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-800 dark:text-emerald-400 border border-emerald-500/20 font-bold tracking-wide">100% Free & Open Source</span>
+            {/* ── DEV DESK ── */}
+            <section ref={aboutRef} className="mt-24 md:mt-32 border-t border-line scroll-mt-16">
+              <div className="shell py-20 md:py-28 grid grid-cols-1 lg:grid-cols-12 gap-16 lg:gap-12">
+                <div className="lg:col-span-7 reveal">
+                  <div className="flex items-center gap-4">
+                    <span className="eyebrow">02 — Dev desk</span>
+                    <span className="tag tag-ok">100% free &amp; open source</span>
+                  </div>
+                  <div className="quote-mark mt-10" aria-hidden="true">“</div>
+                  <blockquote className="display -mt-3 [font-size:clamp(2rem,4.3vw,3.6rem)]">
+                    Why I spent 2 weeks coding this instead of studying for <em>Data Structures</em> and Signals &amp; Systems.
+                  </blockquote>
+                  <p className="mt-10 text-[17px] leading-relaxed text-ink-2 max-w-[58ch]">
+                    I built Hackathon Notifier because missing the Smart India Hackathon internal college round — a forwarded WhatsApp PDF buried under 800 spam messages in our unofficial college group — was the final straw. Built by a 2nd year engineer for fellow developers: no spam portals, no paywalls, just sub-second alerts to your device and instant HOD OD letters.
+                  </p>
+                  <dl className="mt-12 max-w-xl border-b border-line">
+                    <div className="dl-row"><dt>Dev</dt><dd>Pranav D. (2nd year)</dd></div>
+                    <div className="dl-row"><dt>Server cost</dt><dd className="!text-ok">₹0 / month</dd></div>
+                    <div className="dl-row"><dt>Attendance</dt><dd className="!text-accent-text">74.2% (OD pending)</dd></div>
+                    <div className="dl-row"><dt>Engine</dt><dd>FastAPI + Vite</dd></div>
+                  </dl>
                 </div>
-                <h3 className="text-xl font-bold text-slate-900 dark:text-white leading-snug tracking-tight">"Why I spent 2 weeks coding this instead of studying for Data Structures and Signals & Systems."</h3>
-                <p className="text-xs sm:text-sm font-normal text-slate-600 dark:text-slate-300 leading-relaxed">I built Hackathon Notifier because missing out on the Smart India Hackathon internal college round due to a forwarded WhatsApp PDF buried under 800 spam messages in our unofficial college group was the final straw. Built by a 2nd year engineer for fellow developers: no spam portals, no paid paywalls, just sub-second alerts right to your device and instant HOD OD letters.</p>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-2 text-[11px] bg-[#F2F2F7] dark:bg-[#2C2C2E] p-3.5 rounded-[16px] border border-black/[0.04] dark:border-white/[0.04]">
-                  <div><span className="text-slate-500 dark:text-slate-400 block mb-0.5 font-semibold text-[10px]">Dev</span><strong className="text-slate-900 dark:text-white text-xs">Pranav D. (2nd Year)</strong></div>
-                  <div><span className="text-slate-500 dark:text-slate-400 block mb-0.5 font-semibold text-[10px]">Server Cost</span><strong className="text-[#34C759] dark:text-[#30D158] text-xs">₹0 / month</strong></div>
-                  <div><span className="text-slate-500 dark:text-slate-400 block mb-0.5 font-semibold text-[10px]">Attendance</span><strong className="text-[#007AFF] dark:text-[#0A84FF] text-xs">74.2% (OD Pending)</strong></div>
-                  <div><span className="text-slate-500 dark:text-slate-400 block mb-0.5 font-semibold text-[10px]">Engine</span><strong className="text-slate-800 dark:text-slate-200 text-xs">FastAPI+Vite</strong></div>
-                </div>
-              </div>
 
-              <div className="lg:col-span-6 flex flex-col gap-5">
-                <div className="bg-gradient-to-r from-[#007AFF] to-[#5856D6] text-white rounded-[24px] p-6 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-md border border-blue-400/30 crystal-chamfer crystal-sheen">
-                  <div>
-                    <div className="text-[10px] font-mono tracking-wider text-blue-100 uppercase font-bold mb-1">● Live Telegram Pipeline</div>
-                    <div className="text-base font-bold tracking-tight leading-snug">Never miss a 32 LPA PPI deadline again.</div>
-                    <div className="text-xs text-blue-100 font-normal mt-1">Direct notifications with sub-second radar ({latencyDisplay}) of registration openings.</div>
-                  </div>
-                  <a href="https://t.me/Pranavhakathon_bot" target="_blank" rel="noreferrer" className="h-11 min-h-[44px] px-5 rounded-[12px] apple-squircle apple-touch-target apple-spring-press apple-dual-bevel bg-white text-[#007AFF] text-xs sm:text-sm font-bold hover:bg-slate-50 transition shadow-sm whitespace-nowrap flex items-center gap-2 cursor-pointer"><TelegramIcon /> Join @Pranavhakathon_bot</a>
-                </div>
-                <div className="bg-[#F2F2F7]/90 dark:bg-[#1C1C1E]/90 backdrop-blur-xl p-6 rounded-[24px] border border-black/[0.06] dark:border-white/[0.08] text-xs font-normal text-slate-600 dark:text-slate-400 space-y-3 flex-1 flex flex-col justify-center crystal-chamfer">
-                  <div className="font-bold text-slate-900 dark:text-white flex items-center gap-2"><ShieldCheckIcon /> TERMS, ELIGIBILITY & OD VERIFICATION POLICY</div>
-                  <p className="leading-relaxed">Hackathon Notifier operates strictly as a zero-middleman student utility. Attendance On-Duty (OD) generation is automated per university guidelines (AICTE, KTU, VTU, Mumbai Univ) and subject to authorized HOD sign-off. Bounties and prize distributions are guaranteed directly via official organizer escrow.</p>
-                  <div className="pt-1">
-                    <button
-                      onClick={navigateToTerms}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[10px] bg-black/[0.05] dark:bg-white/[0.08] hover:bg-black/[0.08] dark:hover:bg-white/[0.14] text-xs font-bold text-[#007AFF] dark:text-[#0A84FF] transition cursor-pointer"
+                <div className="lg:col-span-5 flex flex-col gap-6">
+                  <div className="reveal relative overflow-hidden bg-accent text-accent-ink p-8 md:p-10 rounded-lg">
+                    <div className="mono text-[11px] tracking-[0.14em] uppercase font-medium flex items-center gap-2.5">
+                      <span className="dot" /> Live Telegram pipeline
+                    </div>
+                    <div className="display mt-6 [font-size:clamp(2rem,3.4vw,2.9rem)] !text-accent-ink">
+                      Never miss a 32 LPA PPI deadline again.
+                    </div>
+                    <p className="mt-5 text-[15px] leading-relaxed opacity-80 max-w-[40ch]">
+                      Direct notifications with sub-second radar ({latencyDisplay}) of registration openings.
+                    </p>
+                    <a
+                      href="https://t.me/Pranavhakathon_bot"
+                      target="_blank"
+                      rel="noreferrer"
+                      className="mt-9 inline-flex items-center gap-2.5 h-12 px-5 rounded-md bg-accent-ink text-paper text-sm font-medium hover:opacity-90 transition-opacity"
                     >
-                      <span>Read Full Terms & Conditions Page</span>
-                      <span className="text-xs">→</span>
-                    </button>
+                      <TelegramIcon /> Join @Pranavhakathon_bot <ArrowUpRightIcon size={15} />
+                    </a>
                   </div>
-                  <div className="flex flex-wrap items-center justify-between font-mono text-[10px] pt-3 border-t border-black/[0.06] dark:border-white/[0.06] opacity-80">
-                    <span>Privacy Policy: Zero Student Data Tracking</span>
-                    <span>Apple HIG Standard v4.2 • Telemetry: 100% Operational</span>
+
+                  <div className="reveal border border-line-strong rounded-lg p-8">
+                    <div className="flex items-center gap-2.5 eyebrow !text-ink">
+                      <ShieldCheckIcon /> Terms, eligibility &amp; OD policy
+                    </div>
+                    <p className="mt-5 text-sm leading-relaxed text-muted">
+                      Hackathon Notifier operates strictly as a zero-middleman student utility. Attendance On-Duty (OD) generation is automated per university guidelines (AICTE, KTU, VTU, Mumbai Univ) and subject to authorized HOD sign-off. Prize distributions are handled directly by the official organizer.
+                    </p>
+                    <button onClick={navigateToTerms} className="btn btn-ghost mt-6">
+                      Read the full terms <ArrowRightIcon />
+                    </button>
+                    <div className="mono text-[11px] text-faint mt-6 pt-5 border-t border-line">
+                      Privacy: zero student data tracking
+                    </div>
                   </div>
                 </div>
               </div>
@@ -964,16 +1045,41 @@ function App() {
       </main>
 
       {/* ── FOOTER ── */}
-      <footer className="bg-white dark:bg-[#000000] border-t border-black/[0.08] dark:border-white/[0.10] px-4 sm:px-8 py-5 flex flex-col sm:flex-row justify-between items-center gap-4 text-xs font-semibold text-slate-500 dark:text-slate-400 z-10 relative mt-auto">
-        <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-4 text-center sm:text-left">
-          <span className="font-bold text-slate-900 dark:text-white cursor-pointer" onClick={() => navigateToRadar('home')}>© 2026 Hackathon Notifier</span>
-          <span className="hidden sm:inline-block border-l border-slate-300 dark:border-slate-700 h-3"></span>
-          <span>Built for Indian Engineering Students</span>
+      <footer className="border-t border-line overflow-hidden relative">
+        <div className="shell pt-14 pb-10 grid grid-cols-2 md:grid-cols-12 gap-x-6 gap-y-10">
+          <div className="col-span-2 md:col-span-6">
+            <a
+              href="#"
+              className="brand"
+              onClick={(e) => { e.preventDefault(); navigateToRadar('home'); }}
+              aria-label="Hackathon Notifier — back to top"
+            >
+              <LogoIcon />
+              <span>Hackathon Notifier</span>
+            </a>
+            <p className="mt-5 text-sm text-muted max-w-[34ch] leading-relaxed">
+              Built for Indian engineering students who would rather ship than scroll group chats.
+            </p>
+          </div>
+          <nav className="md:col-span-3 flex flex-col gap-3" aria-label="Explore">
+            <span className="eyebrow mb-1">Explore</span>
+            <button className="foot-link" onClick={() => navigateToRadar('events')}>Radar</button>
+            <button className="foot-link" onClick={() => navigateToRadar('dashboard')}>Telemetry</button>
+            <button className="foot-link" onClick={() => navigateToRadar('about')}>Dev desk</button>
+          </nav>
+          <nav className="md:col-span-3 flex flex-col gap-3" aria-label="Project">
+            <span className="eyebrow mb-1">Project</span>
+            <button className="foot-link" onClick={navigateToTerms}>Terms &amp; Conditions</button>
+            <button className="foot-link" onClick={() => setShowTechSpecModal(true)}>Architecture spec</button>
+            <button className="foot-link" onClick={toggleDarkMode}>Theme: {isDarkMode ? 'Dark' : 'Light'}</button>
+          </nav>
         </div>
-        <div className="flex flex-wrap items-center justify-center gap-4">
-          <button className="text-[#007AFF] dark:text-[#0A84FF] hover:underline font-bold cursor-pointer" onClick={navigateToTerms}>Terms & Conditions</button>
-          <button className="text-[#007AFF] dark:text-[#0A84FF] hover:underline font-bold cursor-pointer" onClick={() => setShowTechSpecModal(true)}>Architecture Spec</button>
-          <span className="text-[#34C759] dark:text-[#30D158] font-mono font-bold">System: {isDarkMode ? 'Dark' : 'Light'}</span>
+        <div className="shell">
+          <div className="foot-word" aria-hidden="true">Hackathon Notifier</div>
+        </div>
+        <div className="shell py-5 mt-6 border-t border-line flex flex-col sm:flex-row justify-between gap-2 mono text-[11px] text-faint">
+          <span>© 2026 Hackathon Notifier</span>
+          <span>Crafted by Pranav Deshmukh · B.Tech 2nd year</span>
         </div>
       </footer>
 

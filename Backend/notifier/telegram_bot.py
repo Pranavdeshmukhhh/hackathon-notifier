@@ -23,7 +23,6 @@ Key Capabilities:
 """
 
 import html
-import json
 import logging
 import math
 import os
@@ -402,6 +401,65 @@ def send_batch(hackathon_list: list[dict]) -> dict:
 
     logger.info("send_batch done: %d/%d sent, %d failed.", sent, total, failed)
     return {"total": total, "sent": sent, "failed": failed}
+
+
+def send_warning_alert(text: str, target_chat: str | None = None) -> bool:
+    """Send an operational monitoring warning alert to the admin chat."""
+    chat_id = str(target_chat or TELEGRAM_CHAT_ID).strip()
+    if not TELEGRAM_BOT_TOKEN or not chat_id:
+        return False
+    payload = {
+        "chat_id": chat_id,
+        "text": text,
+        "parse_mode": "HTML",
+        "disable_web_page_preview": True,
+    }
+    try:
+        resp = requests.post(_API_URL, json=payload, timeout=REQUEST_TIMEOUT)
+        return resp.status_code == 200
+    except Exception as e:
+        logger.warning("Failed to send warning alert: %s", e)
+        return False
+
+
+def send_deadline_update(hackathon: dict, old_deadline: str, new_deadline: str, target_chat: str | None = None) -> bool:
+    """Send a short 'deadline changed' alert for an existing hackathon."""
+    chat_id = str(target_chat or TELEGRAM_CHAT_ID).strip()
+    if not TELEGRAM_BOT_TOKEN or not chat_id:
+        return False
+
+    title = hackathon.get("title", "Hackathon")
+    link = hackathon.get("link", "")
+    source = hackathon.get("source", "Platform")
+    prize = hackathon.get("prize", "")
+
+    msg = (
+        "⏰ <b>Deadline Updated!</b>\n\n"
+        f"📌 <b>{_escape_html(title)}</b>\n"
+        f"📅 Old: <s>{_escape_html(old_deadline or 'TBA')}</s> → New: <b><code>{_escape_html(new_deadline)}</code></b>\n"
+    )
+    if prize:
+        msg += f"🏆 Prize: <b>{_escape_html(prize)}</b>\n"
+    msg += f"📡 Platform: {_escape_html(source)}\n\n"
+    if link:
+        msg += f'🔗 <a href="{link}">Register / View Updated Details →</a>'
+
+    inline_keyboard = [[{"text": "🚀 View Details →", "url": link}]] if link else None
+    payload = {
+        "chat_id": chat_id,
+        "text": msg,
+        "parse_mode": "HTML",
+        "disable_web_page_preview": False,
+    }
+    if inline_keyboard:
+        payload["reply_markup"] = {"inline_keyboard": inline_keyboard}
+
+    try:
+        resp = requests.post(_API_URL, json=payload, timeout=REQUEST_TIMEOUT)
+        return resp.status_code == 200
+    except Exception as e:
+        logger.warning("Failed to send deadline update: %s", e)
+        return False
 
 
 # ── Interactive Bot Listener ──────────────────────────────────────────────────
@@ -812,7 +870,7 @@ def start_polling():
             from db.mongo_client import remove_subscriber
             remove_subscriber(message.chat.id)
             bot.reply_to(message, "🔕 You have been unsubscribed from automated alerts.", reply_markup=_make_main_keyboard())
-        except Exception as e:
+        except Exception:
             bot.reply_to(message, "Error updating subscription. Please try again later.")
 
     # ── Platform Stats ────────────────────────────────────────────────────────

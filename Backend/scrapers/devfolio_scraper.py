@@ -12,6 +12,7 @@ A single requests.Session is reused across retries to avoid repeated
 TCP/TLS handshakes.
 """
 
+import json
 import logging
 import re
 import time
@@ -238,11 +239,91 @@ def _parse_card(card) -> Optional[dict]:
         return None
 
 
+def _parse_next_data(html: str) -> list[dict]:
+    """Extract hackathons directly from Next.js dehydratedState JSON in HTML."""
+    results = []
+    match = re.search(r'id="__NEXT_DATA__"[^>]*>(.*?)</script>', html)
+    if not match:
+        return []
+    try:
+        data = json.loads(match.group(1))
+        queries = data.get("props", {}).get("pageProps", {}).get("dehydratedState", {}).get("queries", [])
+        for q in queries:
+            state_data = q.get("state", {}).get("data")
+            if not isinstance(state_data, dict):
+                continue
+            for category in ("open_hackathons", "upcoming_hackathons", "featured_hackathons"):
+                items = state_data.get(category) or []
+                for item in items:
+                    if not isinstance(item, dict):
+                        continue
+                    name = (item.get("name") or "").strip()
+                    slug = (item.get("slug") or "").strip()
+                    if not name or not slug:
+                        continue
+
+                    link = f"https://{slug}.devfolio.co"
+
+                    themes = item.get("themes") or []
+                    tags = []
+                    for t in themes:
+                        if isinstance(t, dict):
+                            t_name = t.get("name") or t.get("theme", {}).get("name")
+                            if t_name:
+                                tags.append(str(t_name).strip())
+
+                    is_online = item.get("is_online", True)
+                    mode = "Online" if is_online else "Offline"
+
+                    settings = item.get("settings") or {}
+                    raw_ends = settings.get("reg_ends_at") or item.get("ends_at") or ""
+                    deadline = "TBA"
+                    deadline_iso = ""
+                    status = "Open"
+
+                    if raw_ends:
+                        try:
+                            clean_iso = str(raw_ends).replace("Z", "+00:00")
+                            dt = datetime.fromisoformat(clean_iso)
+                            deadline = dt.strftime("%d %b %Y")
+                            deadline_iso = dt.strftime("%Y-%m-%d")
+                            today_iso = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+                            if deadline_iso < today_iso:
+                                status = "Ended"
+                        except Exception:
+                            deadline = str(raw_ends)[:10]
+                            deadline_iso = str(raw_ends)[:10]
+
+                    participants = item.get("participants_count") or 0
+
+                    doc = {
+                        "title":               name,
+                        "deadline":            deadline,
+                        "deadline_iso":        deadline_iso,
+                        "status":              status,
+                        "mode":                mode,
+                        "tags":                tags,
+                        "link":                link,
+                        "source":              "Devfolio",
+                        "total_registrations": int(participants) if participants else 0,
+                        "scraped_at":          datetime.now(timezone.utc).replace(tzinfo=None).isoformat() + "Z",
+                        "location":            "",
+                        "desc":                "",
+                        "tagline":             "",
+                        "prize":               "",
+                    }
+                    results.append(doc)
+    except Exception as e:
+        logger.warning("Error parsing Devfolio __NEXT_DATA__: %s", e)
+    return results
+
+
 # ── Public API ────────────────────────────────────────────────────────────────
 
 def scrape_devfolio() -> list[dict]:
     """
     Return a list of normalised hackathon dicts from Devfolio.
+    Extracts from Next.js hydration payload (primary) or parses HTML cards (fallback).
     Enriches each hackathon with detail API data (location, desc, tagline).
     Returns [] on any failure (never raises).
     """
@@ -252,15 +333,19 @@ def scrape_devfolio() -> list[dict]:
     if not html:
         return []
 
-    soup  = BeautifulSoup(html, "html.parser")
-    cards = soup.find_all("div", class_=lambda c: c and "CompactHackathonCard" in c)
+    # 1. Primary: Extract from Next.js __NEXT_DATA__
+    results = _parse_next_data(html)
 
-    if not cards:
-        logger.warning("Devfolio: no hackathon cards found — HTML structure may have changed.")
-        return []
+    # 2. Fallback: Parse HTML cards if __NEXT_DATA__ produced nothing
+    if not results:
+        soup  = BeautifulSoup(html, "html.parser")
+        cards = soup.find_all("div", class_=lambda c: c and "CompactHackathonCard" in c)
+        if not cards:
+            logger.warning("Devfolio: no hackathon cards found — HTML structure may have changed.")
+            return []
+        logger.info("Devfolio: %d cards found, parsing…", len(cards))
+        results = [d for card in cards if (d := _parse_card(card)) and d["title"]]
 
-    logger.info("Devfolio: %d cards found, parsing…", len(cards))
-    results = [d for card in cards if (d := _parse_card(card)) and d["title"]]
     logger.info("Devfolio: %d hackathons extracted, enriching with detail API…", len(results))
 
     # ── Enrich with detail API ────────────────────────────────────────────────

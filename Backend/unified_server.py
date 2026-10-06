@@ -53,7 +53,7 @@ def _run_bot_polling():
 # ── Background: Scheduled Scraping (Every 15 Minutes) ────────────────────────
 def _run_scheduler():
     """Run the scraping pipeline across all platforms, Instagram, and open-web every 15 minutes."""
-    INTERVAL_MINUTES = 15
+    INTERVAL_MINUTES = max(5, int(os.getenv("SCAN_INTERVAL_MINUTES", "30") or 30))
     INTERVAL_SECONDS = INTERVAL_MINUTES * 60
 
     # Wait 20 seconds on startup to let the API server finish booting
@@ -90,9 +90,14 @@ def main():
     bot_thread = threading.Thread(target=_run_bot_polling, daemon=True)
     bot_thread.start()
 
-    # Start scheduler in a daemon thread
-    scheduler_thread = threading.Thread(target=_run_scheduler, daemon=True)
-    scheduler_thread.start()
+    # Start scheduler in a daemon thread only if explicitly enabled
+    enable_scanner = os.getenv("ENABLE_BACKGROUND_SCANNER", "true").lower() in ("true", "1", "yes")
+    if enable_scanner:
+        logger.info("⏰ ENABLE_BACKGROUND_SCANNER=true — starting background scheduler thread.")
+        scheduler_thread = threading.Thread(target=_run_scheduler, daemon=True)
+        scheduler_thread.start()
+    else:
+        logger.info("ℹ️ In-server background scanner disabled (ENABLE_BACKGROUND_SCANNER=false). Autonomous scanning is handled via GitHub Actions.")
 
     # Start the FastAPI server (this blocks — keeps the process alive)
     logger.info("🚀 Starting FastAPI on port %d...", port)

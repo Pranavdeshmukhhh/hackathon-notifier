@@ -34,7 +34,6 @@ from schemas import (
     HackathonAutoListResponse,
     HackathonPreviewRequest,
     HackathonPreviewResponse,
-    HackathonOut,
     ScannerTriggerRequest,
     ScannerTriggerResponse,
     ScannerStatusResponse,
@@ -47,6 +46,7 @@ from schemas import (
 )
 from filters.keyword_filter import classify_hackathon
 from scrapers.geocoder import geocode
+from lifecycle import is_expired, normalize_deadline
 from scrapers.internet_scanner import (
     run_internet_scan,
     get_scanner_status,
@@ -92,12 +92,16 @@ limiter = Limiter(key_func=get_client_ip)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Lifecycle manager: launches continuous autonomous internet scanner daemon on startup."""
-    try:
-        start_continuous_background_scanner(interval_hours=0.25)
-        logger.info("Continuous autonomous internet scanner started (15-minute interval).")
-    except Exception as e:
-        logger.warning("Could not launch background scanner daemon: %s", e)
+    """Lifecycle manager: launches continuous autonomous internet scanner daemon on startup only if enabled."""
+    enable_scanner = os.getenv("ENABLE_BACKGROUND_SCANNER", "false").lower() in ("true", "1", "yes")
+    if enable_scanner:
+        try:
+            start_continuous_background_scanner(interval_hours=0.25)
+            logger.info("Continuous autonomous internet scanner started (15-minute interval).")
+        except Exception as e:
+            logger.warning("Could not launch background scanner daemon: %s", e)
+    else:
+        logger.info("In-server background internet scanner disabled (ENABLE_BACKGROUND_SCANNER=false).")
     yield
 
 _is_prod = os.getenv("ENVIRONMENT", "").lower() == "production" or os.getenv("RENDER", "").lower() == "true"
@@ -228,7 +232,8 @@ def _sort_hackathons(docs: list[dict]) -> list[dict]:
     upcoming, no_date, past = [], [], []
 
     for doc in docs:
-        iso = doc.get("deadline_iso", "")
+        normalize_deadline(doc)  # derive deadline_iso from text so every source can expire
+        iso = doc.get("deadline_iso") or ""
         status = doc.get("status", "").lower()
 
         if iso and iso >= today and status != "ended":
@@ -738,7 +743,7 @@ def get_hackathons(
 
             cached = {"docs": sorted_docs, "stats": stats}
             _cache[_CACHE_KEY] = cached
-        except Exception as e:
+        except Exception:
             logger.error("Error fetching hackathons", exc_info=True)
             return {"success": False, "error": "Internal server error", "data": [], "stats": {}}
 
@@ -844,6 +849,7 @@ def get_hackathons(
 
     return JSONResponse(
         content=payload,
+        media_type="application/json; charset=utf-8",
         headers={
             "ETag": etag,
             "Cache-Control": "public, max-age=60, stale-while-revalidate=300"
@@ -852,7 +858,9 @@ def get_hackathons(
 
 
 @app.get("/health", response_model=HealthResponse)
+@app.head("/health")
 @v1_router.get("/health", response_model=HealthResponse)
+@v1_router.head("/health")
 @limiter.limit("60/minute")
 def health_check(request: Request):
     """
@@ -1181,6 +1189,33 @@ def get_internet_scanner_status(request: Request):
     return get_scanner_status()
 
 
+@app.get("/api/scan-status")
+@v1_router.get("/scan-status")
+@limiter.limit("60/minute")
+def get_latest_scan_status(request: Request):
+    """Expose the last run summary from MongoDB scan_history (JSON only)."""
+    try:
+        col = get_collection("scan_history")
+        if col is not None:
+            latest = col.find_one(sort=[("timestamp", -1)])
+            if latest:
+                latest["_id"] = str(latest["_id"])
+                return JSONResponse(content=latest)
+    except Exception as e:
+        logger.warning("Failed to fetch latest scan status: %s", e)
+
+    return JSONResponse(content={
+        "status": "idle",
+        "message": "No scan runs recorded yet.",
+        "scraped": 0,
+        "new": 0,
+        "updated": 0,
+        "archived": 0,
+        "notified": 0,
+        "sources": {},
+    })
+
+
 @app.post("/api/scanner/trigger", response_model=ScannerTriggerResponse)
 @v1_router.post("/scanner/trigger", response_model=ScannerTriggerResponse)
 @limiter.limit("10/minute")
@@ -1199,7 +1234,6 @@ def trigger_instagram_scan(request: Request, body: InstagramScanRequest):
     """Trigger an Instagram scan for hackathon posts from known accounts and hashtags."""
     import time as _time
     from scrapers.instagram_scraper import scrape_instagram_hackathons
-    from scrapers.hackathon_verifier import verify_hackathon
 
     start = _time.time()
     try:
@@ -1216,6 +1250,10 @@ def trigger_instagram_scan(request: Request, body: InstagramScanRequest):
             if not link or collection is None:
                 continue
 
+            normalize_deadline(doc)
+            if is_expired(doc):
+                continue
+            doc["last_seen_at"] = datetime.now(timezone.utc).isoformat()
             classify_hackathon(doc)
             if doc.get("mode", "").lower() == "offline" and doc.get("location"):
                 loc = doc["location"]
@@ -1256,7 +1294,6 @@ def trigger_web_discovery(request: Request, body: WebDiscoveryRequest):
     """Trigger a web discovery scan across Google, MLH, Eventbrite, and KonfHub."""
     import time as _time
     from scrapers.web_discovery_scraper import run_web_discovery
-    from scrapers.hackathon_verifier import verify_hackathon
 
     start = _time.time()
     try:
@@ -1270,6 +1307,10 @@ def trigger_web_discovery(request: Request, body: WebDiscoveryRequest):
             if not link or collection is None:
                 continue
 
+            normalize_deadline(doc)
+            if is_expired(doc):
+                continue
+            doc["last_seen_at"] = datetime.now(timezone.utc).isoformat()
             classify_hackathon(doc)
             if doc.get("mode", "").lower() == "offline" and doc.get("location"):
                 loc = doc["location"]
