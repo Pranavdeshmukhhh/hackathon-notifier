@@ -92,4 +92,34 @@ describe('Student discovery experience', () => {
     expect(query.has('lat')).toBe(false);
     expect(window.location.search).not.toContain('lat=');
   });
+
+  it('loads a shared event directly without requesting the discovery feed', async () => {
+    const id = '0123456789abcdef01234567';
+    window.history.replaceState({}, '', `/#event/${id}`);
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, status: 200, json: async () => ({ success: true, data: { _id: id, title: 'Shared sample event' } }) });
+    vi.stubGlobal('fetch', fetchMock);
+    render(<App />);
+    await screen.findByRole('heading', { name: 'Shared sample event', level: 1 });
+    expect(fetchMock).toHaveBeenCalledOnce();
+    expect(fetchMock.mock.calls[0][0]).toBe(`http://127.0.0.1:8001/api/hackathons/${id}`);
+    expect(screen.queryByRole('searchbox')).not.toBeInTheDocument();
+  });
+
+  it('returns to the same filtered discovery and restores the opener’s focus', async () => {
+    const id = '0123456789abcdef01234567';
+    const data = { _id: id, title: 'Filtered sample event', link: 'https://example.com' };
+    window.history.replaceState({}, '', '/?format=Offline#events');
+    vi.stubGlobal('fetch', vi.fn(url => Promise.resolve(url.endsWith(`/${id}`) ? { ok: true, status: 200, json: async () => ({ success: true, data }) } : response([data]))));
+    vi.stubGlobal('requestAnimationFrame', callback => setTimeout(callback, 0));
+    vi.stubGlobal('cancelAnimationFrame', clearTimeout);
+    render(<App />);
+    const opener = await screen.findByRole('link', { name: 'View details for Filtered sample event' });
+    fireEvent.click(opener);
+    await screen.findByRole('heading', { name: 'Filtered sample event', level: 1 });
+    fireEvent.click(screen.getByRole('link', { name: 'Back to discovery' }));
+    await screen.findByRole('searchbox', { name: 'Search' });
+    expect(screen.getByRole('combobox', { name: 'Format' })).toHaveValue('Offline');
+    await waitFor(() => expect(opener).toHaveFocus());
+    expect(window.location.search).toBe('?format=Offline');
+  });
 });

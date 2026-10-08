@@ -113,3 +113,30 @@ Review 320, 375, 768, 1024, and 1440px layouts, light/dark appearance, keyboard 
 combined facets, search recovery, shareable URL restoration, pagination, and copy
 feedback. Responsive frames may be used when the browser ignores viewport overrides.
 Eligibility extraction and internal event detail pages remain later-phase work.
+
+## Phase 4 event detail contract
+
+Internal event links use `#event/<MongoDB id>` so existing static hosting works
+without route rewrites. Share links retain the deployment path and omit discovery
+filters and coordinates. Keep discovery mounted while viewing details; returning
+restores filters, scroll, and keyboard focus. A direct event link loads only its
+detail record, without fetching the discovery feed.
+
+The detail endpoint reads existing public event fields by indexed ID. It must not
+start scraping, send notifications, write records, expose raw/private metadata, or
+retrieve external pages. Preserve source registration links. Show supplied facts
+and honest unknowns, with UTC date context and closed-registration handling.
+Render source descriptions as plain text; never execute source HTML or load its
+images. Organizer and eligibility fields are optional until reliable extraction
+is added in a later phase.
+
+Use an editorial reading column and one restrained registration panel. Registration
+comes first on narrow screens and in keyboard order. Distinguish loading, missing
+events, and unavailable API states; retry failures, cancel obsolete requests, and
+bound requests to 18 seconds. An explicit API remains authoritative. Deploy the
+backend detail endpoint together with the frontend; existing list APIs stay intact.
+
+Phase 4 QA covers 320, 375, 768, 1024, and 1440px, light/dark themes, keyboard focus,
+direct links, filtered return navigation, clipboard success/failure, missing facts,
+closed events, invalid IDs, missing records, and delayed service failure. Preview
+only labelled in-memory sample data; keep private backups and fixtures untracked.

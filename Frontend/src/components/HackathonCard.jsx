@@ -1,16 +1,13 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React from 'react';
 import { ArrowUpRightIcon } from './Icons';
+import useCopyLink from '../hooks/useCopyLink';
+import { eventHash } from '../utils/eventRoute';
 import { listedText, safeRegistrationUrl, eventFormat, eventLocation, eventTeam, eventDeadline } from '../utils/eventPresentation';
 
-export default function HackathonCard({ hackathon, onShare, viewMode = 'grid' }) {
-  const [copyStatus, setCopyStatus] = useState('');
-  const timer = useRef(null);
-  const mounted = useRef(true);
-  useEffect(() => {
-    mounted.current = true;
-    return () => { mounted.current = false; clearTimeout(timer.current); };
-  }, []);
+export default function HackathonCard({ hackathon, onShare, onOpenDetail, viewMode = 'grid' }) {
   const link = safeRegistrationUrl(hackathon.link);
+  const detailLink = eventHash(hackathon._id);
+  const { status: copyStatus, isCopying, copy: copyLink } = useCopyLink(link, () => onShare?.(hackathon.title));
   const past = hackathon.is_past === true;
   const deadline = eventDeadline(hackathon);
   const format = eventFormat(hackathon.mode);
@@ -24,18 +21,6 @@ export default function HackathonCard({ hackathon, onShare, viewMode = 'grid' })
   const entrants = participants != null && /^\d[\d,]*(?:\.\d+)?[km]?\+?$/i.test(String(participants).trim())
     ? `${participants} registered` : '';
 
-  const copyLink = async () => {
-    try {
-      if (!navigator.clipboard?.writeText) throw new Error('Clipboard unavailable');
-      await navigator.clipboard.writeText(link);
-      if (!mounted.current) return;
-      setCopyStatus('Link copied');
-      onShare?.(hackathon.title);
-    } catch { if (!mounted.current) return; setCopyStatus('Could not copy. Use the registration link.'); }
-    clearTimeout(timer.current);
-    timer.current = setTimeout(() => setCopyStatus(''), 4000);
-  };
-
   return (
     <article className={`hcard event-card${viewMode === 'compact' ? ' event-card-compact' : ''}`} data-past={past}>
       <div className="event-heading">
@@ -43,7 +28,7 @@ export default function HackathonCard({ hackathon, onShare, viewMode = 'grid' })
           <span>{listedText(hackathon.source) || 'Platform not listed'}</span>
           <span className={past ? 'text-muted' : 'text-accent-text'}>{past ? 'Registration closed' : listedText(hackathon.status) || 'Status not listed'}</span>
         </div>
-        <h3 className="event-title">{listedText(hackathon.title) || 'Untitled event'}</h3>
+        <h3 className="event-title">{detailLink ? <a href={detailLink} className="event-title-link" data-event-id={hackathon._id} onClick={event => onOpenDetail?.(event, hackathon._id)}>{listedText(hackathon.title) || 'Untitled event'}</a> : listedText(hackathon.title) || 'Untitled event'}</h3>
         {(topCollege || internship) && (
           <p className="event-context">
             {topCollege && <span title={listedText(hackathon.college_name) || undefined}>{listedText(hackathon.college_name) || listedText(hackathon.college_type) || 'Top college event'}</span>}
@@ -73,7 +58,8 @@ export default function HackathonCard({ hackathon, onShare, viewMode = 'grid' })
             {past ? 'View event page' : 'Register'} <ArrowUpRightIcon size={16} /><span className="sr-only"> (opens in a new tab)</span>
           </a>
         ) : <span className="event-link-unavailable">Registration link unavailable</span>}
-        <button type="button" className="btn btn-ghost event-copy" disabled={!link} onClick={copyLink} aria-label={`Copy link for ${hackathon.title || 'event'}`}>Copy link</button>
+        {detailLink && <a className="home-text-link event-details-link" href={detailLink} onClick={event => onOpenDetail?.(event, hackathon._id)} aria-label={`View details for ${hackathon.title || 'event'}`}>View details</a>}
+        <button type="button" className="btn btn-ghost event-copy" disabled={!link || isCopying} onClick={copyLink} aria-label={`Copy link for ${hackathon.title || 'event'}`}>{isCopying ? 'Copying…' : 'Copy link'}</button>
         <p role="status" className="event-copy-status">{copyStatus}</p>
       </div>
     </article>

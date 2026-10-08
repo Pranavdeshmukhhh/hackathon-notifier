@@ -14,7 +14,9 @@ from contextlib import asynccontextmanager
 from typing import Literal, Optional
 from urllib.parse import urlparse
 from bs4 import BeautifulSoup
-from fastapi import FastAPI, Request, Query, Response, BackgroundTasks, APIRouter, Depends
+from bson import ObjectId
+from fastapi import FastAPI, Request, Query, Path, Response, BackgroundTasks, APIRouter, Depends
+from fastapi.encoders import jsonable_encoder
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
@@ -24,6 +26,7 @@ from cachetools import TTLCache
 
 from schemas import (
     HackathonsResponse,
+    HackathonDetailResponse,
     HealthResponse,
     MetricsResponse,
     RefreshResponse,
@@ -110,6 +113,16 @@ v1_router = APIRouter(prefix="/api/v1", tags=["v1"])
 _CACHE_TTL = int(os.getenv("CACHE_TTL_SECONDS", 900))
 _cache: TTLCache = TTLCache(maxsize=32, ttl=_CACHE_TTL)
 _CACHE_KEY = "hackathons"
+
+# Explicit public fields keep scraper traces and administrator metadata private.
+_EVENT_PROJECTION = {key: 1 for key in (
+    "_id", "title", "link", "source", "deadline", "deadline_iso", "mode",
+    "location", "venue", "city", "lat", "lng", "tags", "prize",
+    "is_top_college", "college_name", "college_type", "is_internship", "status",
+    "total_registrations", "registrations", "min_team_size", "max_team_size",
+    "scraped_at", "desc", "tagline", "opportunity_type", "verified",
+    "verification_confidence", "discovery_source", "source_account", "instagram_post_url",
+)}
 
 def _matches_format(doc: dict, category: str) -> bool:
     """Recognize scraper format aliases consistently in counts and filters."""
@@ -610,17 +623,7 @@ def get_hackathons(
         try:
             collection = get_collection()
             # Projection: only fetch UI fields, skipping raw debug/trace metadata to speed up MongoDB transit
-            projection = {
-                "_id": 1, "title": 1, "link": 1, "source": 1, "deadline": 1,
-                "deadline_iso": 1, "mode": 1, "location": 1, "venue": 1, "city": 1, "lat": 1, "lng": 1,
-                "tags": 1, "prize": 1, "is_top_college": 1, "college_name": 1,
-                "college_type": 1, "is_internship": 1, "status": 1,
-                "total_registrations": 1, "registrations": 1, "min_team_size": 1,
-                "max_team_size": 1, "scraped_at": 1, "desc": 1, "tagline": 1, "opportunity_type": 1,
-                "verified": 1, "verification_confidence": 1, "discovery_source": 1,
-                "source_account": 1, "instagram_post_url": 1
-            }
-            cursor = collection.find({}, projection)
+            cursor = collection.find({}, _EVENT_PROJECTION)
             docs = []
             for doc in cursor:
                 doc["_id"] = str(doc["_id"])
@@ -828,6 +831,48 @@ def get_hackathons(
             "Cache-Control": "public, max-age=60, stale-while-revalidate=300"
         }
     )
+
+
+@app.get("/api/hackathons/{event_id}", response_model=HackathonDetailResponse)
+@v1_router.get("/hackathons/{event_id}", response_model=HackathonDetailResponse)
+@limiter.limit("60/minute")
+def get_hackathon_detail(request: Request, event_id: str = Path(pattern=r"^[0-9a-fA-F]{24}$")):
+    """Read a single stored listing. Never fetch its destination or start a scraper."""
+    try:
+        collection = get_collection()
+        if collection is None:
+            raise RuntimeError("Database unavailable")
+        projection = {**_EVENT_PROJECTION, "organizer": 1, "eligibility": 1}
+        doc = collection.find_one({"_id": {"$in": [ObjectId(event_id), event_id.lower()]}}, projection)
+        if doc is None:
+            return JSONResponse(status_code=404, content={"success": False, "error": "Event not found"}, headers={"Cache-Control": "no-store"})
+        doc["_id"] = str(doc["_id"])
+        doc = _sort_hackathons([doc])[0]
+        # Some sources store HTML excerpts. Return readable text without active content.
+        for field in ("desc", "tagline", "organizer", "eligibility"):
+            value = doc.get(field)
+            if not isinstance(value, str):
+                doc.pop(field, None)
+            elif "<" in value:
+                fragment = BeautifulSoup(value, "html.parser")
+                for element in fragment.select("script, style, iframe, object"):
+                    element.decompose()
+                for br in fragment.find_all("br"):
+                    br.replace_with("\n")
+                for block in fragment.select("p, div, li, h1, h2, h3, h4, blockquote"):
+                    block.append("\n\n")
+                text = re.sub(r"[ \t]+", " ", fragment.get_text(""))
+                text = re.sub(r" *\n *", "\n", text)
+                doc[field] = re.sub(r"\n{3,}", "\n\n", text).strip()
+        payload = jsonable_encoder({"success": True, "data": doc})
+        etag = '"' + hashlib.md5(json.dumps(payload, sort_keys=True, ensure_ascii=False).encode("utf-8"), usedforsecurity=False).hexdigest() + '"'
+        headers = {"ETag": etag, "Cache-Control": "public, max-age=60, must-revalidate"}
+        if request.headers.get("if-none-match", "").strip() == etag:
+            return Response(status_code=304, headers=headers)
+        return JSONResponse(content=payload, headers=headers)
+    except Exception:
+        logger.exception("Error fetching event detail")
+        return JSONResponse(status_code=503, content={"success": False, "error": "Event details unavailable"}, headers={"Cache-Control": "no-store"})
 
 
 @app.get("/health", response_model=HealthResponse)

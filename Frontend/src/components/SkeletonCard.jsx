@@ -12,7 +12,7 @@ export default function SkeletonCard({ viewMode = 'grid' }) {
       <div className="event-facts">{['event-deadline', '', 'event-location', '', '', ''].map((className, index) => (
         <div key={index} className={`${className} space-y-2`}><div className="skeleton h-3 w-20 max-w-full" /><div className="skeleton h-4 w-28 max-w-full" /></div>
       ))}</div>
-      <div className="event-actions"><div className="skeleton h-11 flex-1" /><div className="skeleton h-11 w-20" /></div>
+      <div className="event-actions"><div className="skeleton h-11 flex-1" /><div className="skeleton h-11 w-20" /><div className="event-details-link flex items-center"><div className="skeleton h-4 w-24" /></div></div>
     </div>
   );
 }

@@ -67,7 +67,8 @@ describe('HackathonCard Component', () => {
     render(<HackathonCard hackathon={maliciousHackathon} />);
 
     expect(screen.getByText('Registration link unavailable')).toBeInTheDocument();
-    expect(screen.queryByRole('link')).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /register/i })).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /view details/i })).toHaveAttribute('href', '#event/65f0123456789abcdef01234');
     expect(screen.getByRole('button', { name: /copy link/i })).toBeDisabled();
   });
 

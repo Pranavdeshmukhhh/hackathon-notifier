@@ -1159,3 +1159,54 @@ select.field option {
 @media (max-width: 400px) {
   .discovery-filter-row { grid-template-columns: minmax(0, 1fr); }
 }
+
+/* Event detail: source material and a clear registration decision. */
+.event-title-link { color: inherit; text-decoration: underline; text-decoration-color: var(--line-strong); text-decoration-thickness: 1px; text-underline-offset: 4px; }
+.event-title-link:hover { color: var(--accent-text); text-decoration-color: currentColor; }
+.event-details-link { order: 3; flex-basis: 100%; min-height: 44px; font-size: 14px; }
+.event-detail { padding-block: 24px 56px; }
+.detail-back { font-size: 14px; }
+.detail-back > svg { transform: rotate(180deg); }
+.detail-heading { padding-block: 24px 32px; border-bottom: 1px solid var(--line); margin-bottom: 32px; }
+.detail-title { font-size: clamp(32px, 4vw, 48px); line-height: 1.15; letter-spacing: -0.015em; max-width: 26ch; margin-top: 12px; overflow-wrap: anywhere; }
+.detail-tagline { margin-top: 16px; color: var(--ink-2); line-height: 1.7; max-width: 65ch; overflow-wrap: anywhere; }
+.event-detail-layout, .detail-loading { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 48px; align-items: start; }
+.detail-content { grid-column: 1; grid-row: 1; }
+.detail-section { padding-block: 0 32px; margin-bottom: 28px; border-bottom: 1px solid var(--line); }
+.detail-section:last-child { margin-bottom: 0; border: 0; padding-bottom: 0; }
+.detail-section h2 { font-size: 20px; font-weight: 600; margin-bottom: 20px; }
+.detail-description { max-width: 70ch; color: var(--ink-2); line-height: 1.75; white-space: pre-line; overflow-wrap: anywhere; }
+.detail-topics { margin-top: 24px; }
+.detail-topics h3, .detail-facts dt { font-size: 13px; font-weight: 500; color: var(--muted); margin-bottom: 6px; }
+.detail-topics p { color: var(--ink-2); font-size: 14px; line-height: 1.7; overflow-wrap: anywhere; }
+.detail-facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px 32px; }
+.detail-facts dd { color: var(--ink-2); line-height: 1.6; white-space: pre-line; overflow-wrap: anywhere; }
+.detail-fact-wide { grid-column: 1 / -1; }
+.detail-note { margin-top: 20px; font-size: 14px; color: var(--muted); line-height: 1.6; }
+.detail-registration { grid-column: 2; grid-row: 1; }
+.detail-registration-panel { padding: 24px; border: 1px solid var(--line-strong); border-radius: var(--radius-surface); background: var(--surface); }
+.detail-registration-panel h2 { font-size: 14px; font-weight: 500; color: var(--ink-2); }
+.detail-deadline { font-size: 24px; font-weight: 600; margin-top: 8px; font-variant-numeric: tabular-nums; }
+.detail-deadline-note { margin-top: 6px; color: var(--accent-text); font-size: 14px; }
+.detail-registration-panel .detail-note { margin-top: 12px; }
+.detail-registration-status { margin-top: 24px; font-size: 14px; font-weight: 500; }
+.detail-register-button, .detail-share-button { display: flex; width: 100%; justify-content: space-between; margin-top: 12px; white-space: normal; text-align: left; }
+.detail-share-button { justify-content: center; }
+.detail-destination { font-size: 12px; color: var(--muted); overflow-wrap: anywhere; margin-top: 8px; }
+.detail-copy-status { min-height: 20px; margin-top: 8px; color: var(--muted); font-size: 13px; }
+.detail-link-missing { margin-block: 16px; color: var(--muted); font-size: 14px; }
+.detail-registration-note { padding-inline: 4px; }
+.detail-state-note { max-width: 60ch; color: var(--ink-2); line-height: 1.7; margin-bottom: 24px; }
+@media (min-width: 901px) { .detail-registration { position: sticky; top: 24px; } }
+@media (max-width: 900px) {
+  .event-detail-layout, .detail-loading { grid-template-columns: minmax(0, 1fr); gap: 32px; }
+  .detail-registration { grid-column: 1; grid-row: 1; }
+  .detail-content { grid-column: 1; grid-row: 2; }
+  .detail-registration-panel { max-width: 100%; }
+  .detail-heading { margin-bottom: 24px; padding-block: 16px 24px; }
+}
+@media (max-width: 480px) {
+  .detail-facts { grid-template-columns: minmax(0, 1fr); gap: 20px; }
+  .detail-registration-panel { padding: 20px; }
+  .event-detail { padding-bottom: 32px; }
+}

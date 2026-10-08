@@ -92,6 +92,20 @@ class HackathonsResponse(BaseModel):
     stats: Optional[StatsOut] = Field(default=None, description="System-wide aggregate radar telemetry")
 
 
+class HackathonDetailOut(HackathonOut):
+    mode: Optional[str] = None
+    status: Optional[str] = None
+    tagline: Optional[str] = None
+    organizer: Optional[str] = Field(default=None, description="Organizer name, only when supplied by the source")
+    eligibility: Optional[str] = Field(default=None, description="Eligibility requirements, only when supplied by the source")
+
+
+class HackathonDetailResponse(BaseModel):
+    success: bool = True
+    data: Optional[HackathonDetailOut] = None
+    error: Optional[str] = None
+
+
 class HealthResponse(BaseModel):
     status: str = Field(..., description="Service status ('healthy' or 'unhealthy')")
     database: Optional[str] = Field(default=None, description="MongoDB connection state")
@@ -218,4 +232,3 @@ class VerifyHackathonResponse(BaseModel):
     signals: dict = Field(default_factory=dict, description="Individual signal scores")
     issues: list[str] = Field(default_factory=list, description="Problems found")
     recommendation: str = Field(default="", description="accept, review, or reject")
-

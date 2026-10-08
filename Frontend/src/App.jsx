@@ -10,6 +10,8 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import HackathonCard from './components/HackathonCard';
 import HomeIntro from './components/HomeIntro';
 import AboutProject from './components/AboutProject';
+import EventDetail from './components/EventDetail';
+import { readEventRoute } from './utils/eventRoute';
 import DiscoveryControls from './components/DiscoveryControls';
 import { readDiscoveryQuery, writeDiscoveryQuery, buildDiscoveryParams } from './utils/discoveryQuery';
 import SkeletonCard  from './components/SkeletonCard';
@@ -55,7 +57,8 @@ function App() {
   const { isScrolled, scrollProgress } = useScrollProgress();
 
   // ── Routing & View State ────────────────────────────────────────────────
-  const [currentView, setCurrentView]         = useState('radar'); // 'radar' | 'terms'
+  const [currentView, setCurrentView]         = useState(() => readEventRoute().view);
+  const [eventId, setEventId]                 = useState(() => readEventRoute().id);
   const [viewMode, setViewMode]               = useState(() => {
     try { return localStorage.getItem('hackathon_view_mode') === 'compact' ? 'compact' : 'grid'; }
     catch { return 'grid'; }
@@ -113,15 +116,21 @@ function App() {
   const resultsHeadingRef  = useRef(null);
   const focusResultsRef    = useRef(false);
   const wantsDistanceRef   = useRef(false);
+  const detailReturnRef    = useRef(null);
+  const previousHashRef    = useRef(window.location.hash);
+  const restoreDiscoveryRef = useRef(false);
+  const detailExitRef      = useRef(false);
 
   // ── Hash routing synchronization ────────────────────────────────────────
   useEffect(() => {
     const handleHashChange = () => {
-      if (window.location.hash === '#terms') {
-        setCurrentView('terms');
-      } else {
-        setCurrentView('radar');
-      }
+      const route = readEventRoute();
+      if (route.view === 'radar' && previousHashRef.current.startsWith('#event/')) detailExitRef.current = true;
+      if (route.view === 'radar' && previousHashRef.current.startsWith('#event/') && detailReturnRef.current?.hash === window.location.hash) restoreDiscoveryRef.current = true;
+      previousHashRef.current = window.location.hash;
+      setEventId(route.id);
+      setCurrentView(route.view);
+      setMobileMenuOpen(false);
     };
     handleHashChange();
     window.addEventListener('hashchange', handleHashChange);
@@ -136,6 +145,7 @@ function App() {
   }, []);
 
   const navigateToRadar = useCallback((section = 'home') => {
+    detailReturnRef.current = null;
     const nextHash = section === 'home' ? '' : `#${section}`;
     if (window.location.hash !== nextHash) window.location.hash = nextHash;
     setCurrentView('radar');
@@ -307,6 +317,7 @@ function App() {
   }, [loading, refreshing]);
 
   useEffect(() => {
+    if (currentView !== 'radar') return;
     // oxlint-disable-next-line react/set-state-in-effect -- Request status synchronizes with external API work.
     fetchHackathons();
     if (intervalRef.current) clearInterval(intervalRef.current);
@@ -314,11 +325,29 @@ function App() {
       fetchHackathons(true);
     }, AUTO_REFRESH_MS);
     return () => { clearInterval(intervalRef.current); abortControllerRef.current?.abort(); clearTimeout(coldStartTimerRef.current); };
-  }, [fetchHackathons]);
+  }, [fetchHackathons, currentView]);
+
+  useEffect(() => {
+    if (currentView !== 'radar' || (!restoreDiscoveryRef.current && !detailExitRef.current)) return;
+    const returnTo = detailReturnRef.current;
+    const frame = window.requestAnimationFrame(() => {
+      if (restoreDiscoveryRef.current) {
+        window.scrollTo({ top: returnTo?.scrollY || 0, behavior: 'instant' });
+        if (returnTo?.element?.isConnected) returnTo.element.focus({ preventScroll: true });
+        else resultsHeadingRef.current?.focus({ preventScroll: true });
+      } else if (window.location.hash === '#events') {
+        eventsRef.current?.scrollIntoView({ block: 'start', behavior: 'instant' });
+        eventsRef.current?.querySelector('h2')?.focus({ preventScroll: true });
+      }
+      restoreDiscoveryRef.current = false;
+      detailExitRef.current = false;
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [currentView, eventId]);
 
   // Intersection observer for active nav highlight
   useEffect(() => {
-    if (currentView === 'terms') return;
+    if (currentView !== 'radar') return;
     const observer = new IntersectionObserver((entries) => {
       entries.forEach(entry => {
         if (entry.isIntersecting) {
@@ -422,7 +451,7 @@ function App() {
     showToast(`Listed "${newHackathon?.title || 'Hackathon'}" on the radar`);
     queryCacheRef.current.clear();
     fetchHackathons(true);
-    if (currentView === 'terms') navigateToRadar('events');
+    if (currentView !== 'radar') navigateToRadar('events');
     else scrollToSection('events');
   };
 
@@ -450,13 +479,21 @@ function App() {
     else navigateToRadar(key);
   };
   const handleNearMe = () => {
-    if (currentView === 'terms') navigateToRadar('events');
+    if (currentView !== 'radar') navigateToRadar('events');
     if (userLocation) { setSortBy('distance'); setCurrentPage(1); }
     else { wantsDistanceRef.current = true; requestLocation(); }
   };
   const handleSync = () => {
-    if (currentView === 'terms') navigateToRadar('events');
+    if (currentView !== 'radar') { navigateToRadar('events'); return; }
     fetchHackathons();
+  };
+  const handleOpenDetail = (event, id) => {
+    if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+    detailReturnRef.current = { id, hash: window.location.hash, scrollY: window.scrollY, element: event.currentTarget };
+  };
+  const handleDetailBack = event => {
+    if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+    if (detailReturnRef.current?.id === eventId) { event.preventDefault(); window.history.back(); }
   };
   const openScanner = () => { setMobileMenuOpen(false); setShowAutoListModal(true); };
 
@@ -513,8 +550,8 @@ function App() {
             <button className="btn btn-ghost header-near-me" data-on={Boolean(userLocation)} onClick={handleNearMe}>
               <PinIcon /> {isLocating ? 'Locating…' : 'Near me'}
             </button>
-            <button className="btn btn-ink header-refresh min-w-[76px]" onClick={handleSync} disabled={loading || refreshing}>
-              {loading || refreshing ? (
+            <button className="btn btn-ink header-refresh min-w-[76px]" onClick={handleSync} disabled={currentView === 'radar' && (loading || refreshing)}>
+              {currentView !== 'radar' ? 'Discover' : loading || refreshing ? (
                 <>
                   <span className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" />
                   Loading
@@ -555,8 +592,8 @@ function App() {
               <button className="btn btn-ghost !px-2 !text-xs truncate" onClick={() => { setMobileMenuOpen(false); handleNearMe(); }}>
                 {isLocating ? 'Locating…' : 'Near me'}
               </button>
-              <button className="btn btn-ink !px-2 !text-xs truncate" disabled={loading || refreshing} onClick={() => { setMobileMenuOpen(false); handleSync(); }}>
-                {loading || refreshing ? 'Loading…' : 'Refresh'}
+              <button className="btn btn-ink !px-2 !text-xs truncate" disabled={currentView === 'radar' && (loading || refreshing)} onClick={() => { setMobileMenuOpen(false); handleSync(); }}>
+                {currentView !== 'radar' ? 'Discover' : loading || refreshing ? 'Loading…' : 'Refresh'}
               </button>
             </div>
           </div>
@@ -564,7 +601,7 @@ function App() {
       </header>
 
       {/* ── COLD START BANNER ── */}
-      {showColdStartBanner && (
+      {showColdStartBanner && currentView === 'radar' && (
         <div className="border-b border-line bg-sunken text-muted mono text-xs px-4 py-2.5 flex items-center justify-center gap-3">
           <span className="w-3 h-3 border-2 border-accent border-t-transparent rounded-full animate-spin" />
           The server is taking longer to respond. Loading listings…
@@ -573,12 +610,13 @@ function App() {
 
       {/* ── MAIN CONTENT (RADAR or TERMS) ── */}
       <main id="main-content" tabIndex={-1} className="flex-1 w-full">
-        {currentView === 'terms' ? (
+        {currentView === 'terms' && (
           <div className="shell py-10 md:py-14">
             <TermsAndConditions onBack={() => navigateToRadar('home')} onShowToast={showToast} />
           </div>
-        ) : (
-          <>
+        )}
+        {currentView === 'event' && <EventDetail key={eventId} eventId={eventId} apiBase={DEFAULT_API_URL} fallbackApiBase={ALLOW_DEFAULT_DEV_FALLBACK ? PROD_API_URL : undefined} onBack={handleDetailBack} />}
+          <div hidden={currentView !== 'radar'}>
             <HomeIntro
               homeRef={homeRef} updatesRef={dashboardRef}
               onBrowse={() => scrollToSection('events')}
@@ -589,7 +627,7 @@ function App() {
             {/* ── RADAR ── */}
             <section ref={eventsRef} id="events" className="shell discovery-section scroll-mt-20">
               <div className="discovery-heading">
-                <h2 className="text-[28px] font-semibold tracking-tight">Discover hackathons</h2>
+                <h2 tabIndex={-1} className="text-[28px] font-semibold tracking-tight">Discover hackathons</h2>
                 <p className="text-sm text-muted mt-2">Find an event that fits your interests, schedule, and team.</p>
               </div>
               <DiscoveryControls
@@ -645,7 +683,7 @@ function App() {
                       key={h._id || h.link}
                       className="ledger-cell"
                     >
-                      <HackathonCard hackathon={h} onShare={(title) => showToast(`Copied link for ${title}`)} viewMode={viewMode} />
+                      <HackathonCard hackathon={h} onOpenDetail={handleOpenDetail} onShare={(title) => showToast(`Copied link for ${title}`)} viewMode={viewMode} />
                     </div>
                   ))
                 ) : null}
@@ -663,8 +701,7 @@ function App() {
             </section>
 
             <AboutProject sectionRef={aboutRef} onTerms={navigateToTerms} />
-          </>
-        )}
+          </div>
       </main>
 
       {/* ── FOOTER ── */}
