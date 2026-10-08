@@ -18,7 +18,7 @@ describe('Pagination Component', () => {
 
     const activePageBtn = screen.getByRole('button', { name: /go to page 2/i });
     expect(activePageBtn).toBeInTheDocument();
-    expect(activePageBtn).toHaveClass('bg-[#007AFF]');
+    expect(activePageBtn).toHaveAttribute('aria-current', 'page');
     expect(screen.getByRole('button', { name: /previous page/i })).not.toBeDisabled();
     expect(screen.getByRole('button', { name: /next page/i })).not.toBeDisabled();
   });

@@ -4,8 +4,9 @@ import { render } from '@testing-library/react';
 import SkeletonCard from '../components/SkeletonCard';
 
 describe('SkeletonCard Component', () => {
-  it('renders pulsing skeleton card without throwing errors', () => {
+  it('keeps loading placeholders out of the accessibility tree', () => {
     const { container } = render(<SkeletonCard />);
-    expect(container.querySelector('.animate-pulse')).toBeInTheDocument();
+    expect(container.firstChild).toHaveAttribute('aria-hidden', 'true');
+    expect(container).toHaveTextContent('');
   });
 });

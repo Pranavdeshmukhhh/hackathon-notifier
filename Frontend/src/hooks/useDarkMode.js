@@ -1,37 +1,32 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
-/**
- * useDarkMode — Manages OS-preference-aware dark mode state.
- * Syncs the `dark` class on <html> and listens for system changes.
- *
- * @returns {{ isDarkMode: boolean, toggleDarkMode: () => void }}
- */
+function savedTheme() {
+  try {
+    const value = localStorage.getItem('hackathon_theme');
+    return value === 'light' || value === 'dark' ? value : null;
+  } catch { return null; }
+}
+
+/** Follow the OS until a student explicitly chooses a theme. */
 export default function useDarkMode() {
+  const manual = useRef(savedTheme() !== null);
   const [isDarkMode, setIsDarkMode] = useState(() => {
-    if (typeof window !== 'undefined' && window.matchMedia) {
-      return window.matchMedia('(prefers-color-scheme: dark)').matches;
-    }
-    return true;
+    const saved = savedTheme();
+    return saved ? saved === 'dark' : window.matchMedia('(prefers-color-scheme: dark)').matches;
   });
-
-  // Listen for OS preference changes
   useEffect(() => {
     const matcher = window.matchMedia('(prefers-color-scheme: dark)');
-    const onChange = (e) => setIsDarkMode(e.matches);
-    matcher.addEventListener('change', onChange);
-    return () => matcher.removeEventListener('change', onChange);
+    const changed = event => { if (!manual.current) setIsDarkMode(event.matches); };
+    matcher.addEventListener('change', changed);
+    return () => matcher.removeEventListener('change', changed);
   }, []);
+  useEffect(() => { document.documentElement.classList.toggle('dark', isDarkMode); }, [isDarkMode]);
 
-  // Keep <html> class in sync
-  useEffect(() => {
-    if (isDarkMode) {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
-  }, [isDarkMode]);
-
-  const toggleDarkMode = () => setIsDarkMode((prev) => !prev);
-
+  const toggleDarkMode = () => {
+    manual.current = true;
+    const next = !isDarkMode;
+    setIsDarkMode(next);
+    try { localStorage.setItem('hackathon_theme', next ? 'dark' : 'light'); } catch { /* Theme works without storage. */ }
+  };
   return { isDarkMode, toggleDarkMode };
 }

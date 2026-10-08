@@ -10,13 +10,13 @@ describe('AutoListModal Component (Autonomous Internet Scanner)', () => {
   it('renders modal header, telemetry stats, and monitored channels', () => {
     render(<AutoListModal onClose={() => {}} onSuccess={() => {}} />);
 
-    expect(screen.getByRole('dialog', { name: /autonomous internet scanner/i })).toBeInTheDocument();
+    expect(screen.getByRole('dialog', { name: /scanner status/i })).toBeInTheDocument();
     expect(screen.getByText(/Operator configured/i)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /scan internet now/i })).toBeDisabled();
     expect(screen.getByPlaceholderText(/enter college or city/i)).toBeInTheDocument();
-    expect(screen.getByText(/🔥 FAANG \/ MANGO/i)).toBeInTheDocument();
-    expect(screen.getByText(/🏛️ IIIT Hyderabad/i)).toBeInTheDocument();
-    expect(screen.getByText(/🏙️ Pune Tech/i)).toBeInTheDocument();
+    expect(screen.getByText(/FAANG \/ MANGO/i)).toBeInTheDocument();
+    expect(screen.getByText(/IIIT Hyderabad/i)).toBeInTheDocument();
+    expect(screen.getByText(/Pune Tech/i)).toBeInTheDocument();
   });
 
   it('calls onClose when close button is clicked', () => {

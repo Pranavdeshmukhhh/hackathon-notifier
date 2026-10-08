@@ -9,7 +9,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import HackathonCard from './components/HackathonCard';
 import SkeletonCard  from './components/SkeletonCard';
-import { CursorSpotlight, TiltCard, CountUp } from './components/MotionKit';
 import './index.css';
 
 // ── Extracted Components ────────────────────────────────────────────────────
@@ -496,7 +495,6 @@ function App() {
       )}
 
       {/* ── NAVIGATION ── */}
-      <CursorSpotlight />
       <header className="site-header">
         <div className="header-progress" style={{ transform: `scaleX(${isScrolled ? scrollProgress / 100 : 0})` }} />
         <div className="shell flex items-center justify-between gap-3 sm:gap-6 h-16">
@@ -559,7 +557,7 @@ function App() {
 
         {/* Mobile menu */}
         {mobileMenuOpen && (
-          <div className="md:hidden absolute top-full left-0 right-0 bg-paper border-b border-line-strong animate-sheet-pop max-h-[calc(100dvh-4rem)] overflow-y-auto shadow-2xl">
+          <div className="md:hidden absolute top-full left-0 right-0 bg-paper border-b border-line-strong animate-sheet-pop max-h-[calc(100dvh-4rem)] overflow-y-auto">
             <nav className="shell py-2" aria-label="Mobile">
               {navItems.map(({ key, label }) => (
                 <a
@@ -604,7 +602,6 @@ function App() {
           <>
             {/* ── HERO ── */}
             <section ref={homeRef} className="hero overflow-hidden">
-              <div className="hero-rings" aria-hidden="true" />
               <div className="shell pt-14 pb-16 md:pt-24 md:pb-24 grid grid-cols-1 lg:grid-cols-12 gap-14 lg:gap-8 items-end">
                 <div className="lg:col-span-8">
                   <p className="eyebrow inline-flex items-center gap-2.5 rise" style={{ '--d': 0 }}>
@@ -674,7 +671,7 @@ function App() {
                         key={cell.l}
                         className={`p-3.5 sm:p-5 ${i % 2 === 0 ? 'border-r border-line' : ''} ${i < 2 ? 'border-b border-line' : ''}`}
                       >
-                        <div className={`num text-[clamp(1.75rem,5.5vw,2.5rem)] ${cell.tone}`}><CountUp value={cell.v} format={fmt} /></div>
+                        <div className={`num text-[clamp(1.75rem,5.5vw,2.5rem)] ${cell.tone}`}>{fmt(cell.v)}</div>
                         <div className="eyebrow mt-2.5">{cell.l}</div>
                       </div>
                     ))}
@@ -954,14 +951,13 @@ function App() {
                     <div key={i} className="ledger-cell"><SkeletonCard /></div>
                   ))
                 ) : !error && hackathons.length > 0 ? (
-                  hackathons.map((h, index) => (
-                    <TiltCard
+                  hackathons.map((h) => (
+                    <div
                       key={h._id || h.link}
                       className="ledger-cell"
-                      index={index}
                     >
                       <HackathonCard hackathon={h} onShare={(title) => showToast(`Copied link for ${title}`)} viewMode={viewMode} />
-                    </TiltCard>
+                    </div>
                   ))
                 ) : null}
               </div>

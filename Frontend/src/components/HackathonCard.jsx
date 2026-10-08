@@ -137,21 +137,6 @@ const HackathonCard = ({ hackathon, onShare, viewMode = 'grid' }) => {
     onShare?.(hackathon.title);
   };
 
-  const rafRef = React.useRef(null);
-  React.useEffect(() => () => { if (rafRef.current) cancelAnimationFrame(rafRef.current); }, []);
-
-  // Cursor-follow spotlight (pure CSS variables; no re-render)
-  const handleMouseMove = (e) => {
-    const card = e.currentTarget;
-    const { clientX, clientY } = e;
-    if (rafRef.current) cancelAnimationFrame(rafRef.current);
-    rafRef.current = requestAnimationFrame(() => {
-      const rect = card.getBoundingClientRect();
-      card.style.setProperty('--mx', `${clientX - rect.left}px`);
-      card.style.setProperty('--my', `${clientY - rect.top}px`);
-    });
-  };
-
   const teamDisplay = (minTeam || maxTeam)
     ? (minTeam && maxTeam && minTeam !== maxTeam ? `Team ${minTeam}–${maxTeam}` : `Team ${minTeam || maxTeam}`)
     : 'Open Participation';
@@ -226,7 +211,7 @@ const HackathonCard = ({ hackathon, onShare, viewMode = 'grid' }) => {
 
   // ── STANDARD CARD ──
   return (
-    <article className="hcard" data-past={isPast} onMouseMove={handleMouseMove}>
+    <article className="hcard" data-past={isPast}>
       <div className="hcard-body">
         {/* Source + status */}
         <div className="flex items-center justify-between gap-3">

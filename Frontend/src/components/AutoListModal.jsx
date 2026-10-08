@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import Dialog from './Dialog';
 
 /**
  * Autonomous Internet Scanner Hub (formerly AutoListModal).
@@ -36,19 +37,6 @@ export default function AutoListModal({ onClose, onSuccess, apiBase }) {
     ? apiBase.replace(/\/api\/hackathons\/?$/, '')
     : (import.meta.env.PROD ? 'https://hackathon-notifier.onrender.com' : 'http://localhost:8000');
 
-  // Close on Escape key
-  useEffect(() => {
-    const onKey = (e) => {
-      if (e.key === 'Escape') onClose();
-    };
-    document.addEventListener('keydown', onKey);
-    document.body.style.overflow = 'hidden';
-    return () => {
-      document.removeEventListener('keydown', onKey);
-      document.body.style.overflow = '';
-    };
-  }, [onClose]);
-
   // Fetch scanner telemetry
   const fetchStatus = React.useCallback(async () => {
     try {
@@ -80,7 +68,7 @@ export default function AutoListModal({ onClose, onSuccess, apiBase }) {
   // Auto scroll logs
   useEffect(() => {
     if (logsEndRef.current && typeof logsEndRef.current.scrollIntoView === 'function') {
-      logsEndRef.current.scrollIntoView({ behavior: 'smooth' });
+      logsEndRef.current.scrollIntoView({ behavior: 'auto' });
     }
   }, [status.last_scan_logs]);
 
@@ -186,152 +174,125 @@ export default function AutoListModal({ onClose, onSuccess, apiBase }) {
   };
 
   const collegeChannels = [
-    { label: '🏛️ IITs', query: 'iit' },
-    { label: '🎓 NITs', query: 'nit' },
-    { label: '🏛️ IIIT Hyderabad', query: 'iiit hyderabad' },
-    { label: '⚡ BITS Pilani', query: 'bits' },
-    { label: '🏢 COEP Pune', query: 'coep' },
-    { label: '💻 PICT Pune', query: 'pict' },
-    { label: '🏫 VJTI Mumbai', query: 'vjti' },
-    { label: '🏛️ DTU / NSUT', query: 'dtu' },
+    { label: ' IITs', query: 'iit' },
+    { label: ' NITs', query: 'nit' },
+    { label: ' IIIT Hyderabad', query: 'iiit hyderabad' },
+    { label: ' BITS Pilani', query: 'bits' },
+    { label: ' COEP Pune', query: 'coep' },
+    { label: ' PICT Pune', query: 'pict' },
+    { label: ' VJTI Mumbai', query: 'vjti' },
+    { label: ' DTU / NSUT', query: 'dtu' },
   ];
 
   const cityChannels = [
-    { label: '🏙️ Pune Tech', query: 'pune' },
-    { label: '🌆 Hyderabad Hub', query: 'hyderabad' },
-    { label: '🚀 Bengaluru', query: 'bengaluru' },
-    { label: '🌊 Mumbai', query: 'mumbai' },
-    { label: '🏛️ Delhi-NCR', query: 'delhi' },
+    { label: ' Pune Tech', query: 'pune' },
+    { label: ' Hyderabad Hub', query: 'hyderabad' },
+    { label: ' Bengaluru', query: 'bengaluru' },
+    { label: ' Mumbai', query: 'mumbai' },
+    { label: ' Delhi-NCR', query: 'delhi' },
   ];
 
   const faangChannels = [
-    { label: '🔥 FAANG / MANGO', query: 'faang' },
-    { label: '🌐 Google Cloud', query: 'google' },
-    { label: '☁️ Amazon AWS', query: 'amazon' },
-    { label: '♾️ Meta / Facebook', query: 'meta' },
-    { label: '💻 Microsoft', query: 'microsoft' },
+    { label: ' FAANG / MANGO', query: 'faang' },
+    { label: ' Google Cloud', query: 'google' },
+    { label: ' Amazon AWS', query: 'amazon' },
+    { label: ' Meta / Facebook', query: 'meta' },
+    { label: ' Microsoft', query: 'microsoft' },
   ];
 
   return (
-    <div
-      className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-5 bg-black/60 backdrop-blur-md overflow-y-auto"
-      onClick={onClose}
-    >
-      <div
-        className="bg-white/95 dark:bg-[#18181B]/95 backdrop-blur-2xl border border-black/[0.1] dark:border-white/[0.12] rounded-[20px] sm:rounded-[24px] p-4 sm:p-7 w-full max-w-3xl shadow-2xl relative my-auto animate-sheet-pop max-h-[94dvh] flex flex-col"
-        onClick={(e) => e.stopPropagation()}
-        role="dialog"
-        aria-modal="true"
-        aria-label="Autonomous Internet Scanner"
-      >
-        {/* Close Button */}
-        <button
-          className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full bg-black/[0.05] dark:bg-white/[0.10] text-slate-500 dark:text-slate-400 hover:bg-black/[0.10] dark:hover:bg-white/[0.15] transition-colors cursor-pointer z-10"
-          onClick={onClose}
-          aria-label="Close dialog"
-        >
-          ✕
-        </button>
-
+    <Dialog label="Scanner status" onClose={onClose}>
         {/* Modal Header */}
-        <div className="flex items-center gap-3.5 mb-4 shrink-0">
-          <div className="relative w-12 h-12 rounded-[14px] bg-gradient-to-br from-blue-600 via-indigo-600 to-violet-600 flex items-center justify-center shadow-lg text-white font-bold text-xl shrink-0">
-            <span className="relative z-10">🌐</span>
-            <span className="absolute -inset-1 rounded-[16px] bg-blue-500/20 animate-pulse pointer-events-none"></span>
-          </div>
+        <div className="dialog-heading flex items-center gap-3.5 mb-4 shrink-0">
           <div>
             <div className="flex items-center gap-2 flex-wrap">
-              <h2 className="text-lg sm:text-xl font-black text-slate-900 dark:text-white tracking-tight">
-                Autonomous Internet Scanner
+              <h2 className="text-lg sm:text-xl font-semibold text-ink tracking-tight">
+                Scanner status
               </h2>
-              <span className={`text-[10px] uppercase font-bold tracking-wider px-2.5 py-0.5 rounded-full flex items-center gap-1.5 border ${
+              <span className={`text-[10px] uppercase font-semibold tracking-wider px-2.5 py-0.5 rounded-control flex items-center gap-1.5 border ${
                 status.is_scanning
-                  ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30'
-                  : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30'
+                  ? 'bg-sunken text-warn  border-line'
+                  : 'bg-sunken text-ok  border-line'
               }`}>
-                <span className={`w-1.5 h-1.5 rounded-full ${status.is_scanning ? 'bg-amber-400 animate-ping' : 'bg-emerald-400'}`}></span>
+                <span className={`w-1.5 h-1.5 rounded-control ${status.is_scanning ? 'bg-sunken ' : 'bg-sunken'}`}></span>
                 {status.is_scanning ? 'Scanning Internet...' : 'Idle'}
               </span>
             </div>
-            <p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5">
+            <p className="text-xs text-ink-2 mt-0.5">
               Continuously crawls the web for <strong>IIT, NIT, IIIT, Tier-1 Colleges, City Hubs & FAANG</strong> hackathons.
             </p>
           </div>
         </div>
 
-        <p className="mb-4 text-sm text-slate-600 dark:text-slate-300" role="note">
+        <p className="mb-4 text-sm text-ink-2" role="note">
           Scanner controls are available to administrators through the authenticated API.
           This public view shows status only.
         </p>
 
         {/* Telemetry Stats Bar */}
         <div className="grid grid-cols-3 gap-2.5 mb-4 shrink-0">
-          <div className="p-2.5 rounded-[14px] bg-black/[0.03] dark:bg-white/[0.04] border border-black/[0.06] dark:border-white/[0.08] text-center">
-            <div className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Scanner Mode</div>
-            <div className="text-xs sm:text-sm font-black text-slate-800 dark:text-slate-200 mt-0.5">
+          <div className="p-2.5 rounded-surface bg-sunken border border-line text-center">
+            <div className="text-[10px] font-semibold uppercase tracking-wider text-muted">Scanner Mode</div>
+            <div className="text-xs sm:text-sm font-semibold text-ink mt-0.5">
               Operator configured
             </div>
           </div>
-          <div className="p-2.5 rounded-[14px] bg-black/[0.03] dark:bg-white/[0.04] border border-black/[0.06] dark:border-white/[0.08] text-center">
-            <div className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Cycles Run</div>
-            <div className="text-xs sm:text-sm font-black text-[#007AFF] dark:text-[#0A84FF] mt-0.5">
+          <div className="p-2.5 rounded-surface bg-sunken border border-line text-center">
+            <div className="text-[10px] font-semibold uppercase tracking-wider text-muted">Cycles Run</div>
+            <div className="text-xs sm:text-sm font-semibold text-accent-text mt-0.5">
               {status.total_scans_run} Complete
             </div>
           </div>
-          <div className="p-2.5 rounded-[14px] bg-black/[0.03] dark:bg-white/[0.04] border border-black/[0.06] dark:border-white/[0.08] text-center">
-            <div className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">New Indexed</div>
-            <div className="text-xs sm:text-sm font-black text-emerald-600 dark:text-emerald-400 mt-0.5">
+          <div className="p-2.5 rounded-surface bg-sunken border border-line text-center">
+            <div className="text-[10px] font-semibold uppercase tracking-wider text-muted">New Indexed</div>
+            <div className="text-xs sm:text-sm font-semibold text-ok mt-0.5">
               +{status.total_new_indexed} Hackathons
             </div>
           </div>
         </div>
 
         {/* Scrollable Scanner Body */}
-        <div className="flex-1 overflow-y-auto space-y-4 pr-1">
+        <div className="dialog-body flex-1 space-y-4">
 
           {/* Action Hero: Instant Full Internet Scan */}
-          <div className="p-4 rounded-[18px] bg-gradient-to-r from-blue-900/10 via-indigo-900/10 to-violet-900/10 dark:from-blue-950/30 dark:via-indigo-950/30 dark:to-violet-950/30 border border-blue-500/20 flex flex-col sm:flex-row items-center justify-between gap-3">
+          <div className="p-4 rounded-surface border border-line flex flex-col sm:flex-row items-center justify-between gap-3">
             <div>
-              <div className="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-1.5">
-                <span>⚡ Instant Full Internet Sweep</span>
+              <div className="font-semibold text-sm text-ink flex items-center gap-1.5">
+                <span> Instant Full Internet Sweep</span>
               </div>
-              <p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5">
+              <p className="text-xs text-ink-2 mt-0.5">
                 Crawl Unstop, Devpost & HackerEarth registries across all premier colleges, cities, and tech giants.
               </p>
             </div>
             <button
               onClick={handleTriggerFullSweep}
               disabled
-              className={`shrink-0 px-4 py-2.5 rounded-[12px] font-bold text-xs shadow-md transition-all flex items-center gap-2 cursor-pointer ${
-                isTriggering || status.is_scanning
-                  ? 'bg-slate-400 text-white cursor-not-allowed opacity-80'
-                  : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white shadow-blue-500/25 active:scale-95'
-              }`}
+              className="btn btn-ghost"
             >
               {isTriggering || status.is_scanning ? (
                 <>
-                  <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                  <span className="w-3.5 h-3.5 border-2 border-line border-t-transparent rounded-control animate-spin"></span>
                   Sweeping Internet...
                 </>
               ) : (
                 <>
-                  <span>🚀</span> Scan Internet Now
+                  <span></span> Scan Internet Now
                 </>
               )}
             </button>
           </div>
 
           {/* Instagram Hackathon Scanner */}
-          <div className="p-4 rounded-[18px] bg-gradient-to-r from-[#F58529]/10 via-[#DD2A7B]/10 to-[#8134AF]/10 dark:from-[#F58529]/15 dark:via-[#DD2A7B]/15 dark:to-[#8134AF]/15 border border-[#DD2A7B]/20 flex flex-col sm:flex-row items-center justify-between gap-3">
+          <div className="p-4 rounded-surface border border-line flex flex-col sm:flex-row items-center justify-between gap-3">
             <div>
-              <div className="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-1.5">
-                <span>📸 Instagram Hackathon Scanner</span>
+              <div className="font-semibold text-sm text-ink flex items-center gap-1.5">
+                <span> Instagram Hackathon Scanner</span>
               </div>
-              <p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5">
+              <p className="text-xs text-ink-2 mt-0.5">
                 Scans 20+ hackathon organizer accounts & trending hashtags (#hackathon, #devhack, #hackathonindia) on Instagram. Auto-verifies posts before listing.
               </p>
               {instagramMessage && (
-                <div className={`mt-2 text-xs font-medium ${instagramMessage.type === 'success' ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
+                <div className="btn btn-ghost">
                   {instagramMessage.text}
                 </div>
               )}
@@ -361,15 +322,11 @@ export default function AutoListModal({ onClose, onSuccess, apiBase }) {
                 }
               }}
               disabled
-              className={`w-full sm:w-auto justify-center shrink-0 px-4 py-2.5 rounded-[12px] font-bold text-xs shadow-md transition-all flex items-center gap-2 cursor-pointer ${
-                isInstagramScanning
-                  ? 'bg-slate-400 text-white cursor-not-allowed opacity-80'
-                  : 'bg-gradient-to-r from-[#F58529] via-[#DD2A7B] to-[#8134AF] hover:from-[#E07420] hover:via-[#CC1E6C] hover:to-[#7029A0] text-white shadow-[#DD2A7B]/25 active:scale-95'
-              }`}
+              className="btn btn-ghost"
             >
               {isInstagramScanning ? (
                 <>
-                  <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                  <span className="btn btn-ghost"></span>
                   Scanning IG...
                 </>
               ) : (
@@ -386,16 +343,16 @@ export default function AutoListModal({ onClose, onSuccess, apiBase }) {
           </div>
 
           {/* Web Discovery Scanner */}
-          <div className="p-4 rounded-[18px] bg-gradient-to-r from-emerald-900/10 via-teal-900/10 to-cyan-900/10 dark:from-emerald-950/30 dark:via-teal-950/30 dark:to-cyan-950/30 border border-emerald-500/20 flex flex-col sm:flex-row items-center justify-between gap-3">
+          <div className="p-4 rounded-surface border border-line flex flex-col sm:flex-row items-center justify-between gap-3">
             <div>
-              <div className="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-1.5">
-                <span>🌐 Open Internet Discovery</span>
+              <div className="font-semibold text-sm text-ink flex items-center gap-1.5">
+                <span> Open Internet Discovery</span>
               </div>
-              <p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5">
+              <p className="text-xs text-ink-2 mt-0.5">
                 Searches Google, MLH, Eventbrite & KonfHub for hackathons across India. Extracts metadata & auto-verifies legitimacy before listing.
               </p>
               {webDiscoveryMessage && (
-                <div className={`mt-2 text-xs font-medium ${webDiscoveryMessage.type === 'success' ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
+                <div className={`mt-2 text-xs font-medium ${webDiscoveryMessage.type === 'success' ? 'text-ok ' : 'text-bad '}`}>
                   {webDiscoveryMessage.text}
                 </div>
               )}
@@ -425,15 +382,11 @@ export default function AutoListModal({ onClose, onSuccess, apiBase }) {
                 }
               }}
               disabled
-              className={`w-full sm:w-auto justify-center shrink-0 px-4 py-2.5 rounded-[12px] font-bold text-xs shadow-md transition-all flex items-center gap-2 cursor-pointer ${
-                isWebDiscovering
-                  ? 'bg-slate-400 text-white cursor-not-allowed opacity-80'
-                  : 'bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white shadow-emerald-500/25 active:scale-95'
-              }`}
+              className="btn btn-ghost"
             >
               {isWebDiscovering ? (
                 <>
-                  <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                  <span className="btn btn-ghost"></span>
                   Discovering...
                 </>
               ) : (
@@ -450,9 +403,9 @@ export default function AutoListModal({ onClose, onSuccess, apiBase }) {
 
           {/* Targeted College / City Search Bar */}
           <div className="space-y-2">
-            <div className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center justify-between">
-              <span>🎯 Targeted College / City Web Scanner</span>
-              <span className="text-[11px] text-slate-500 font-normal">Scans internet on demand</span>
+            <div className="text-xs font-semibold text-ink-2 flex items-center justify-between">
+              <span> Targeted College / City Web Scanner</span>
+              <span className="text-[11px] text-muted font-normal">Scans internet on demand</span>
             </div>
             <form
               onSubmit={(e) => {
@@ -467,28 +420,28 @@ export default function AutoListModal({ onClose, onSuccess, apiBase }) {
                 value={targetKeyword}
                 onChange={(e) => setTargetKeyword(e.target.value)}
                 placeholder="Enter college or city (e.g. COEP Pune, IIIT Hyderabad, BITS, Mumbai, VJTI)..."
-                className="flex-1 px-3.5 py-2.5 rounded-[12px] bg-black/[0.04] dark:bg-white/[0.06] border border-black/[0.08] dark:border-white/[0.12] text-xs sm:text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#007AFF]/30"
+                className="flex-1 px-3.5 py-2.5 rounded-surface bg-sunken border border-line text-xs sm:text-sm text-ink placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#007AFF]/30"
               />
               <button
                 type="submit"
                 disabled
-                className="px-4 py-2.5 rounded-[12px] bg-[#007AFF] hover:bg-[#0066D6] dark:bg-[#0A84FF] text-white text-xs font-bold shadow-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer shrink-0"
+                className="btn btn-ghost"
               >
-                🔍 Scan Keyword
+                 Scan Keyword
               </button>
             </form>
           </div>
 
           {/* Monitored Channels Clusters */}
           <div className="space-y-3">
-            <div className="text-xs font-bold text-slate-700 dark:text-slate-300">
-              📡 Monitored Internet Channels <span className="font-normal text-slate-500">(Click to scan channel now)</span>:
+            <div className="text-xs font-semibold text-ink-2">
+               Monitored Internet Channels <span className="font-normal text-muted">(Administrator access required)</span>:
             </div>
 
             {/* Colleges */}
             <div className="space-y-1.5">
-              <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                🏛️ Premier Colleges
+              <div className="text-[11px] font-semibold uppercase tracking-wider text-muted">
+                 Premier Colleges
               </div>
               <div className="flex flex-wrap gap-1.5">
                 {collegeChannels.map((c) => (
@@ -496,7 +449,7 @@ export default function AutoListModal({ onClose, onSuccess, apiBase }) {
                     key={c.query}
                     onClick={() => handleTriggerTargeted(c.query)}
                     disabled
-                    className="px-2.5 py-1.5 rounded-[10px] text-xs font-medium bg-black/[0.04] dark:bg-white/[0.06] hover:bg-blue-500/15 hover:text-blue-600 dark:hover:text-blue-400 border border-black/[0.06] dark:border-white/[0.08] transition-colors cursor-pointer active:scale-95 disabled:opacity-50"
+                    className="btn btn-ghost"
                     title={`Scan internet for ${c.label}`}
                   >
                     {c.label}
@@ -507,8 +460,8 @@ export default function AutoListModal({ onClose, onSuccess, apiBase }) {
 
             {/* City Hubs */}
             <div className="space-y-1.5">
-              <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                🏙️ City Tech Hubs
+              <div className="text-[11px] font-semibold uppercase tracking-wider text-muted">
+                 City Tech Hubs
               </div>
               <div className="flex flex-wrap gap-1.5">
                 {cityChannels.map((c) => (
@@ -516,7 +469,7 @@ export default function AutoListModal({ onClose, onSuccess, apiBase }) {
                     key={c.query}
                     onClick={() => handleTriggerTargeted(c.query)}
                     disabled
-                    className="px-2.5 py-1.5 rounded-[10px] text-xs font-medium bg-black/[0.04] dark:bg-white/[0.06] hover:bg-emerald-500/15 hover:text-emerald-600 dark:hover:text-emerald-400 border border-black/[0.06] dark:border-white/[0.08] transition-colors cursor-pointer active:scale-95 disabled:opacity-50"
+                    className="btn btn-ghost"
                     title={`Scan internet for ${c.label}`}
                   >
                     {c.label}
@@ -527,8 +480,8 @@ export default function AutoListModal({ onClose, onSuccess, apiBase }) {
 
             {/* FAANG / Big Tech */}
             <div className="space-y-1.5">
-              <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                🚀 FAANG & Big Tech
+              <div className="text-[11px] font-semibold uppercase tracking-wider text-muted">
+                 FAANG & Big Tech
               </div>
               <div className="flex flex-wrap gap-1.5">
                 {faangChannels.map((c) => (
@@ -536,7 +489,7 @@ export default function AutoListModal({ onClose, onSuccess, apiBase }) {
                     key={c.query}
                     onClick={() => handleTriggerTargeted(c.query)}
                     disabled
-                    className="px-2.5 py-1.5 rounded-[10px] text-xs font-medium bg-black/[0.04] dark:bg-white/[0.06] hover:bg-amber-500/15 hover:text-amber-600 dark:hover:text-amber-400 border border-black/[0.06] dark:border-white/[0.08] transition-colors cursor-pointer active:scale-95 disabled:opacity-50"
+                    className="btn btn-ghost"
                     title={`Scan internet for ${c.label}`}
                   >
                     {c.label}
@@ -548,9 +501,9 @@ export default function AutoListModal({ onClose, onSuccess, apiBase }) {
 
           {/* Feedback Messages */}
           {scanMessage && (
-            <div className="p-3 rounded-[12px] bg-emerald-500/10 border border-emerald-500/20 text-emerald-700 dark:text-emerald-300 text-xs font-medium flex items-center justify-between gap-2">
+            <div className="p-3 rounded-surface bg-sunken border border-line text-ok text-xs font-medium flex items-center justify-between gap-2">
               <div className="flex items-center gap-2">
-                <span>✓</span>
+                <span></span>
                 <span>{scanMessage}</span>
               </div>
               <button
@@ -558,7 +511,7 @@ export default function AutoListModal({ onClose, onSuccess, apiBase }) {
                   onClose();
                   if (onSuccess) onSuccess();
                 }}
-                className="px-2.5 py-1 rounded-[8px] bg-emerald-600 text-white font-bold text-[11px] hover:bg-emerald-700 cursor-pointer shrink-0"
+                className="btn btn-ghost"
               >
                 View in Radar
               </button>
@@ -566,33 +519,33 @@ export default function AutoListModal({ onClose, onSuccess, apiBase }) {
           )}
 
           {scanError && (
-            <div className="p-3 rounded-[12px] bg-rose-500/10 border border-rose-500/20 text-rose-700 dark:text-rose-300 text-xs font-medium flex items-center gap-2">
-              <span>⚠️</span>
+            <div className="p-3 rounded-surface bg-sunken border border-line text-bad text-xs font-medium flex items-center gap-2">
+              <span></span>
               <span>{scanError}</span>
             </div>
           )}
 
           {/* Real-time Crawler Console / Logs Window */}
           <div className="space-y-1.5">
-            <div className="flex items-center justify-between text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+            <div className="flex items-center justify-between text-[11px] font-semibold uppercase tracking-wider text-muted">
               <span className="flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                <span className="w-2 h-2 rounded-control bg-sunken"></span>
                 Live Crawler Console Logs
               </span>
               <span>{status.last_scan_logs?.length || 0} entries</span>
             </div>
-            <div className="p-3 rounded-[14px] bg-[#0F172A] border border-slate-800 text-slate-300 font-mono text-[11px] leading-relaxed max-h-40 overflow-y-auto space-y-1 shadow-inner">
+            <div className="p-3 rounded-surface bg-sunken border border-line text-muted font-mono text-[11px] leading-relaxed max-h-40 overflow-y-auto space-y-1">
               {status.last_scan_logs && status.last_scan_logs.length > 0 ? (
                 status.last_scan_logs.map((log, idx) => (
                   <div key={idx} className="flex items-start gap-2">
-                    <span className="text-blue-400 select-none">›</span>
-                    <span className={log.includes('New indexed') || log.includes('complete') ? 'text-emerald-400 font-semibold' : 'text-slate-300'}>
+                    <span className="text-accent-text select-none">›</span>
+                    <span className={log.includes('New indexed') || log.includes('complete') ? 'text-ok font-semibold' : 'text-muted'}>
                       {log}
                     </span>
                   </div>
                 ))
               ) : (
-                <div className="text-slate-500 italic">
+                <div className="text-muted italic">
                   Daemon is in standby. Ready to sweep college & city channels on schedule or demand.
                 </div>
               )}
@@ -601,21 +554,21 @@ export default function AutoListModal({ onClose, onSuccess, apiBase }) {
           </div>
 
           {/* Collapsible: Direct URL 1-Click Auto-Extractor */}
-          <div className="pt-2 border-t border-black/[0.06] dark:border-white/[0.08]">
+          <div className="pt-2 border-t border-line">
             <button
               type="button"
               onClick={() => setShowDirectUrlTab(!showDirectUrlTab)}
-              className="w-full flex items-center justify-between text-xs font-semibold text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors cursor-pointer py-1"
+              className="btn btn-ghost"
             >
               <span className="flex items-center gap-1.5">
-                <span>🔗</span> Have an exact hackathon link? 1-Click URL Auto-Extractor
+                <span></span> Have an exact hackathon link? 1-Click URL Auto-Extractor
               </span>
               <span>{showDirectUrlTab ? '▲' : '▼'}</span>
             </button>
 
             {showDirectUrlTab && (
-              <form onSubmit={handleDirectUrlExtract} className="mt-2.5 p-3 rounded-[14px] bg-black/[0.02] dark:bg-white/[0.03] border border-black/[0.06] dark:border-white/[0.08] space-y-2">
-                <div className="text-[11px] text-slate-500 dark:text-slate-400">
+              <form onSubmit={handleDirectUrlExtract} className="mt-2.5 p-3 rounded-surface bg-sunken border border-line space-y-2">
+                <div className="text-[11px] text-muted">
                   Adding events from a URL requires administrator access through the authenticated API.
                 </div>
                 <div className="flex gap-2">
@@ -624,18 +577,18 @@ export default function AutoListModal({ onClose, onSuccess, apiBase }) {
                     value={directUrl}
                     onChange={(e) => setDirectUrl(e.target.value)}
                     placeholder="https://unstop.com/hackathons/... or https://devpost.com/..."
-                    className="flex-1 px-3 py-2 rounded-[10px] bg-black/[0.04] dark:bg-white/[0.06] border border-black/[0.08] dark:border-white/[0.12] text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#007AFF]/30"
+                    className="flex-1 px-3 py-2 rounded-surface bg-sunken border border-line text-xs text-ink placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#007AFF]/30"
                   />
                   <button
                     type="submit"
                     disabled
-                    className="px-3.5 py-2 rounded-[10px] bg-[#007AFF] hover:bg-[#0066D6] dark:bg-[#0A84FF] text-white text-xs font-bold transition-all disabled:opacity-50 cursor-pointer shrink-0"
+                    className="btn btn-ghost"
                   >
                     {isUrlExtracting ? 'Extracting...' : 'Auto-Extract & Add'}
                   </button>
                 </div>
                 {urlMessage && (
-                  <div className={`text-xs mt-1 font-medium ${urlMessage.type === 'success' ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
+                  <div className="btn btn-ghost">
                     {urlMessage.text}
                   </div>
                 )}
@@ -646,19 +599,18 @@ export default function AutoListModal({ onClose, onSuccess, apiBase }) {
         </div>
 
         {/* Modal Footer */}
-        <div className="flex items-center justify-between pt-3 mt-3 border-t border-black/[0.06] dark:border-white/[0.08] shrink-0 text-xs">
-          <div className="text-slate-500 dark:text-slate-400 text-[11px]">
+        <div className="flex items-center justify-between pt-3 mt-3 border-t border-line shrink-0 text-xs">
+          <div className="text-muted text-[11px]">
             {status.last_scanned_at ? `Last sweep: ${new Date(status.last_scanned_at).toLocaleTimeString()}` : 'No scan recorded'}
           </div>
           <button
             onClick={onClose}
-            className="px-4 py-2 rounded-[12px] bg-black/[0.05] dark:bg-white/[0.10] hover:bg-black/[0.10] dark:hover:bg-white/[0.15] text-slate-700 dark:text-slate-200 font-semibold cursor-pointer transition-colors"
+            className="btn btn-ghost"
           >
             Close Radar Console
           </button>
         </div>
 
-      </div>
-    </div>
+    </Dialog>
   );
 }
