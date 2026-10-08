@@ -5,12 +5,13 @@ import sys
 import time
 import statistics
 from collections import deque
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 import math
 import hashlib
+import json
 import difflib
 from contextlib import asynccontextmanager
-from typing import Optional
+from typing import Literal, Optional
 from urllib.parse import urlparse
 from bs4 import BeautifulSoup
 from fastapi import FastAPI, Request, Query, Response, BackgroundTasks, APIRouter, Depends
@@ -42,7 +43,7 @@ from schemas import (
 )
 from filters.keyword_filter import classify_hackathon
 from scrapers.geocoder import geocode
-from lifecycle import is_expired, normalize_deadline
+from lifecycle import is_expired, normalize_deadline, parse_deadline_iso
 from security import AdminAccessDenied, client_ip, require_admin
 from safe_http import FetchUnavailable, UnsafeURL, public_request, validate_public_url
 from scrapers.internet_scanner import (
@@ -113,8 +114,18 @@ _CACHE_KEY = "hackathons"
 def _matches_format(doc: dict, category: str) -> bool:
     """Recognize scraper format aliases consistently in counts and filters."""
     mode = str(doc.get("mode") or "").strip().lower()
+    if category == "Hybrid":
+        return bool(re.search(r"\bhybrid\b", mode))
+    if re.search(r"\bhybrid\b", mode):
+        return False
     pattern = r"\b(?:online|virtual)\b" if category == "Online" else r"\b(?:offline|in[ -]person|on[ -]?site)\b"
     return bool(re.search(pattern, mode))
+
+def _deadline_sort_key(doc: dict) -> tuple:
+    iso = parse_deadline_iso(doc.get("deadline_iso"))
+    value = int(iso.replace("-", "")) if iso else 0
+    past = bool(doc.get("is_past"))
+    return past, iso is None, -value if past else value
 
 # ---------- Response-time tracking for p50/p95 ----------
 _latencies: deque[float] = deque(maxlen=500)  # last 500 requests
@@ -217,14 +228,15 @@ def _sort_hackathons(docs: list[dict]) -> list[dict]:
 
     for doc in docs:
         normalize_deadline(doc)  # derive deadline_iso from text so every source can expire
-        iso = doc.get("deadline_iso") or ""
-        status = doc.get("status", "").lower()
+        iso = parse_deadline_iso(doc.get("deadline_iso")) or ""
+        status = str(doc.get("status") or "").strip().lower()
+        closed = status in {"ended", "closed", "completed", "cancelled", "canceled", "finished"}
 
-        if iso and iso >= today and status != "ended":
+        if iso and iso >= today and not closed:
             upcoming.append(doc)
-        elif iso and (iso < today or status == "ended"):
+        elif iso and (iso < today or closed):
             past.append(doc)
-        elif status == "ended":
+        elif closed:
             past.append(doc)
         else:
             no_date.append(doc)
@@ -550,7 +562,9 @@ def get_hackathons(
     source: Optional[str] = Query(default=None, max_length=50),
     search: str = Query(default="", max_length=100),
     sort: str = Query(default="deadline", max_length=20),
-    tab: str = Query(default="upcoming", max_length=20)
+    tab: str = Query(default="upcoming", max_length=20),
+    format: Literal["All", "Online", "Offline", "Hybrid"] = Query(default="All"),
+    deadline_days: Optional[int] = Query(default=None, ge=1, le=30)
 ):
     # Normalize query params if passed directly without FastAPI dependency injection
     if not isinstance(source, str):
@@ -567,6 +581,10 @@ def get_hackathons(
         page = getattr(page, 'default', 1)
     if not isinstance(limit, int):
         limit = getattr(limit, 'default', 12)
+    if not isinstance(format, str):
+        format = getattr(format, 'default', 'All')
+    if not isinstance(deadline_days, int) and deadline_days is not None:
+        deadline_days = getattr(deadline_days, 'default', None)
     if not isinstance(lat, (float, int)) and lat is not None:
         lat = getattr(lat, 'default', None)
     if not isinstance(lng, (float, int)) and lng is not None:
@@ -583,6 +601,9 @@ def get_hackathons(
     # --- cache hit → skip Mongo entirely ---
     # Store base dataset in _cache[_CACHE_KEY]; compute distance dynamically to prevent cache thrashing attacks
     cached = _cache.get(_CACHE_KEY)
+    today = datetime.now(timezone.utc).date()
+    if cached and cached.get("day") != today.isoformat():
+        cached = None
     
     if cached is None:
         logger.info("Cache MISS — querying MongoDB")
@@ -595,7 +616,9 @@ def get_hackathons(
                 "tags": 1, "prize": 1, "is_top_college": 1, "college_name": 1,
                 "college_type": 1, "is_internship": 1, "status": 1,
                 "total_registrations": 1, "registrations": 1, "min_team_size": 1,
-                "max_team_size": 1, "scraped_at": 1, "desc": 1, "tagline": 1, "opportunity_type": 1
+                "max_team_size": 1, "scraped_at": 1, "desc": 1, "tagline": 1, "opportunity_type": 1,
+                "verified": 1, "verification_confidence": 1, "discovery_source": 1,
+                "source_account": 1, "instagram_post_url": 1
             }
             cursor = collection.find({}, projection)
             docs = []
@@ -681,7 +704,7 @@ def get_hackathons(
                 "calculated_at": datetime.now(timezone.utc).isoformat()
             }
 
-            cached = {"docs": sorted_docs, "stats": stats}
+            cached = {"docs": sorted_docs, "stats": stats, "day": today.isoformat()}
             _cache[_CACHE_KEY] = cached
         except Exception:
             logger.error("Error fetching hackathons", exc_info=True)
@@ -738,10 +761,19 @@ def get_hackathons(
 
     if search and search.strip():
         filtered = [d for d in filtered if _match_hackathon_search(d, search)]
+
+    if format != "All":
+        filtered = [d for d in filtered if _matches_format(d, format)]
+    if deadline_days is not None:
+        end = (today + timedelta(days=deadline_days)).isoformat()
+        filtered = [d for d in filtered if not d.get("is_past") and (
+            (deadline := parse_deadline_iso(d.get("deadline_iso"))) is not None
+            and today.isoformat() <= deadline <= end
+        )]
         
     # Sorting
     if sort == 'deadline':
-        filtered = sorted(filtered, key=lambda d: str(d.get('deadline_iso') or '9999-99-99'))
+        filtered = sorted(filtered, key=_deadline_sort_key)
     elif sort == 'distance':
         filtered = sorted(filtered, key=lambda d: float(d.get('distance_km')) if d.get('distance_km') is not None else 999999.0)
     elif sort == 'name':
@@ -777,7 +809,8 @@ def get_hackathons(
     }
 
     # High-Performance HTTP Caching & ETag Validation
-    etag_seed = f"{cached['stats'].get('last_scraped', '')}_{len(target_list)}_{page}_{limit}_{category}_{source or ''}_{sort}_{tab}_{search}"
+    # Validate the representation, including edits and location-specific ordering.
+    etag_seed = json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
     etag = f'"{hashlib.md5(etag_seed.encode("utf-8"), usedforsecurity=False).hexdigest()}"'
 
     if_none_match = request.headers.get("if-none-match")

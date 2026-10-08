@@ -1,6 +1,6 @@
 import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import HackathonCard from '../components/HackathonCard';
 
 describe('HackathonCard Component', () => {
@@ -53,24 +53,25 @@ describe('HackathonCard Component', () => {
   it('renders safe register link', () => {
     render(<HackathonCard hackathon={mockHackathon} />);
 
-    const registerBtn = screen.getByRole('link', { name: /register now/i });
-    expect(registerBtn).toHaveAttribute('href', 'https://hacknitr.devfolio.co');
+    const registerBtn = screen.getByRole('link', { name: /register/i });
+    expect(registerBtn).toHaveAttribute('href', 'https://hacknitr.devfolio.co/');
     expect(registerBtn).toHaveAttribute('target', '_blank');
     expect(registerBtn).toHaveAttribute('rel', 'noopener noreferrer');
   });
 
-  it('sanitizes unsafe javascript: links to #', () => {
+  it('makes unsafe links unavailable without a clickable placeholder', () => {
     const maliciousHackathon = {
       ...mockHackathon,
       link: 'javascript:alert(1)',
     };
     render(<HackathonCard hackathon={maliciousHackathon} />);
 
-    const registerBtn = screen.getByRole('link', { name: /link unavailable/i });
-    expect(registerBtn).toHaveAttribute('href', '#');
+    expect(screen.getByText('Registration link unavailable')).toBeInTheDocument();
+    expect(screen.queryByRole('link')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /copy link/i })).toBeDisabled();
   });
 
-  it('triggers onShare callback when copying link', () => {
+  it('reports copying only after the clipboard write succeeds', async () => {
     const onShare = vi.fn();
     // Mock navigator.clipboard
     Object.assign(navigator, {
@@ -84,8 +85,8 @@ describe('HackathonCard Component', () => {
     const copyBtn = screen.getByRole('button', { name: /copy link/i });
     fireEvent.click(copyBtn);
 
-    expect(onShare).toHaveBeenCalledWith('HackNITR 6.0');
-    expect(navigator.clipboard.writeText).toHaveBeenCalledWith('https://hacknitr.devfolio.co');
+    await waitFor(() => expect(onShare).toHaveBeenCalledWith('HackNITR 6.0'));
+    expect(navigator.clipboard.writeText).toHaveBeenCalledWith('https://hacknitr.devfolio.co/');
   });
 
   it('renders correctly in compact list view mode', () => {
@@ -94,10 +95,10 @@ describe('HackathonCard Component', () => {
     expect(screen.getByText('HackNITR 6.0')).toBeInTheDocument();
     expect(screen.getByText('Devfolio')).toBeInTheDocument();
     expect(screen.getByText('₹5,00,000')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /register now/i })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /register/i })).toBeInTheDocument();
   });
 
-  it('renders lost opportunity badge when is_past is true', () => {
+  it('clearly identifies closed registration and preserves its organizer link', () => {
     const pastHackathon = {
       ...mockHackathon,
       title: 'Old Concluded Hack',
@@ -106,8 +107,8 @@ describe('HackathonCard Component', () => {
     };
     render(<HackathonCard hackathon={pastHackathon} />);
 
-    expect(screen.getByText(/lost opportunity/i)).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /view details/i })).toBeInTheDocument();
+    expect(screen.getAllByText('Registration closed').length).toBeGreaterThan(0);
+    expect(screen.getByRole('link', { name: /view event page/i })).toBeInTheDocument();
   });
 
   it('renders venue and campus correctly when venue is provided', () => {
@@ -120,5 +121,28 @@ describe('HackathonCard Component', () => {
     render(<HackathonCard hackathon={venueHackathon} />);
 
     expect(screen.getByText(/IIIT Hyderabad/i)).toBeInTheDocument();
+  });
+
+  it('reports clipboard failure without announcing success', async () => {
+    const onShare = vi.fn();
+    navigator.clipboard.writeText = vi.fn().mockRejectedValue(new Error('Denied'));
+    render(<HackathonCard hackathon={mockHackathon} onShare={onShare} />);
+    fireEvent.click(screen.getByRole('button', { name: /copy link/i }));
+    await screen.findByText('Could not copy. Use the registration link.');
+    expect(onShare).not.toHaveBeenCalled();
+  });
+
+  it('opening registration does not claim a link was copied', () => {
+    const onShare = vi.fn();
+    render(<HackathonCard hackathon={mockHackathon} onShare={onShare} />);
+    fireEvent.click(screen.getByRole('link', { name: /register/i }));
+    expect(onShare).not.toHaveBeenCalled();
+  });
+
+  it.each(['grid', 'compact'])('does not invent missing requirements in %s view', (viewMode) => {
+    render(<HackathonCard hackathon={{ title: 'Unspecified event', link: 'https://example.com', prize: 'Not specified' }} viewMode={viewMode} />);
+    expect(screen.getAllByText('Not listed')).toHaveLength(5);
+    expect(screen.getByText('Check organizer')).toBeInTheDocument();
+    expect(screen.queryByText(/free entry|open participation|swags|global access/i)).not.toBeInTheDocument();
   });
 });

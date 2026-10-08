@@ -85,3 +85,31 @@ Offline/In-person/Onsite consistently without guessing an unknown format.
 Phase 2 QA covers 320, 375, 768, 1024, and 1440px, persisted light/dark appearance,
 keyboard dialogs/navigation, search recovery, shortcuts, and a delayed 503 fixture.
 Discovery controls and event cards receive their product changes in later phases.
+
+## Phase 3 discovery contract
+
+Format, event type, platform, and deadline are independent facets. Keep the labelled
+native controls and removable filters. Status counts describe the filtered set;
+the collection timestamp describes the dataset. A seven-day window includes today
+through today plus seven UTC calendar days, excludes unknown dates and closed events,
+and never promises an organizer's closing time. Hybrid remains its own format.
+
+Searches and pagination restore from shareable query strings. Never include a user's
+coordinates in those links. Grid/list preference stays local. Manual page changes
+move keyboard focus to Results; typing or selecting filters must not steal focus.
+Loading, no matches, an unavailable API, and failed refresh of cached data are
+different states. Keep cancellation protection, conditional requests, and bounded
+query caching. An explicit preview API must remain authoritative.
+
+Cards preserve full titles and known facts. Do not infer a location, free entry,
+prize, participant count, eligibility, or team rules from missing fields. Show
+partial team bounds as partial bounds. Automated source checks are not organizer
+endorsement. Unsafe registration URLs are unavailable, never clickable placeholders.
+Copy feedback requires a successful clipboard write. Registration opens the source
+page in a new tab and must not report a copy action.
+
+Phase 3 QA uses labelled, in-memory sample events and a separate delayed 503 fixture.
+Review 320, 375, 768, 1024, and 1440px layouts, light/dark appearance, keyboard focus,
+combined facets, search recovery, shareable URL restoration, pagination, and copy
+feedback. Responsive frames may be used when the browser ignores viewport overrides.
+Eligibility extraction and internal event detail pages remain later-phase work.

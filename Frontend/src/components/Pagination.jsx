@@ -17,7 +17,7 @@ const ChevronRightIcon = () => (
   </svg>
 );
 
-export default function Pagination({ currentPage, totalPages, onPageChange }) {
+export default function Pagination({ currentPage, totalPages, onPageChange, disabled = false }) {
   if (totalPages <= 1) return null;
 
   const pages = [];
@@ -39,11 +39,11 @@ export default function Pagination({ currentPage, totalPages, onPageChange }) {
   return (
     <nav aria-label="Pagination" className="flex flex-col items-center gap-3 mt-8">
       {/* Navigation Controls */}
-      <div className="flex items-center gap-1.5 sm:gap-2">
+      <div className="pagination-controls">
         <button
           className={`${btnBase} ${btnInactive} px-3 sm:px-4 flex items-center gap-1.5`}
           onClick={() => onPageChange(currentPage - 1)}
-          disabled={currentPage === 1}
+          disabled={disabled || currentPage === 1}
           aria-label="Previous page"
         >
           <ChevronLeftIcon />
@@ -59,6 +59,7 @@ export default function Pagination({ currentPage, totalPages, onPageChange }) {
                   currentPage === item ? '' : btnInactive
                 }`}
                 onClick={() => onPageChange(item)}
+                disabled={disabled}
                 aria-label={`Go to page ${item}`}
                 aria-current={currentPage === item ? 'page' : undefined}
               >
@@ -69,7 +70,7 @@ export default function Pagination({ currentPage, totalPages, onPageChange }) {
         <button
           className={`${btnBase} ${btnInactive} px-3 sm:px-4 flex items-center gap-1.5`}
           onClick={() => onPageChange(currentPage + 1)}
-          disabled={currentPage === totalPages}
+          disabled={disabled || currentPage === totalPages}
           aria-label="Next page"
         >
           <span className="hidden sm:inline">Next</span>
