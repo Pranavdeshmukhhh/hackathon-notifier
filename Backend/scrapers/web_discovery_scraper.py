@@ -28,6 +28,7 @@ from typing import Optional
 from urllib.parse import urlparse, quote_plus
 
 import requests
+from safe_http import public_request
 from bs4 import BeautifulSoup
 
 logger = logging.getLogger("web_discovery_scraper")
@@ -109,7 +110,7 @@ def _is_hackathon_url(url: str) -> bool:
 def _extract_metadata_from_url(url: str) -> Optional[dict]:
     """Fetch and extract hackathon metadata from a URL page."""
     try:
-        resp = requests.get(url, headers=_HEADERS, timeout=8, allow_redirects=True)
+        resp = public_request(url, headers=_HEADERS, timeout=8, html_only=True)
         if resp.status_code != 200:
             return None
 
@@ -145,10 +146,10 @@ def _extract_metadata_from_url(url: str) -> Optional[dict]:
         image = og_img["content"].strip() if og_img and og_img.get("content") else None
 
         # Determine source from domain
-        domain = urlparse(url).netloc.lower().replace("www.", "")
+        domain = (urlparse(resp.url).hostname or "").lower()
         source = "Web Discovery"
         for trusted in TRUSTED_DOMAINS:
-            if trusted in domain:
+            if domain == trusted or domain.endswith("." + trusted):
                 source = trusted.split(".")[0].capitalize()
                 break
 

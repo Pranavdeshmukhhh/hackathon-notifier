@@ -12,7 +12,7 @@ describe('TermsAndConditions Component', () => {
     expect(screen.getByText(/100% Free & Open-Source Software/i)).toBeInTheDocument();
     expect(screen.getByText(/University On-Duty \(OD\) Attendance Policy/i)).toBeInTheDocument();
     expect(screen.getByText(/Prize Pools, Bounties & Escrow Disclaimer/i)).toBeInTheDocument();
-    expect(screen.getByText(/Student Privacy & Zero Personal Data Tracking/i)).toBeInTheDocument();
+    expect(screen.getByText(/Student Privacy & Data Use/i)).toBeInTheDocument();
   });
 
   it('calls onBack when Back to Hackathon Radar button is clicked', () => {

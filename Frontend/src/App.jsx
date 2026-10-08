@@ -1049,7 +1049,7 @@ function App() {
                       Read the full terms <ArrowRightIcon />
                     </button>
                     <div className="mono text-[11px] text-faint mt-6 pt-5 border-t border-line">
-                      Privacy: zero student data tracking
+                      Privacy & data use
                     </div>
                   </div>
                 </div>

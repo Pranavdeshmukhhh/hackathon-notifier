@@ -27,7 +27,7 @@ export default function TermsAndConditions({ onBack, onShowToast }) {
     { id: 'aggregation-links', num: '03', title: 'Aggregated Data & Direct Portals' },
     { id: 'od-attendance', num: '04', title: 'University OD Attendance Policy' },
     { id: 'prizes-escrow', num: '05', title: 'Prize Pools, Bounties & Escrow' },
-    { id: 'privacy-tracking', num: '06', title: 'Privacy & Zero Data Tracking' },
+    { id: 'privacy-tracking', num: '06', title: 'Privacy & Data Use' },
     { id: 'intellectual-property', num: '07', title: 'IP & Code Ownership' },
     { id: 'pipeline-uptime', num: '08', title: 'Radar Pipeline & Scraper SLA' },
     { id: 'fair-use', num: '09', title: 'Fair Use & Community Standards' },
@@ -223,20 +223,20 @@ export default function TermsAndConditions({ onBack, onShowToast }) {
         <section id="privacy-tracking" className="bg-white/95 dark:bg-[#1C1C1E]/95 backdrop-blur-xl p-6 sm:p-8 rounded-[24px] border border-black/[0.08] dark:border-white/[0.10] shadow-sm space-y-4 crystal-chamfer">
           <div className="flex items-center gap-3">
             <span className="w-8 h-8 rounded-[10px] bg-sky-500/10 text-sky-600 dark:text-sky-400 flex items-center justify-center font-mono font-bold text-xs">06</span>
-            <h2 className="text-xl font-bold text-slate-900 dark:text-white">Student Privacy & Zero Personal Data Tracking</h2>
+            <h2 className="text-xl font-bold text-slate-900 dark:text-white">Student Privacy & Data Use</h2>
           </div>
           <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed font-normal">
-            We adhere to the strictest student privacy standards:
+            Browsing does not require an account. Application visit metrics are disabled by default; if enabled by the operator, they record coarse device categories and visit times, without IP addresses, full browser identifiers, or referrers. Hosting providers may maintain access logs. Existing historical records are not automatically removed.
           </p>
           <div className="space-y-2.5 text-xs sm:text-sm text-slate-600 dark:text-slate-300">
             <div className="p-3.5 rounded-[14px] bg-[#F2F2F7] dark:bg-[#2C2C2E] border border-black/[0.04] dark:border-white/[0.06]">
               <strong>No Personal Accounts Required:</strong> You do not need to register, provide your phone number, or link a social account to search and filter hackathons.
             </div>
             <div className="p-3.5 rounded-[14px] bg-[#F2F2F7] dark:bg-[#2C2C2E] border border-black/[0.04] dark:border-white/[0.06]">
-              <strong>Client-Side Geolocation:</strong> Proximity distance calculation uses your browser's native GPS API strictly on-device. Your precise GPS coordinates are never stored permanently in our database.
+              <strong>Location Search:</strong> With your permission, browser coordinates are sent to our API to sort nearby events. They are not saved in the event database. Hosting access logs may include request URLs.
             </div>
             <div className="p-3.5 rounded-[14px] bg-[#F2F2F7] dark:bg-[#2C2C2E] border border-black/[0.04] dark:border-white/[0.06]">
-              <strong>Telegram Bot Data:</strong> If you interact with our Telegram bot, only your numeric chat ID and voluntary notification preferences are retained in MongoDB to deliver push alerts.
+              <strong>Telegram Bot Data:</strong> If you use the bot, subscription records and notification preferences are stored to deliver alerts. Telegram handles messages under its own privacy policy.
             </div>
           </div>
         </section>

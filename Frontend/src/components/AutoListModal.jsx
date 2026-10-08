@@ -146,6 +146,7 @@ export default function AutoListModal({ onClose, onSuccess, apiBase }) {
   // 1-Click URL Auto-Extractor for direct links
   const handleDirectUrlExtract = async (e) => {
     e.preventDefault();
+    if (e.currentTarget.querySelector('button[type="submit"]')?.disabled) return;
     if (!directUrl.trim()) return;
 
     setIsUrlExtracting(true);
@@ -249,7 +250,7 @@ export default function AutoListModal({ onClose, onSuccess, apiBase }) {
                   : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30'
               }`}>
                 <span className={`w-1.5 h-1.5 rounded-full ${status.is_scanning ? 'bg-amber-400 animate-ping' : 'bg-emerald-400'}`}></span>
-                {status.is_scanning ? 'Scanning Internet...' : '24/7 Daemon Active'}
+                {status.is_scanning ? 'Scanning Internet...' : 'Idle'}
               </span>
             </div>
             <p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5">
@@ -258,12 +259,17 @@ export default function AutoListModal({ onClose, onSuccess, apiBase }) {
           </div>
         </div>
 
+        <p className="mb-4 text-sm text-slate-600 dark:text-slate-300" role="note">
+          Scanner controls are available to administrators through the authenticated API.
+          This public view shows status only.
+        </p>
+
         {/* Telemetry Stats Bar */}
         <div className="grid grid-cols-3 gap-2.5 mb-4 shrink-0">
           <div className="p-2.5 rounded-[14px] bg-black/[0.03] dark:bg-white/[0.04] border border-black/[0.06] dark:border-white/[0.08] text-center">
             <div className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Scanner Mode</div>
             <div className="text-xs sm:text-sm font-black text-slate-800 dark:text-slate-200 mt-0.5">
-              Continuous (2h Loop)
+              Operator configured
             </div>
           </div>
           <div className="p-2.5 rounded-[14px] bg-black/[0.03] dark:bg-white/[0.04] border border-black/[0.06] dark:border-white/[0.08] text-center">
@@ -295,7 +301,7 @@ export default function AutoListModal({ onClose, onSuccess, apiBase }) {
             </div>
             <button
               onClick={handleTriggerFullSweep}
-              disabled={isTriggering || status.is_scanning}
+              disabled
               className={`shrink-0 px-4 py-2.5 rounded-[12px] font-bold text-xs shadow-md transition-all flex items-center gap-2 cursor-pointer ${
                 isTriggering || status.is_scanning
                   ? 'bg-slate-400 text-white cursor-not-allowed opacity-80'
@@ -354,7 +360,7 @@ export default function AutoListModal({ onClose, onSuccess, apiBase }) {
                   setIsInstagramScanning(false);
                 }
               }}
-              disabled={isInstagramScanning || isTriggering}
+              disabled
               className={`w-full sm:w-auto justify-center shrink-0 px-4 py-2.5 rounded-[12px] font-bold text-xs shadow-md transition-all flex items-center gap-2 cursor-pointer ${
                 isInstagramScanning
                   ? 'bg-slate-400 text-white cursor-not-allowed opacity-80'
@@ -418,7 +424,7 @@ export default function AutoListModal({ onClose, onSuccess, apiBase }) {
                   setIsWebDiscovering(false);
                 }
               }}
-              disabled={isWebDiscovering || isTriggering}
+              disabled
               className={`w-full sm:w-auto justify-center shrink-0 px-4 py-2.5 rounded-[12px] font-bold text-xs shadow-md transition-all flex items-center gap-2 cursor-pointer ${
                 isWebDiscovering
                   ? 'bg-slate-400 text-white cursor-not-allowed opacity-80'
@@ -451,6 +457,7 @@ export default function AutoListModal({ onClose, onSuccess, apiBase }) {
             <form
               onSubmit={(e) => {
                 e.preventDefault();
+                if (e.currentTarget.querySelector('button[type="submit"]')?.disabled) return;
                 handleTriggerTargeted(targetKeyword);
               }}
               className="flex gap-2"
@@ -464,7 +471,7 @@ export default function AutoListModal({ onClose, onSuccess, apiBase }) {
               />
               <button
                 type="submit"
-                disabled={isTriggering || status.is_scanning || !targetKeyword.trim()}
+                disabled
                 className="px-4 py-2.5 rounded-[12px] bg-[#007AFF] hover:bg-[#0066D6] dark:bg-[#0A84FF] text-white text-xs font-bold shadow-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer shrink-0"
               >
                 🔍 Scan Keyword
@@ -488,7 +495,7 @@ export default function AutoListModal({ onClose, onSuccess, apiBase }) {
                   <button
                     key={c.query}
                     onClick={() => handleTriggerTargeted(c.query)}
-                    disabled={isTriggering || status.is_scanning}
+                    disabled
                     className="px-2.5 py-1.5 rounded-[10px] text-xs font-medium bg-black/[0.04] dark:bg-white/[0.06] hover:bg-blue-500/15 hover:text-blue-600 dark:hover:text-blue-400 border border-black/[0.06] dark:border-white/[0.08] transition-colors cursor-pointer active:scale-95 disabled:opacity-50"
                     title={`Scan internet for ${c.label}`}
                   >
@@ -508,7 +515,7 @@ export default function AutoListModal({ onClose, onSuccess, apiBase }) {
                   <button
                     key={c.query}
                     onClick={() => handleTriggerTargeted(c.query)}
-                    disabled={isTriggering || status.is_scanning}
+                    disabled
                     className="px-2.5 py-1.5 rounded-[10px] text-xs font-medium bg-black/[0.04] dark:bg-white/[0.06] hover:bg-emerald-500/15 hover:text-emerald-600 dark:hover:text-emerald-400 border border-black/[0.06] dark:border-white/[0.08] transition-colors cursor-pointer active:scale-95 disabled:opacity-50"
                     title={`Scan internet for ${c.label}`}
                   >
@@ -528,7 +535,7 @@ export default function AutoListModal({ onClose, onSuccess, apiBase }) {
                   <button
                     key={c.query}
                     onClick={() => handleTriggerTargeted(c.query)}
-                    disabled={isTriggering || status.is_scanning}
+                    disabled
                     className="px-2.5 py-1.5 rounded-[10px] text-xs font-medium bg-black/[0.04] dark:bg-white/[0.06] hover:bg-amber-500/15 hover:text-amber-600 dark:hover:text-amber-400 border border-black/[0.06] dark:border-white/[0.08] transition-colors cursor-pointer active:scale-95 disabled:opacity-50"
                     title={`Scan internet for ${c.label}`}
                   >
@@ -609,7 +616,7 @@ export default function AutoListModal({ onClose, onSuccess, apiBase }) {
             {showDirectUrlTab && (
               <form onSubmit={handleDirectUrlExtract} className="mt-2.5 p-3 rounded-[14px] bg-black/[0.02] dark:bg-white/[0.03] border border-black/[0.06] dark:border-white/[0.08] space-y-2">
                 <div className="text-[11px] text-slate-500 dark:text-slate-400">
-                  Paste any Devpost, Unstop, Devfolio, or university website link. Our AI will automatically scrape title, dates, tags, and insert it into MongoDB.
+                  Adding events from a URL requires administrator access through the authenticated API.
                 </div>
                 <div className="flex gap-2">
                   <input
@@ -621,7 +628,7 @@ export default function AutoListModal({ onClose, onSuccess, apiBase }) {
                   />
                   <button
                     type="submit"
-                    disabled={isUrlExtracting || !directUrl.trim()}
+                    disabled
                     className="px-3.5 py-2 rounded-[10px] bg-[#007AFF] hover:bg-[#0066D6] dark:bg-[#0A84FF] text-white text-xs font-bold transition-all disabled:opacity-50 cursor-pointer shrink-0"
                   >
                     {isUrlExtracting ? 'Extracting...' : 'Auto-Extract & Add'}
@@ -641,7 +648,7 @@ export default function AutoListModal({ onClose, onSuccess, apiBase }) {
         {/* Modal Footer */}
         <div className="flex items-center justify-between pt-3 mt-3 border-t border-black/[0.06] dark:border-white/[0.08] shrink-0 text-xs">
           <div className="text-slate-500 dark:text-slate-400 text-[11px]">
-            {status.last_scanned_at ? `Last sweep: ${new Date(status.last_scanned_at).toLocaleTimeString()}` : 'Continuous sweep active'}
+            {status.last_scanned_at ? `Last sweep: ${new Date(status.last_scanned_at).toLocaleTimeString()}` : 'No scan recorded'}
           </div>
           <button
             onClick={onClose}

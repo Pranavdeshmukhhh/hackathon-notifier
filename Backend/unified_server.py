@@ -3,8 +3,8 @@ unified_server.py — Single-process entry point for cloud deployment (Render).
 
 Runs THREE things concurrently in ONE process:
   1. FastAPI API server  (HTTP, on $PORT or 10000)
-  2. Telegram bot polling (background daemon thread)
-  3. 4-hour scraping loop (background daemon thread)
+  2. Telegram bot polling (only with a configured token)
+  3. Explicitly enabled scraping loop (configured interval)
 
 Usage (local):   python unified_server.py
 Usage (Render):  Procfile → web: python unified_server.py
@@ -41,18 +41,22 @@ import main as main_module
 
 def _run_bot_polling():
     """Start Telegram bot polling (blocks forever, retries on crash)."""
-    logger.info("🤖 Starting Telegram bot polling thread...")
+    if not os.getenv("TELEGRAM_BOT_TOKEN", "").strip():
+        logger.info("Telegram polling disabled: no bot token configured.")
+        return
+    logger.info("Starting Telegram bot polling thread...")
     while True:
         try:
             start_polling()
+            time.sleep(15)
         except Exception as e:
             logger.exception("Telegram polling crashed: %s. Retrying in 15 seconds...", e)
             time.sleep(15)
 
 
-# ── Background: Scheduled Scraping (Every 15 Minutes) ────────────────────────
+# ── Background: Scheduled Scraping (Configured Interval) ────────────────────────
 def _run_scheduler():
-    """Run the scraping pipeline across all platforms, Instagram, and open-web every 15 minutes."""
+    """Run the scraping pipeline across configured platforms at the selected interval."""
     INTERVAL_MINUTES = max(5, int(os.getenv("SCAN_INTERVAL_MINUTES", "30") or 30))
     INTERVAL_SECONDS = INTERVAL_MINUTES * 60
 
@@ -62,15 +66,15 @@ def _run_scheduler():
     logger.info("⏰ Scheduler started — auto-scanning open internet, Instagram & platforms every %d minutes.", INTERVAL_MINUTES)
     while True:
         try:
-            logger.info("⏰ 15-minute scheduled scrape & verification starting...")
+            logger.info("Scheduled scrape & verification starting...")
             main_module.run_pipeline()
             try:
                 from api import _cache
                 _cache.clear()
-                logger.info("⏰ Cache cleared in-memory after 15-minute scheduled scrape.")
+                logger.info("Cache cleared after scheduled scrape.")
             except Exception as e:
                 logger.warning("Could not clear cache after scrape: %s", e)
-            logger.info("⏰ 15-minute scheduled scrape complete.")
+            logger.info("Scheduled scrape complete.")
         except Exception:
             logger.exception(
                 "⏰ Scheduled scrape failed (e.g. temporary network issue). "
@@ -91,13 +95,13 @@ def main():
     bot_thread.start()
 
     # Start scheduler in a daemon thread only if explicitly enabled
-    enable_scanner = os.getenv("ENABLE_BACKGROUND_SCANNER", "true").lower() in ("true", "1", "yes")
+    enable_scanner = os.getenv("ENABLE_BACKGROUND_SCANNER", "false").lower() in ("true", "1", "yes")
     if enable_scanner:
         logger.info("⏰ ENABLE_BACKGROUND_SCANNER=true — starting background scheduler thread.")
         scheduler_thread = threading.Thread(target=_run_scheduler, daemon=True)
         scheduler_thread.start()
     else:
-        logger.info("ℹ️ In-server background scanner disabled (ENABLE_BACKGROUND_SCANNER=false). Autonomous scanning is handled via GitHub Actions.")
+        logger.info("In-server scheduler disabled. Configure exactly one scheduler before enabling scans.")
 
     # Start the FastAPI server (this blocks — keeps the process alive)
     logger.info("🚀 Starting FastAPI on port %d...", port)
@@ -108,6 +112,7 @@ def main():
         log_level="info",
         # Disable reload in production; enable locally if needed
         reload=False,
+        proxy_headers=False,
     )
 
 

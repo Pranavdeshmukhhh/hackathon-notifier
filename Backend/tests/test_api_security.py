@@ -6,41 +6,12 @@ from api import app, get_client_ip
 
 
 async def asgi_request(method="GET", path="/", query_string=b"", headers=None):
-    """Zero-dependency ASGI caller to test FastAPI endpoints, middleware, and validation."""
-    headers = headers or []
-    raw_headers = [(k.lower().encode("latin1"), v.encode("latin1")) for k, v in headers]
-
-    scope = {
-        "type": "http",
-        "http_version": "1.1",
-        "method": method,
-        "path": path,
-        "raw_path": path.encode("latin1"),
-        "query_string": query_string,
-        "headers": raw_headers,
-        "client": ("127.0.0.1", 12345),
-        "server": ("127.0.0.1", 80),
-        "app": app,
-        "state": getattr(app, "state", MagicMock()),
-    }
-
-    response_body = bytearray()
-    response_status = None
-    response_headers = {}
-
-    async def receive():
-        return {"type": "http.request", "body": b"", "more_body": False}
-
-    async def send(message):
-        nonlocal response_status, response_headers
-        if message["type"] == "http.response.start":
-            response_status = message["status"]
-            response_headers = {k.decode("latin1"): v.decode("latin1") for k, v in message.get("headers", [])}
-        elif message["type"] == "http.response.body":
-            response_body.extend(message.get("body", b""))
-
-    await app(scope, receive, send)
-    return response_status, response_headers, bytes(response_body)
+    import httpx
+    transport = httpx.ASGITransport(app=app, client=("127.0.0.1", 12345))
+    url = path + ("?" + query_string.decode("ascii") if query_string else "")
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+        response = await client.request(method, url, headers=headers or [])
+    return response.status_code, dict(response.headers), response.content
 
 
 @pytest.mark.anyio
@@ -103,28 +74,18 @@ async def test_lat_lng_bounds_validation():
 
 
 def test_proxy_ip_extraction():
-    """Verify CF-Connecting-IP and X-Forwarded-For are correctly prioritized and validated."""
-    # 1. Valid Cloudflare header
-    req_cf = MagicMock()
-    req_cf.headers = {"CF-Connecting-IP": "203.0.113.19"}
-    assert get_client_ip(req_cf) == "203.0.113.19"
-
-    # 2. Malformed Cloudflare header falls back to X-Forwarded-For or remote address
-    req_bad_cf = MagicMock()
-    req_bad_cf.headers = {"CF-Connecting-IP": "not_an_ip; malicious payload"}
-    req_bad_cf.client.host = "192.0.2.1"
-    assert get_client_ip(req_bad_cf) == "192.0.2.1"
-
-    # 3. Valid X-Forwarded-For header (first IP in chain)
-    req_fwd = MagicMock()
-    req_fwd.headers = {"X-Forwarded-For": "198.51.100.42, 10.0.0.1"}
-    assert get_client_ip(req_fwd) == "198.51.100.42"
-
-    # 4. Fallback
-    req_fallback = MagicMock()
-    req_fallback.headers = {}
-    req_fallback.client.host = "192.0.2.1"
-    assert get_client_ip(req_fallback) == "192.0.2.1"
+    req = MagicMock()
+    req.client.host = "10.0.0.2"
+    req.headers = {"X-Forwarded-For": "203.0.113.99, 198.51.100.42, 10.0.0.1"}
+    assert get_client_ip(req) == "10.0.0.2"
+    with patch.dict(os.environ, {"TRUSTED_PROXY_CIDRS": "10.0.0.0/24"}):
+        assert get_client_ip(req) == "198.51.100.42"
+        req.headers = {"X-Forwarded-For": "not-an-ip"}
+        assert get_client_ip(req) == "10.0.0.2"
+        req.headers = {"CF-Connecting-IP": "203.0.113.19"}
+        assert get_client_ip(req) == "10.0.0.2"
+        with patch.dict(os.environ, {"TRUST_CLOUDFLARE_HEADERS": "true"}):
+            assert get_client_ip(req) == "203.0.113.19"
 
 
 @pytest.mark.anyio
@@ -184,36 +145,20 @@ def test_user_agent_parsing():
 
 
 def test_visitor_telemetry_recording():
-    """Verify visitor recording inserts into MongoDB and triggers debounced alerts."""
-    from api import _record_visitor, _visitor_alert_cache, _visitor_db_cache
-
+    from api import _record_visitor, _visitor_db_cache
     mock_col = MagicMock()
-    _visitor_alert_cache.clear()
     _visitor_db_cache.clear()
-
-    with patch("api.get_collection", return_value=mock_col), \
-         patch.dict(os.environ, {"TELEGRAM_BOT_TOKEN": "mock_token", "TELEGRAM_CHAT_ID": "123456"}), \
-         patch("requests.post") as mock_post:
-        
-        # 1. Localhost should be skipped
-        _record_visitor("127.0.0.1", "Chrome", "https://google.com", "/api/hackathons", "IN")
-        assert mock_col.insert_one.call_count == 0
-        assert mock_post.call_count == 0
-
-        # 2. Real visitor IP should record in Mongo and trigger Telegram
-        _record_visitor("203.0.113.55", "Chrome on Windows", "https://linkedin.com", "/api/hackathons", "IN")
-        assert mock_col.insert_one.call_count == 1
-        assert mock_post.call_count == 1
-        assert "203.0.113.55" in _visitor_alert_cache
-
-        # 3. Rapid repeat visit from same IP debounces BOTH Mongo write and Telegram
-        _record_visitor("203.0.113.55", "Chrome on Windows", "https://linkedin.com", "/api/hackathons", "IN")
-        assert mock_col.insert_one.call_count == 1  # Debounced, protects DB from floods!
-        assert mock_post.call_count == 1  # Debounced, protects Telegram!
-
-        # 4. Visit from another IP records in Mongo
-        _record_visitor("198.51.100.88", "Firefox on Linux", "https://github.com", "/api/hackathons", "US")
-        assert mock_col.insert_one.call_count == 2
+    with patch("api.get_collection", return_value=mock_col), patch("requests.post") as post:
+        _record_visitor("203.0.113.55", "Chrome", "https://example.com/private", "/api/hackathons?lat=1", "IN")
+        mock_col.insert_one.assert_not_called()
+        with patch.dict(os.environ, {"TRACK_VISITORS": "true"}):
+            _record_visitor("203.0.113.55", "Chrome", "https://example.com/private", "/api/hackathons?lat=1", "IN")
+            _record_visitor("203.0.113.55", "Chrome", "", "/api/hackathons", "IN")
+        mock_col.insert_one.assert_called_once()
+        document = mock_col.insert_one.call_args.args[0]
+        assert document["path"] == "/api/hackathons"
+        assert not {"ip", "user_agent", "referer", "country"}.intersection(document)
+        post.assert_not_called()
 
 
 @pytest.mark.anyio

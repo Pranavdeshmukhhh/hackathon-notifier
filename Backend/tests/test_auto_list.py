@@ -9,44 +9,16 @@ from api import app, _extract_url_metadata
 from scripts.auto_discover_hackathons import auto_list_one, extract_metadata
 
 
+@pytest.fixture(autouse=True)
+def admin_credentials(monkeypatch):
+    monkeypatch.setenv("ADMIN_SECRET", "phase0-test-secret")
+
+
 async def asgi_post(path: str, body: dict):
-    payload = json.dumps(body).encode("utf-8")
-    scope = {
-        "type": "http",
-        "http_version": "1.1",
-        "method": "POST",
-        "path": path,
-        "raw_path": path.encode("latin1"),
-        "query_string": b"",
-        "headers": [
-            (b"content-type", b"application/json"),
-            (b"content-length", str(len(payload)).encode("latin1")),
-        ],
-        "client": ("127.0.0.1", 12345),
-        "server": ("127.0.0.1", 80),
-        "app": app,
-        "state": getattr(app, "state", MagicMock()),
-    }
-    sent_body = False
-    async def receive():
-        nonlocal sent_body
-        if not sent_body:
-            sent_body = True
-            return {"type": "http.request", "body": payload, "more_body": False}
-        return {"type": "http.request", "body": b"", "more_body": False}
-
-    response_body = bytearray()
-    response_status = None
-
-    async def send(message):
-        nonlocal response_status
-        if message["type"] == "http.response.start":
-            response_status = message["status"]
-        elif message["type"] == "http.response.body":
-            response_body.extend(message.get("body", b""))
-
-    await app(scope, receive, send)
-    return response_status, json.loads(response_body.decode("utf-8")) if response_body else {}
+    import httpx
+    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.post(path, json=body, headers={"X-Admin-Secret": "phase0-test-secret"})
+    return response.status_code, response.json()
 
 
 @pytest.mark.anyio
@@ -100,7 +72,7 @@ def test_extract_url_metadata_domain_parsing():
     mock_resp.status_code = 200
     mock_resp.text = '<html><head><title>Meta Hacker Challenge</title><meta property="og:description" content="Global Meta competition for engineers"></head><body>Pune campus</body></html>'
 
-    with patch("requests.get", return_value=mock_resp):
+    with patch("api.public_request", return_value=mock_resp):
         res = _extract_url_metadata("https://devpost.com/software/example")
         assert res["source"] == "Devpost"
         assert "Meta Hacker Challenge" in res["title"]

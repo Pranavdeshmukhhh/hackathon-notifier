@@ -37,3 +37,6 @@ Thumbs.db
 desktop.ini
 
 scratch/
+
+# Local recovery artifacts can contain private database records.
+/backups/

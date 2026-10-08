@@ -30,3 +30,6 @@ Thumbs.db
 *.md
 !Backend/README.md
 LICENSE
+
+# Private recovery files must never enter the build context
+backups

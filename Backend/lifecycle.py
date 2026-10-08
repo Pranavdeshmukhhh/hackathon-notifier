@@ -35,6 +35,7 @@ from typing import Any, Iterable, Optional
 from urllib.parse import urlparse
 
 import requests
+from safe_http import public_request
 
 logger = logging.getLogger("lifecycle")
 
@@ -226,29 +227,21 @@ _PROBE_HEADERS = {
 
 
 def check_link(url: str, timeout: float = 6.0, session: Optional[requests.Session] = None) -> LinkStatus:
-    """Probe a single URL. Conservative: only 404/410/DNS-failure count as DEAD."""
+    """Probe public URLs. Only explicit 404/410 responses count as DEAD."""
     if not url or not url.lower().startswith(("http://", "https://")):
         return LinkStatus.UNKNOWN
-    host = urlparse(url).netloc.lower()
-    if any(h in host for h in _UNPROBEABLE_HOSTS):
-        return LinkStatus.UNKNOWN
-
-    http = session or requests
     try:
-        resp = http.head(url, headers=_PROBE_HEADERS, timeout=timeout, allow_redirects=True)
+        host = (urlparse(url).hostname or "").lower()
+        if any(host == h or host.endswith("." + h) for h in _UNPROBEABLE_HOSTS):
+            return LinkStatus.UNKNOWN
+        resp = public_request(url, method="HEAD", headers=_PROBE_HEADERS, timeout=timeout, max_bytes=0)
         if resp.status_code in (403, 405, 429, 501) or resp.status_code >= 500:
-            resp = http.get(url, headers=_PROBE_HEADERS, timeout=timeout, allow_redirects=True, stream=True)
-            resp.close()
+            resp = public_request(url, headers=_PROBE_HEADERS, timeout=timeout, max_bytes=0)
         code = resp.status_code
         if code in (404, 410):
             return LinkStatus.DEAD
         if code < 400:
             return LinkStatus.ALIVE
-        return LinkStatus.UNKNOWN
-    except requests.exceptions.ConnectionError as exc:
-        msg = str(exc).lower()
-        if any(s in msg for s in ("name or service not known", "getaddrinfo failed", "nodename nor servname", "failed to resolve", "name resolution")):
-            return LinkStatus.DEAD
         return LinkStatus.UNKNOWN
     except Exception:
         return LinkStatus.UNKNOWN
@@ -260,8 +253,8 @@ def check_links(urls: Iterable[str], max_workers: int = 12, timeout: float = 6.0
     if not unique:
         return {}
     results: dict[str, LinkStatus] = {}
-    with requests.Session() as session, ThreadPoolExecutor(max_workers=max_workers, thread_name_prefix="linkcheck") as pool:
-        for url, status in zip(unique, pool.map(lambda u: check_link(u, timeout, session), unique)):
+    with ThreadPoolExecutor(max_workers=max_workers, thread_name_prefix="linkcheck") as pool:
+        for url, status in zip(unique, pool.map(lambda u: check_link(u, timeout), unique)):
             results[url] = status
     return results
 

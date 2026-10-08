@@ -23,7 +23,7 @@ from datetime import datetime, timezone
 from typing import Optional
 from urllib.parse import urlparse
 
-import requests
+from safe_http import public_request, validate_public_url, UnsafeURL
 
 logger = logging.getLogger("hackathon_verifier")
 
@@ -229,17 +229,17 @@ def _score_domain(url: str) -> float:
         return 0.0
 
     try:
-        domain = urlparse(url).netloc.lower().replace("www.", "")
-    except Exception:
-        return 0.1
+        domain = urlparse(validate_public_url(url)).hostname.lower()
+    except UnsafeURL:
+        return 0.0
 
     # Check trusted domains
     for trusted, trust_score in TRUSTED_DOMAINS.items():
-        if trusted in domain:
+        if domain == trusted or domain.endswith("." + trusted):
             return trust_score
 
     # Instagram has moderate trust
-    if "instagram.com" in domain:
+    if domain == "instagram.com" or domain.endswith(".instagram.com"):
         return 0.60
 
     # .edu domains are highly trusted
@@ -348,13 +348,13 @@ def _score_source(source: str) -> float:
 def _score_url_liveness(url: str) -> float:
     """Check if URL is live and returns a valid response."""
     try:
-        resp = requests.head(
+        resp = public_request(
             url,
             headers={
                 "User-Agent": "Mozilla/5.0 (compatible; HackathonVerifier/1.0)",
             },
             timeout=5,
-            allow_redirects=True,
+            method="HEAD", max_bytes=0,
         )
         if resp.status_code < 400:
             return 1.0

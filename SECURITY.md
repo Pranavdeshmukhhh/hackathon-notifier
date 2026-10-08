@@ -113,8 +113,8 @@ Here is a plain-English explanation of how Hackathon Notifier protects users and
 - **OWASP Security Response Headers**: Automatically injected on every API response (`X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, `X-XSS-Protection`, `Permissions-Policy`, `X-Permitted-Cross-Domain-Policies`).
 - **Multi-Signal Verification Engine**: Evaluates untrusted internet and social media discoveries across 7 heuristic criteria (keyword relevance, domain authority, content depth, date range validity, spam penalties, source trust, and live URL reachability) before auto-listing to actively block phishing, scam, and fraudulent competitions.
 - **Per-IP Rate Limiting**: SlowAPI restricts incoming requests (60 req/min for hackathons, health, and metrics; 5 req/min for cache clear) to safeguard the server from spam and abusive traffic.
-- **Client IP Verification**: Proxy and Cloudflare headers (`CF-Connecting-IP`, `X-Forwarded-For`) are validated against IPv4/IPv6 syntax with Python's `ipaddress` module before trusting for rate limiting.
-- **Constant-Time Admin Authentication**: Admin actions require an `ADMIN_SECRET` checked via `secrets.compare_digest` to prevent side-channel timing attacks.
+- **Client IP Verification**: Forwarded IP headers are parsed only when the direct peer belongs to `TRUSTED_PROXY_CIDRS`. Cloudflare headers additionally require `TRUST_CLOUDFLARE_HEADERS=true`. Uvicorn automatic proxy rewriting is disabled in the unified entry point.
+- **Administrator Access**: Every operational POST route and its versioned alias requires `ADMIN_SECRET`, compared in constant time. Missing configuration disables administrative operations. Never ship the secret to the frontend.
 - **Strict Query & Payload Validation**: All API inputs enforce boundary constraints (`page` 1–1000, `limit` 1–100, `lat`/`lng` geographical limits, string length caps on search/category) to reject malformed requests before database query execution.
 - **Database Error Sanitization**: `/health` verifies database connectivity with a live ping, but swallows error details into a generic JSON status to prevent exposing database strings, credentials, or internal stack traces.
 - **Production Documentation Shielding**: Swagger and ReDoc documentation (`/docs`, `/redoc`) can be dynamically disabled in production via `ENVIRONMENT=production`.
@@ -125,8 +125,8 @@ Here is a plain-English explanation of how Hackathon Notifier protects users and
 - **No User Accounts Required**: Zero passwords, sessions, or personal user profiles are stored in the database.
 - **Zero Third-Party Trackers**: Completely free of Google Analytics, tracking pixels, or marketing cookies.
 - **Minimal Telegram Data**: Telegram subscribers are stored solely as chat IDs associated with opt-in notification settings.
-- **Private Geolocation**: Location queries for "Nearest Hackathons" occur client-side for distance calculation — user coordinates are never persisted to a database.
-- **Server-Side Anonymized Telemetry**: Basic visitor metrics (anonymized IP, country, device type) are processed server-side with strict in-memory debouncing (max 1 alert per IP every 6 hours; max 1 globally every 15s) purely for uptime monitoring and admin traffic notifications.
+- **Location Queries**: With permission, the browser sends coordinates to the API for distance sorting. The application does not save those coordinates to MongoDB; hosting access logs may include request URLs.
+- **Optional Visit Metrics**: Disabled by default. When `TRACK_VISITORS=true`, new records contain coarse device categories, path without query strings, and visit time. IPs, full user agents, and referrers are not persisted or sent through Telegram. Historical records are preserved; hosting logs are separate.
 
 ---
 
@@ -145,3 +145,5 @@ If you run or contribute to this codebase locally:
   <sub>Maintained by <strong><a href="https://github.com/Pranavdeshmukhhh">Pranav Deshmukh</a></strong></sub><br>
   <sub>Thank you for helping keep Hackathon Notifier safe for everyone!</sub>
 </div>
+
+Phase 0 recovery, URL-fetch restrictions, scheduling ownership, and deployment gates are documented in [PHASE0.md](PHASE0.md).

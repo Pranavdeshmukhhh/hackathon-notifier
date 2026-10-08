@@ -1,8 +1,6 @@
-import ipaddress
 import logging
 import os
 import re
-import secrets
 import sys
 import time
 import statistics
@@ -14,14 +12,12 @@ import difflib
 from contextlib import asynccontextmanager
 from typing import Optional
 from urllib.parse import urlparse
-import requests
 from bs4 import BeautifulSoup
-from fastapi import FastAPI, Request, Query, Response, BackgroundTasks, APIRouter
+from fastapi import FastAPI, Request, Query, Response, BackgroundTasks, APIRouter, Depends
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from slowapi import Limiter, _rate_limit_exceeded_handler
-from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 from cachetools import TTLCache
 
@@ -47,10 +43,11 @@ from schemas import (
 from filters.keyword_filter import classify_hackathon
 from scrapers.geocoder import geocode
 from lifecycle import is_expired, normalize_deadline
+from security import AdminAccessDenied, client_ip, require_admin
+from safe_http import FetchUnavailable, UnsafeURL, public_request, validate_public_url
 from scrapers.internet_scanner import (
     run_internet_scan,
     get_scanner_status,
-    start_continuous_background_scanner,
 )
 
 # Ensure utf-8 encoding for standard output
@@ -66,42 +63,16 @@ from db.mongo_client import get_collection
 
 # Proxy-aware client IP extractor for SlowAPI (respects Cloudflare & reverse proxies with IP validation)
 def get_client_ip(request: Request) -> str:
-    """Extract real client IP safely respecting Cloudflare and reverse proxy headers with format validation."""
-    cf_ip = request.headers.get("CF-Connecting-IP")
-    if cf_ip:
-        candidate = cf_ip.strip()
-        try:
-            ipaddress.ip_address(candidate)
-            return candidate
-        except ValueError:
-            pass
-
-    forwarded = request.headers.get("X-Forwarded-For")
-    if forwarded:
-        candidate = forwarded.split(",")[0].strip()
-        try:
-            ipaddress.ip_address(candidate)
-            return candidate
-        except ValueError:
-            pass
-
-    return get_remote_address(request)
+    """Ignore forwarded headers unless the immediate peer is explicitly trusted."""
+    return client_ip(request)
 
 # Rate limiter – configured per real validated client IP
 limiter = Limiter(key_func=get_client_ip)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Lifecycle manager: launches continuous autonomous internet scanner daemon on startup only if enabled."""
-    enable_scanner = os.getenv("ENABLE_BACKGROUND_SCANNER", "false").lower() in ("true", "1", "yes")
-    if enable_scanner:
-        try:
-            start_continuous_background_scanner(interval_hours=0.25)
-            logger.info("Continuous autonomous internet scanner started (15-minute interval).")
-        except Exception as e:
-            logger.warning("Could not launch background scanner daemon: %s", e)
-    else:
-        logger.info("In-server background internet scanner disabled (ENABLE_BACKGROUND_SCANNER=false).")
+    """Scheduling belongs to unified_server; API workers never start another loop."""
+    logger.info("API ready; scheduled scans are managed by unified_server.")
     yield
 
 _is_prod = os.getenv("ENVIRONMENT", "").lower() == "production" or os.getenv("RENDER", "").lower() == "true"
@@ -109,13 +80,19 @@ app = FastAPI(
     title="Hackathon Notifier API",
     description="Autonomous radar discovery engine aggregating hackathons and tech hiring challenges across India.",
     version="1.0.0",
-    docs_url="/docs",
-    redoc_url="/redoc",
-    openapi_url="/openapi.json",
+    docs_url=None if _is_prod else "/docs",
+    redoc_url=None if _is_prod else "/redoc",
+    openapi_url=None if _is_prod else "/openapi.json",
     lifespan=lifespan,
 )
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+
+@app.exception_handler(AdminAccessDenied)
+async def admin_access_denied(request: Request, exc: AdminAccessDenied):
+    return JSONResponse(status_code=exc.status_code,
+        content={"success": False, "error": exc.detail, "message": exc.detail})
 
 # Versioned API Router (v1)
 v1_router = APIRouter(prefix="/api/v1", tags=["v1"])
@@ -170,7 +147,8 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=_allowed_origins,
     allow_methods=["GET", "POST", "HEAD", "OPTIONS"],
-    allow_headers=["Content-Type", "Authorization", "X-Admin-Secret", "Accept", "Origin"],
+    allow_headers=["Content-Type", "Authorization", "X-Admin-Secret", "Accept", "Origin", "If-None-Match"],
+    expose_headers=["ETag", "X-Response-Time-Ms"],
 )
 
 # High-Performance Wire Compression (reduces JSON payload from ~60KB to ~9KB)
@@ -481,11 +459,8 @@ def _match_hackathon_search(doc: dict, search_query: str) -> bool:
     return True
 
 
-# ── Visitor Telemetry & Debounced Telegram Alerts ─────────────────────────────
-_visitor_alert_cache: TTLCache = TTLCache(maxsize=2048, ttl=6 * 3600)
+# ── Optional Coarse Visit Metrics ─────────────────────────────
 _visitor_db_cache: TTLCache = TTLCache(maxsize=4096, ttl=300)  # Max 1 DB write per IP every 5 min
-_last_visitor_alert_time: float = 0.0
-_GLOBAL_ALERT_COOLDOWN_SEC: float = 15.0  # Max 1 Telegram visitor alert every 15 seconds globally
 
 def _parse_user_agent(ua: str) -> dict:
     """Parse device, OS, and browser from user-agent string without external dependencies."""
@@ -531,64 +506,23 @@ def _parse_user_agent(ua: str) -> dict:
 
 
 def _record_visitor(ip: str, user_agent: str, referer: str, path: str, country: str):
-    """Save visitor telemetry to MongoDB and dispatch debounced Telegram alert."""
-    if not ip or ip in ("127.0.0.1", "localhost", "testclient"):
+    """Optional coarse visit metrics; never persist IP, full UA, or referrer."""
+    if os.getenv("TRACK_VISITORS", "false").lower() != "true":
         return
-
-    now_utc = datetime.now(timezone.utc)
+    if not ip or ip in ("127.0.0.1", "localhost", "testclient") or ip in _visitor_db_cache:
+        return
+    _visitor_db_cache[ip] = True
     ua_info = _parse_user_agent(user_agent)
-
-    # 1. Store visitor in MongoDB collection "visitors" (debounced 5m per IP)
-    if ip not in _visitor_db_cache:
-        _visitor_db_cache[ip] = True
-        try:
-            col = get_collection("visitors")
-            if col is not None:
-                col.insert_one({
-                    "ip": ip,
-                    "country": country,
-                    "device": ua_info["device"],
-                    "os": ua_info["os"],
-                    "browser": ua_info["browser"],
-                    "user_agent": user_agent[:300],
-                    "referer": referer[:300],
-                    "path": path,
-                    "visited_at": now_utc,
-                })
-        except Exception as e:
-            logger.debug("Failed to record visitor in MongoDB: %s", e)
-
-    # 2. Debounced Telegram Alert (per-IP 6-hour cache + 15-second global throttle)
-    global _last_visitor_alert_time
-    now_ts = time.time()
-    if ip not in _visitor_alert_cache and (now_ts - _last_visitor_alert_time) >= _GLOBAL_ALERT_COOLDOWN_SEC:
-        _visitor_alert_cache[ip] = True
-        _last_visitor_alert_time = now_ts
-        bot_token = os.getenv("TELEGRAM_BOT_TOKEN", "").strip()
-        admin_chat_id = os.getenv("TELEGRAM_CHAT_ID", "").strip()
-        api_base = os.getenv("TELEGRAM_API_BASE", "https://api.telegram.org").rstrip("/")
-
-        if bot_token and admin_chat_id:
-            try:
-                ref_display = referer.strip() if referer and referer.strip() else "Direct / Bookmark"
-                msg = (
-                    "👀 <b>New Visitor on Hackathon Tracker!</b>\n\n"
-                    f"🌐 <b>IP:</b> <code>{ip}</code>\n"
-                    f"🌍 <b>Country:</b> {country}\n"
-                    f"💻 <b>Device:</b> {ua_info['browser']} on {ua_info['os']} ({ua_info['device']})\n"
-                    f"🔗 <b>Referer:</b> {ref_display[:80]}\n"
-                    f"⏰ <b>Time:</b> <code>{now_utc.strftime('%Y-%m-%d %H:%M:%S UTC')}</code>"
-                )
-                url = f"{api_base}/bot{bot_token}/sendMessage"
-                payload = {
-                    "chat_id": admin_chat_id,
-                    "text": msg,
-                    "parse_mode": "HTML",
-                    "disable_web_page_preview": True,
-                }
-                requests.post(url, json=payload, timeout=4)
-            except Exception as ex:
-                logger.debug("Failed to send visitor alert to Telegram: %s", ex)
+    try:
+        col = get_collection("visitors")
+        if col is not None:
+            col.insert_one({
+                "device": ua_info["device"], "os": ua_info["os"],
+                "browser": ua_info["browser"], "path": path.split("?", 1)[0][:100],
+                "visited_at": datetime.now(timezone.utc),
+            })
+    except Exception:
+        logger.debug("Could not record optional visit metrics")
 
 
 @app.get("/")
@@ -633,7 +567,7 @@ def get_hackathons(
         lng = getattr(lng, 'default', None)
 
     # Enqueue visitor tracking in background (zero latency added to response)
-    if request is not None and background_tasks is not None:
+    if request is not None and background_tasks is not None and os.getenv("TRACK_VISITORS", "false").lower() == "true":
         client_ip = get_client_ip(request)
         ua = request.headers.get("user-agent", "")
         ref = request.headers.get("referer", "")
@@ -905,8 +839,8 @@ def get_metrics(request: Request):
     }
 
 
-@app.post("/api/refresh", response_model=RefreshResponse)
-@v1_router.post("/refresh", response_model=RefreshResponse)
+@app.post("/api/refresh", response_model=RefreshResponse, dependencies=[Depends(require_admin)])
+@v1_router.post("/refresh", response_model=RefreshResponse, dependencies=[Depends(require_admin)])
 @limiter.limit("5/minute")
 def refresh_cache(request: Request):
     """Invalidate the in-memory cache, forcing the next GET /api/hackathons
@@ -914,25 +848,9 @@ def refresh_cache(request: Request):
 
     Secured: Uses constant-time token comparison (secrets.compare_digest).
     If ADMIN_SECRET is set, requires valid X-Admin-Secret or Authorization: Bearer <secret>.
-    If in production and ADMIN_SECRET is not configured, rejects unauthenticated cache purges.
+    If ADMIN_SECRET is not configured, administrator operations are disabled in every environment.
     Rate-limited: 5 calls per minute per client IP to prevent cache-stampede abuse.
     """
-    admin_secret = os.getenv("ADMIN_SECRET", "").strip()
-    if admin_secret:
-        auth_header = request.headers.get("X-Admin-Secret") or request.headers.get("Authorization", "")
-        if auth_header.startswith("Bearer "):
-            auth_header = auth_header[7:].strip()
-        if not secrets.compare_digest(auth_header, admin_secret):
-            return JSONResponse(
-                status_code=401,
-                content={"success": False, "error": "Unauthorized: invalid or missing admin token"}
-            )
-    elif _is_prod:
-        return JSONResponse(
-            status_code=403,
-            content={"success": False, "error": "Forbidden: ADMIN_SECRET is not configured"}
-        )
-
     n = len(_cache)
     _cache.clear()
     logger.info("Cache manually cleared via POST /api/refresh (%d entries removed).", n)
@@ -941,9 +859,7 @@ def refresh_cache(request: Request):
 
 def _extract_url_metadata(url: str) -> dict:
     """Safely scrape and infer metadata, tags, mode, and platform from a hackathon URL."""
-    url = url.strip()
-    if not url.startswith(("http://", "https://")):
-        url = "https://" + url
+    url = validate_public_url(url.strip())
 
     result = {
         "title": None,
@@ -962,23 +878,23 @@ def _extract_url_metadata(url: str) -> dict:
             domain = domain[4:]
 
         # Infer source from domain
-        if "devfolio.co" in domain:
+        if domain == "devfolio.co" or domain.endswith(".devfolio.co"):
             result["source"] = "Devfolio"
-        elif "unstop.com" in domain:
+        elif domain == "unstop.com" or domain.endswith(".unstop.com"):
             result["source"] = "Unstop"
-        elif "devpost.com" in domain:
+        elif domain == "devpost.com" or domain.endswith(".devpost.com"):
             result["source"] = "Devpost"
-        elif "hackerearth.com" in domain:
+        elif domain == "hackerearth.com" or domain.endswith(".hackerearth.com"):
             result["source"] = "HackerEarth"
-        elif "mlh.io" in domain:
+        elif domain == "mlh.io" or domain.endswith(".mlh.io"):
             result["source"] = "MLH"
-        elif "kaggle.com" in domain:
+        elif domain == "kaggle.com" or domain.endswith(".kaggle.com"):
             result["source"] = "Kaggle"
-        elif "github.com" in domain:
+        elif domain == "github.com" or domain.endswith(".github.com"):
             result["source"] = "GitHub"
-        elif "codeforces.com" in domain:
+        elif domain == "codeforces.com" or domain.endswith(".codeforces.com"):
             result["source"] = "Codeforces"
-        elif "leetcode.com" in domain:
+        elif domain == "leetcode.com" or domain.endswith(".leetcode.com"):
             result["source"] = "LeetCode"
         elif domain:
             base_name = domain.split(".")[0].capitalize()
@@ -989,7 +905,9 @@ def _extract_url_metadata(url: str) -> dict:
             "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
             "Accept-Language": "en-US,en;q=0.9",
         }
-        resp = requests.get(url, headers=headers, timeout=6)
+        resp = public_request(url, headers=headers, timeout=6, html_only=True)
+        if resp.status_code != 200:
+            raise FetchUnavailable("Source returned an unsuccessful response")
         if resp.status_code == 200:
             soup = BeautifulSoup(resp.text, "html.parser")
 
@@ -1058,14 +976,16 @@ def _extract_url_metadata(url: str) -> dict:
                 result["mode"] = "Virtual"
                 result["location"] = "Online"
 
+    except (UnsafeURL, FetchUnavailable):
+        raise
     except Exception as e:
-        logger.warning("Error fetching URL metadata for %s: %s", url, e)
+        logger.warning("Metadata extraction failed (%s)", type(e).__name__)
 
     return result
 
 
-@app.post("/api/hackathons/preview-url", response_model=HackathonPreviewResponse)
-@v1_router.post("/hackathons/preview-url", response_model=HackathonPreviewResponse)
+@app.post("/api/hackathons/preview-url", response_model=HackathonPreviewResponse, dependencies=[Depends(require_admin)])
+@v1_router.post("/hackathons/preview-url", response_model=HackathonPreviewResponse, dependencies=[Depends(require_admin)])
 @limiter.limit("30/minute")
 def preview_hackathon_url(request: Request, body: HackathonPreviewRequest):
     """Fetch live metadata preview for a given hackathon URL."""
@@ -1073,7 +993,12 @@ def preview_hackathon_url(request: Request, body: HackathonPreviewRequest):
     if not link:
         return JSONResponse(status_code=400, content={"success": False, "message": "Link URL cannot be empty."})
 
-    meta = _extract_url_metadata(link)
+    try:
+        meta = _extract_url_metadata(link)
+    except UnsafeURL as exc:
+        return JSONResponse(status_code=400, content={"success": False, "message": str(exc)})
+    except FetchUnavailable:
+        return JSONResponse(status_code=502, content={"success": False, "message": "Source could not be reached"})
     return {
         "success": True,
         "title": meta.get("title"),
@@ -1087,8 +1012,8 @@ def preview_hackathon_url(request: Request, body: HackathonPreviewRequest):
     }
 
 
-@app.post("/api/hackathons/auto-list", response_model=HackathonAutoListResponse)
-@v1_router.post("/hackathons/auto-list", response_model=HackathonAutoListResponse)
+@app.post("/api/hackathons/auto-list", response_model=HackathonAutoListResponse, dependencies=[Depends(require_admin)])
+@v1_router.post("/hackathons/auto-list", response_model=HackathonAutoListResponse, dependencies=[Depends(require_admin)])
 @limiter.limit("20/minute")
 def auto_list_hackathon(request: Request, body: HackathonAutoListRequest):
     """Auto-list or manually submit a hackathon into the live radar database."""
@@ -1097,8 +1022,14 @@ def auto_list_hackathon(request: Request, body: HackathonAutoListRequest):
         return JSONResponse(status_code=400, content={"success": False, "message": "Link URL is required.", "is_new": False, "data": None})
 
     meta = {}
-    if body.fetch_metadata or not body.title or not body.desc:
-        meta = _extract_url_metadata(link)
+    try:
+        link = validate_public_url(link)
+        if body.fetch_metadata or not body.title or not body.desc:
+            meta = _extract_url_metadata(link)
+    except UnsafeURL as exc:
+        return JSONResponse(status_code=400, content={"success": False, "message": str(exc), "is_new": False})
+    except FetchUnavailable:
+        return JSONResponse(status_code=502, content={"success": False, "message": "Source could not be reached", "is_new": False})
 
     title = (body.title or meta.get("title") or "Community Hackathon").strip()
     source = (body.source or meta.get("source") or "Community / Auto-Listed").strip()
@@ -1172,10 +1103,10 @@ def auto_list_hackathon(request: Request, body: HackathonAutoListRequest):
             "data": saved or doc,
         }
     except Exception as e:
-        logger.error("Failed to auto-list hackathon: %s", e)
+        logger.error("Failed to save hackathon (%s)", type(e).__name__)
         return JSONResponse(
             status_code=500,
-            content={"success": False, "message": f"Server error: {str(e)}", "is_new": False, "data": None}
+            content={"success": False, "message": "Event could not be saved", "is_new": False, "data": None}
         )
 
 
@@ -1216,8 +1147,8 @@ def get_latest_scan_status(request: Request):
     })
 
 
-@app.post("/api/scanner/trigger", response_model=ScannerTriggerResponse)
-@v1_router.post("/scanner/trigger", response_model=ScannerTriggerResponse)
+@app.post("/api/scanner/trigger", response_model=ScannerTriggerResponse, dependencies=[Depends(require_admin)])
+@v1_router.post("/scanner/trigger", response_model=ScannerTriggerResponse, dependencies=[Depends(require_admin)])
 @limiter.limit("10/minute")
 def trigger_internet_scanner(request: Request, body: ScannerTriggerRequest):
     """Trigger an immediate autonomous sweep across target college/city/FAANG keywords."""
@@ -1227,8 +1158,8 @@ def trigger_internet_scanner(request: Request, body: ScannerTriggerRequest):
 
 # ── Instagram Scanner Endpoint ───────────────────────────────────────────────
 
-@app.post("/api/scanner/instagram", response_model=InstagramScanResponse)
-@v1_router.post("/scanner/instagram", response_model=InstagramScanResponse)
+@app.post("/api/scanner/instagram", response_model=InstagramScanResponse, dependencies=[Depends(require_admin)])
+@v1_router.post("/scanner/instagram", response_model=InstagramScanResponse, dependencies=[Depends(require_admin)])
 @limiter.limit("5/minute")
 def trigger_instagram_scan(request: Request, body: InstagramScanRequest):
     """Trigger an Instagram scan for hackathon posts from known accounts and hashtags."""
@@ -1281,14 +1212,14 @@ def trigger_instagram_scan(request: Request, body: InstagramScanRequest):
         logger.error("Instagram scan error: %s", e)
         return JSONResponse(
             status_code=500,
-            content={"success": False, "message": f"Instagram scan error: {str(e)}", "total_found": 0, "new_indexed": 0}
+            content={"success": False, "message": "Instagram scan failed", "total_found": 0, "new_indexed": 0}
         )
 
 
 # ── Web Discovery Endpoint ───────────────────────────────────────────────────
 
-@app.post("/api/scanner/web-discovery", response_model=WebDiscoveryResponse)
-@v1_router.post("/scanner/web-discovery", response_model=WebDiscoveryResponse)
+@app.post("/api/scanner/web-discovery", response_model=WebDiscoveryResponse, dependencies=[Depends(require_admin)])
+@v1_router.post("/scanner/web-discovery", response_model=WebDiscoveryResponse, dependencies=[Depends(require_admin)])
 @limiter.limit("5/minute")
 def trigger_web_discovery(request: Request, body: WebDiscoveryRequest):
     """Trigger a web discovery scan across Google, MLH, Eventbrite, and KonfHub."""
@@ -1338,22 +1269,27 @@ def trigger_web_discovery(request: Request, body: WebDiscoveryRequest):
         logger.error("Web discovery error: %s", e)
         return JSONResponse(
             status_code=500,
-            content={"success": False, "message": f"Web discovery error: {str(e)}", "total_found": 0, "new_indexed": 0}
+            content={"success": False, "message": "Web discovery failed", "total_found": 0, "new_indexed": 0}
         )
 
 
 # ── Hackathon Verification Endpoint ──────────────────────────────────────────
 
-@app.post("/api/hackathons/verify", response_model=VerifyHackathonResponse)
-@v1_router.post("/hackathons/verify", response_model=VerifyHackathonResponse)
+@app.post("/api/hackathons/verify", response_model=VerifyHackathonResponse, dependencies=[Depends(require_admin)])
+@v1_router.post("/hackathons/verify", response_model=VerifyHackathonResponse, dependencies=[Depends(require_admin)])
 @limiter.limit("30/minute")
 def verify_hackathon_endpoint(request: Request, body: VerifyHackathonRequest):
     """Verify whether a hackathon listing is legitimate using multi-signal analysis."""
     from scrapers.hackathon_verifier import verify_hackathon as _verify
 
+    try:
+        link = validate_public_url(body.link.strip())
+    except UnsafeURL as exc:
+        return JSONResponse(status_code=400, content={"success": False, "message": str(exc)})
+
     doc = {
         "title": body.title,
-        "link": body.link,
+        "link": link,
         "desc": body.desc or "",
         "source": body.source or "",
         "deadline_iso": body.deadline_iso,
