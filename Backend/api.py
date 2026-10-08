@@ -110,6 +110,12 @@ _CACHE_TTL = int(os.getenv("CACHE_TTL_SECONDS", 900))
 _cache: TTLCache = TTLCache(maxsize=32, ttl=_CACHE_TTL)
 _CACHE_KEY = "hackathons"
 
+def _matches_format(doc: dict, category: str) -> bool:
+    """Recognize scraper format aliases consistently in counts and filters."""
+    mode = str(doc.get("mode") or "").strip().lower()
+    pattern = r"\b(?:online|virtual)\b" if category == "Online" else r"\b(?:offline|in[ -]person|on[ -]?site)\b"
+    return bool(re.search(pattern, mode))
+
 # ---------- Response-time tracking for p50/p95 ----------
 _latencies: deque[float] = deque(maxlen=500)  # last 500 requests
 
@@ -662,8 +668,8 @@ def get_hackathons(
                 "top_college_count": top_college_count,
                 "internship_count": internship_count,
                 "college_types": sorted(college_types),
-                "online_count": sum(1 for d in active_docs if "online" in d.get("mode", "").lower()),
-                "offline_count": sum(1 for d in active_docs if "offline" in d.get("mode", "").lower()),
+                "online_count": sum(1 for d in active_docs if _matches_format(d, "Online")),
+                "offline_count": sum(1 for d in active_docs if _matches_format(d, "Offline")),
                 "unique_sources_count": sum(1 for d in active_docs if d.get("source") == "Unique Sources"),
                 "hackathon_count": sum(1 for d in active_docs if d.get("opportunity_type") == "Hackathon"),
                 "total_prize_pool_inr": total_prize_inr,
@@ -715,9 +721,9 @@ def get_hackathons(
     elif category == 'Hackathon':
         filtered = [d for d in filtered if d.get('opportunity_type') == 'Hackathon']
     elif category == 'Online':
-        filtered = [d for d in filtered if 'online' in d.get('mode', '').lower()]
+        filtered = [d for d in filtered if _matches_format(d, "Online")]
     elif category == 'Offline':
-        filtered = [d for d in filtered if 'offline' in d.get('mode', '').lower()]
+        filtered = [d for d in filtered if _matches_format(d, "Offline")]
     elif category == 'Unique Sources':
         filtered = [d for d in filtered if d.get('source') == 'Unique Sources']
     elif category in ['Devfolio', 'Unstop', 'Devpost', 'HackerEarth', 'Devnovate']:

@@ -1011,3 +1011,52 @@ select.field option {
   .btn, .icon-btn, .chip, .tag, .field, .page-btn { border-color: ButtonText; }
   :focus-visible { outline-color: Highlight; }
 }
+
+/* Homepage: a compact introduction, working shortcuts, and a practical guide. */
+.skip-link { position: fixed; top: -5rem; left: 1rem; z-index: 120; padding: 12px 16px; background: var(--surface); color: var(--ink); border: 1px solid var(--line-strong); border-radius: var(--radius-control); }
+.skip-link:focus { top: 1rem; }
+.home-intro { display: grid; grid-template-columns: minmax(0, 1fr) 19rem; gap: 2rem 4rem; padding-block: 3rem 1rem; }
+.home-title { font-size: clamp(2.5rem, 4.8vw, 4rem); margin-top: 16px; max-width: 20ch; }
+.home-description { margin-top: 20px; max-width: 53ch; color: var(--ink-2); font-size: 16px; line-height: 1.65; }
+.home-notes { align-self: center; border-left: 1px solid var(--line); padding-left: 24px; }
+.home-update { margin-block: 20px 16px; border-block: 1px solid var(--line); padding-block: 12px; }
+.home-update dt { font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+.home-update dd { font-size: 14px; font-variant-numeric: tabular-nums; }
+.home-text-link { display: inline-flex; align-items: center; min-height: 44px; gap: 8px; color: var(--accent-text); font-size: 14px; font-weight: 500; text-underline-offset: 4px; }
+.home-text-link:hover { text-decoration: underline; }
+.home-shortcuts { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 28px; padding-block: 12px; border-block: 1px solid var(--line); }
+.discovery-section { padding-block: 24px 32px; }
+.results-update { margin-top: 24px; padding-block: 12px; border-block: 1px solid var(--line); display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; }
+.about-project { margin-top: 48px; padding-block: 48px; border-top: 1px solid var(--line); display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 4rem; }
+.about-copy { max-width: 48ch; }
+.registration-guide li { display: grid; grid-template-columns: 28px minmax(0, 1fr); gap: 12px; padding-block: 16px; border-bottom: 1px solid var(--line); }
+.registration-guide h4 { font-size: 14px; font-weight: 600; }
+.registration-guide p { margin-top: 4px; font-size: 14px; color: var(--muted); line-height: 1.6; }
+.telegram-note { margin-top: 24px; }
+.foot-link { display: inline-flex; align-items: center; min-height: 44px; }
+.nav-link[aria-current="true"]::after { bottom: -10px; }
+.header-near-me { display: none; }
+@media (min-width: 1280px) { .header-near-me { display: inline-flex; } }
+@media (min-width: 1024px) { .header-menu { display: none; } }
+@media (max-width: 639px) { .header-refresh { display: none; } }
+@media (max-width: 900px) {
+  .home-intro { grid-template-columns: minmax(0, 1fr); padding-top: 32px; gap: 24px; }
+  .home-notes { border-left: 0; border-top: 1px solid var(--line); padding: 16px 0 0; }
+  .home-notes h2 { font-size: 14px; }
+  .home-update { display: flex; gap: 16px; align-items: center; margin-block: 12px; }
+  .home-update div { display: flex; flex-wrap: wrap; gap: 4px 12px; }
+  .home-update dt { margin-bottom: 0; }
+  .about-project { grid-template-columns: minmax(0, 1fr); gap: 32px; }
+}
+@media (max-width: 480px) {
+  .home-title { font-size: 40px; }
+  .home-description { font-size: 15px; }
+  .home-shortcuts { gap: 4px 16px; }
+  .home-shortcuts > span { width: 100%; }
+  .home-shortcuts .home-text-link { font-size: 13px; }
+  .results-update .btn { width: 100%; }
+  .home-actions { gap: 8px; margin-top: 16px; }
+  .home-notes { order: 3; border: 0; padding: 0; }
+  .home-registration-note { display: none; }
+  .home-update { margin: 0; padding: 0; border: 0; }
+}

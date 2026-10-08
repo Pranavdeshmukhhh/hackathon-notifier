@@ -67,3 +67,21 @@ Before shipping a phase, run frontend lint/tests/build, inspect real light/dark 
 mobile/desktop views, and exercise keyboard navigation, theme persistence, search,
 pagination, registration links, and modal dismissal. Use clearly identified sample
 data for isolated previews; never present sample records as real scraped events.
+
+## Phase 2 homepage contract
+
+Lead with event discovery and working format/campus shortcuts. Keep the collection
+timestamp distinct from a promised scan schedule. Refresh retrieves existing
+listings; it does not start a scraper. Explain organizer verification briefly,
+then provide a practical registration guide and the existing Telegram entry point.
+
+The homepage has stable home, discovery, listing-information, and about anchors.
+Navigation must remain readable at 320px and support Escape/focus restoration.
+Loading, empty results, and API failure are separate states. An aborted request
+must not overwrite a newer request; an explicitly configured API must not silently
+fall back to production. Format counts and filters recognize Virtual/Online and
+Offline/In-person/Onsite consistently without guessing an unknown format.
+
+Phase 2 QA covers 320, 375, 768, 1024, and 1440px, persisted light/dark appearance,
+keyboard dialogs/navigation, search recovery, shortcuts, and a delayed 503 fixture.
+Discovery controls and event cards receive their product changes in later phases.

@@ -219,7 +219,7 @@ export default function AutoListModal({ onClose, onSuccess, apiBase }) {
               </span>
             </div>
             <p className="text-xs text-ink-2 mt-0.5">
-              Continuously crawls the web for <strong>IIT, NIT, IIIT, Tier-1 Colleges, City Hubs & FAANG</strong> hackathons.
+              Collection status for configured platforms, campuses, and discovery channels.
             </p>
           </div>
         </div>

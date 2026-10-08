@@ -8,6 +8,8 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import HackathonCard from './components/HackathonCard';
+import HomeIntro from './components/HomeIntro';
+import AboutProject from './components/AboutProject';
 import SkeletonCard  from './components/SkeletonCard';
 import './index.css';
 
@@ -19,9 +21,9 @@ import Toast              from './components/Toast';
 import ScrollToTop        from './components/ScrollToTop';
 import TermsAndConditions from './components/TermsAndConditions';
 import {
-  PinIcon, EmptySearchIcon, TelegramIcon,
-  SunIcon, MoonIcon, HamburgerIcon, ArrowRightIcon,
-  LogoIcon, ShieldCheckIcon, GridViewIcon, ListViewIcon, ArrowUpRightIcon, SearchIcon,
+  PinIcon, EmptySearchIcon,
+  SunIcon, MoonIcon, HamburgerIcon,
+  LogoIcon, GridViewIcon, ListViewIcon, ArrowUpRightIcon, SearchIcon,
 } from './components/Icons';
 
 // ── Extracted Hooks ─────────────────────────────────────────────────────────
@@ -32,34 +34,17 @@ import useScrollProgress from './hooks/useScrollProgress';
 // ── Constants ───────────────────────────────────────────────────────────────
 const PROD_API_URL = 'https://hackathon-notifier.onrender.com/api/hackathons';
 const LOCAL_API_URL = 'http://localhost:8000/api/hackathons';
+// Keep explicitly configured APIs authoritative, including isolated previews.
+const ALLOW_DEFAULT_DEV_FALLBACK = !import.meta.env.VITE_API_URL && !import.meta.env.PROD;
 let DEFAULT_API_URL = import.meta.env.VITE_API_URL || (import.meta.env.PROD ? PROD_API_URL : LOCAL_API_URL);
 if (DEFAULT_API_URL.endsWith('/')) DEFAULT_API_URL = DEFAULT_API_URL.slice(0, -1);
 if (!DEFAULT_API_URL.endsWith('/api/hackathons')) DEFAULT_API_URL += '/api/hackathons';
 
 const COLD_START_WARN_MS = 6_000;
 const PAGE_SIZE = 12;
-const SCAN_INTERVAL_SECONDS = 900; // 15-minute autoscan cycle
+const AUTO_REFRESH_MS = 15 * 60 * 1000; // Refresh listings; this does not trigger a scraper.
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
-const formatCountdown = (totalSec) => {
-  const m = Math.floor(totalSec / 60);
-  const s = totalSec % 60;
-  return `${m}:${s < 10 ? '0' : ''}${s}`;
-};
-
-const formatLastScraped = (isoStr) => {
-  if (!isoStr) return 'Active now';
-  try {
-    const d = new Date(isoStr);
-    const diffMins = Math.floor((Date.now() - d) / 60000);
-    if (diffMins < 1)  return 'Just now';
-    if (diffMins < 60) return `${diffMins}m ago`;
-    const diffHrs = Math.floor(diffMins / 60);
-    if (diffHrs < 24)  return `${diffHrs}h ago`;
-    return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
-  } catch { return 'Active now'; }
-};
-
 // ─────────────────────────────────────────────────────────────────────────────
 function App() {
   // ── Hooks ───────────────────────────────────────────────────────────────
@@ -73,7 +58,6 @@ function App() {
     try { return localStorage.getItem('hackathon_view_mode') || 'grid'; }
     catch { return 'grid'; }
   });
-  const [secondsUntilNextScan, setSecondsUntilNextScan] = useState(SCAN_INTERVAL_SECONDS);
 
   // ── State ───────────────────────────────────────────────────────────────
   const [hackathons, setHackathons]           = useState([]);
@@ -87,6 +71,8 @@ function App() {
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [activeSection, setActiveSection]     = useState('home');
   const [mobileMenuOpen, setMobileMenuOpen]   = useState(false);
+  const menuToggleRef = useRef(null);
+  const mobileNavigationRef = useRef(null);
   const [showColdStartBanner, setShowColdStartBanner] = useState(false);
   const [showTechSpecModal, setShowTechSpecModal] = useState(false);
   const [showAutoListModal, setShowAutoListModal] = useState(false);
@@ -97,7 +83,6 @@ function App() {
   const [missedTotal, setMissedTotal]         = useState(0);
   const [allTotal, setAllTotal]               = useState(0);
   const [toast, setToast]                     = useState({ message: '', visible: false });
-  const [clientLatency, setClientLatency]     = useState(null);
 
   const [stats, setStats] = useState({
     total: 0, active_count: 0, lost_opportunities_count: 0, all_total: 0,
@@ -106,7 +91,7 @@ function App() {
     online_count: 0, offline_count: 0, unique_sources_count: 0, hackathon_count: 0,
     total_prize_pool_inr: 0, total_prize_pool_formatted: '',
     total_registrations: 0, total_registrations_formatted: '',
-    p50_latency_ms: 32.0, recalculated_cadence: 'Every 15 minutes'
+    p50_latency_ms: null, recalculated_cadence: null
   });
 
   // ── Refs ────────────────────────────────────────────────────────────────
@@ -138,22 +123,21 @@ function App() {
     window.location.hash = '#terms';
     setCurrentView('terms');
     setMobileMenuOpen(false);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    window.scrollTo({ top: 0, behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth' });
   }, []);
 
   const navigateToRadar = useCallback((section = 'home') => {
-    if (window.location.hash === '#terms') {
-      window.location.hash = section === 'home' ? '' : section;
-    }
+    const nextHash = section === 'home' ? '' : `#${section}`;
+    if (window.location.hash !== nextHash) window.location.hash = nextHash;
     setCurrentView('radar');
     setMobileMenuOpen(false);
     if (section && section !== 'home') {
       setTimeout(() => {
         const refMap = { home: homeRef, dashboard: dashboardRef, features: featuresRef, events: eventsRef, about: aboutRef };
-        refMap[section]?.current?.scrollIntoView({ behavior: 'smooth' });
+        refMap[section]?.current?.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth' });
       }, 60);
     } else {
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+      window.scrollTo({ top: 0, behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth' });
     }
   }, []);
 
@@ -187,7 +171,7 @@ function App() {
     try {
       let res;
       try { res = await fetch(url); }
-      catch { if (!url.startsWith(PROD_API_URL)) { res = await fetch(`${PROD_API_URL}${qParams}`); } else { return; } }
+      catch { if (ALLOW_DEFAULT_DEV_FALLBACK) { res = await fetch(`${PROD_API_URL}${qParams}`); } else { return; } }
       if (res && res.ok) {
         const etag = res.headers.get('ETag');
         const result = await res.json();
@@ -199,7 +183,8 @@ function App() {
   // ── Data Fetching ─────────────────────────────────────────────────────
   const fetchHackathons = useCallback(async (isAutoRefresh = false) => {
     if (abortControllerRef.current) abortControllerRef.current.abort();
-    abortControllerRef.current = new AbortController();
+    const requestController = new AbortController();
+    abortControllerRef.current = requestController;
 
     const currentParams = {
       page: currentPage, limit: pageSize, category: activeCategory,
@@ -219,7 +204,7 @@ function App() {
       setUpcomingTotal(ut); setMissedTotal(mt); setAllTotal(at);
       const targetCount = activeTab === 'upcoming' ? ut : activeTab === 'all' ? at : mt;
       setTotalPages(Math.max(1, Math.ceil(targetCount / pageSize)));
-      setLoading(false); setError(null); setClientLatency(0);
+      setLoading(false); setError(null);
     } else if (!isAutoRefresh) {
       setLoading(true); setError(null); setShowColdStartBanner(false);
       coldStartTimerRef.current = setTimeout(() => setShowColdStartBanner(true), COLD_START_WARN_MS);
@@ -228,40 +213,40 @@ function App() {
     try {
       const queryParams = buildQueryParams(currentParams);
       let url = `${DEFAULT_API_URL}${queryParams}`;
-      const t0 = performance.now();
       const headers = {};
       if (cachedEntry?.etag) headers['If-None-Match'] = cachedEntry.etag;
 
       let res;
       try {
-        if (!url.startsWith(PROD_API_URL)) {
+        if (ALLOW_DEFAULT_DEV_FALLBACK) {
           // Fast localhost failover: if local backend not running, don't stall for 10s
           const localCtrl = new AbortController();
           const timer = setTimeout(() => localCtrl.abort(), 1200);
           try {
-            res = await fetch(url, { signal: localCtrl.signal, headers });
+            res = await fetch(url, { signal: AbortSignal.any([localCtrl.signal, requestController.signal]), headers });
             clearTimeout(timer);
           } catch {
             clearTimeout(timer);
-            res = await fetch(`${PROD_API_URL}${queryParams}`, { signal: abortControllerRef.current.signal, headers });
+            if (requestController.signal.aborted) return;
+            res = await fetch(`${PROD_API_URL}${queryParams}`, { signal: requestController.signal, headers });
           }
         } else {
-          res = await fetch(url, { signal: abortControllerRef.current.signal, headers });
+          res = await fetch(url, { signal: requestController.signal, headers });
         }
       } catch (networkErr) {
         if (networkErr.name === 'AbortError') return;
-        if (!url.startsWith(PROD_API_URL)) {
-          res = await fetch(`${PROD_API_URL}${queryParams}`, { signal: abortControllerRef.current.signal, headers });
+        if (ALLOW_DEFAULT_DEV_FALLBACK) {
+          res = await fetch(`${PROD_API_URL}${queryParams}`, { signal: requestController.signal, headers });
         } else { throw networkErr; }
       }
 
-      if (res.status === 304) { setClientLatency(Math.round(performance.now() - t0)); return; }
+      if (requestController.signal.aborted || abortControllerRef.current !== requestController) return;
+      if (res.status === 304) { return; }
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
       const etag = res.headers.get('ETag');
       const result = await res.json();
-      setClientLatency(Math.round(performance.now() - t0));
-
+      if (requestController.signal.aborted || abortControllerRef.current !== requestController) return;
       if (result.success) {
         queryCacheRef.current.set(cacheKey, { ...result, etag, cachedAt: Date.now() });
         setHackathons(result.data || []);
@@ -281,12 +266,15 @@ function App() {
         });
       } else { throw new Error(result.error || 'Unknown API error'); }
     } catch (e) {
-      if (e.name === 'AbortError') return;
-      if (!cachedEntry) setError('Could not connect to the API. Connecting to cloud pipeline…');
+      if (e.name === 'AbortError' || requestController.signal.aborted || abortControllerRef.current !== requestController) return;
+      if (!cachedEntry) setError('Could not load listings. Please try again.');
     } finally {
-      clearTimeout(coldStartTimerRef.current);
-      setShowColdStartBanner(false);
-      setLoading(false);
+      // A canceled request must not clear a newer request's loading state.
+      if (abortControllerRef.current === requestController && !requestController.signal.aborted) {
+        clearTimeout(coldStartTimerRef.current);
+        setShowColdStartBanner(false);
+        setLoading(false);
+      }
     }
   }, [activeCategory, activeSource, sortBy, pageSize, debouncedSearch, activeTab, currentPage, userLocation, buildQueryParams, getCacheKey, prefetchQuery]);
 
@@ -301,23 +289,9 @@ function App() {
     if (intervalRef.current) clearInterval(intervalRef.current);
     intervalRef.current = setInterval(() => {
       fetchHackathons(true);
-      setSecondsUntilNextScan(SCAN_INTERVAL_SECONDS);
-    }, SCAN_INTERVAL_SECONDS * 1000);
+    }, AUTO_REFRESH_MS);
     return () => { clearInterval(intervalRef.current); abortControllerRef.current?.abort(); clearTimeout(coldStartTimerRef.current); };
   }, [fetchHackathons]);
-
-  // Live 1-second countdown ticker for next 15-minute auto-scan
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setSecondsUntilNextScan((prev) => {
-        if (prev <= 1) {
-          return SCAN_INTERVAL_SECONDS;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-    return () => clearInterval(timer);
-  }, []);
 
   // Intersection observer for active nav highlight
   useEffect(() => {
@@ -326,13 +300,12 @@ function App() {
       entries.forEach(entry => {
         if (entry.isIntersecting) {
           if (entry.target === homeRef.current) setActiveSection('home');
-          else if (entry.target === dashboardRef.current) setActiveSection('dashboard');
           else if (entry.target === eventsRef.current) setActiveSection('events');
           else if (entry.target === aboutRef.current) setActiveSection('about');
         }
       });
     }, { rootMargin: '-20% 0px -60% 0px' });
-    [homeRef, dashboardRef, eventsRef, aboutRef].forEach(ref => { if (ref.current) observer.observe(ref.current); });
+    [homeRef, eventsRef, aboutRef].forEach(ref => { if (ref.current) observer.observe(ref.current); });
     return () => observer.disconnect();
   }, [currentView]);
 
@@ -352,6 +325,26 @@ function App() {
     return () => { document.body.style.overflow = ''; };
   }, [mobileMenuOpen]);
 
+  useEffect(() => {
+    if (!mobileMenuOpen) return;
+    mobileNavigationRef.current?.querySelector('a')?.focus();
+    const dismiss = (event) => {
+      if (event.key === 'Escape') {
+        setMobileMenuOpen(false);
+        menuToggleRef.current?.focus();
+      }
+    };
+    const leaveHeader = (event) => {
+      if (!event.target.closest('.site-header')) setMobileMenuOpen(false);
+    };
+    document.addEventListener('keydown', dismiss);
+    document.addEventListener('focusin', leaveHeader);
+    return () => {
+      document.removeEventListener('keydown', dismiss);
+      document.removeEventListener('focusin', leaveHeader);
+    };
+  }, [mobileMenuOpen]);
+
   // ── Event Handlers ────────────────────────────────────────────────────
   const handleCategoryChange = (cat) => { setActiveCategory(cat); setCurrentPage(1); };
   const handleSourceChange   = (src) => { setActiveSource(src); setCurrentPage(1); };
@@ -369,7 +362,7 @@ function App() {
       if (Math.abs(window.pageYOffset - offsetPosition) > 60) {
         window.scrollTo({
           top: Math.max(0, offsetPosition),
-          behavior: 'smooth'
+          behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth'
         });
       }
     }
@@ -387,7 +380,7 @@ function App() {
       const headerOffset = 76;
       const elementPosition = target.getBoundingClientRect().top;
       const offsetPosition = elementPosition + window.pageYOffset - headerOffset;
-      window.scrollTo({ top: Math.max(0, offsetPosition), behavior: 'smooth' });
+      window.scrollTo({ top: Math.max(0, offsetPosition), behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth' });
     }
   };
 
@@ -397,8 +390,8 @@ function App() {
     if (type === 'faang')    { setSearchQuery('faang'); setActiveCategory('All'); setActiveSource('All'); showToast('Filter: FAANG & MANGO global hackathons'); }
     if (type === 'pune')     { setSearchQuery('pune'); setActiveCategory('All'); setActiveSource('All'); showToast('Filter: Pune engineering hackathons (COEP / PICT)'); }
     if (type === 'iiit')     { setSearchQuery('iiit hyderabad'); setActiveCategory('All'); setActiveSource('All'); showToast('Filter: IIIT Hyderabad & premier campus hackathons'); }
-    if (type === 'inperson') { setActiveCategory('Offline'); setActiveSource('All'); setSearchQuery(''); showToast('Filter: in-person hackathons near you'); }
-    if (type === 'online')   { setActiveCategory('Online'); setActiveSource('All'); setSearchQuery(''); showToast('Filter: 100% online & global hackathons'); }
+    if (type === 'inperson') { setActiveCategory('Offline'); setActiveSource('All'); setSearchQuery(''); showToast('Showing in-person events'); }
+    if (type === 'online')   { setActiveCategory('Online'); setActiveSource('All'); setSearchQuery(''); showToast('Showing online events'); }
     if (currentView === 'terms') navigateToRadar('events');
     else scrollToSection('events');
   };
@@ -412,7 +405,6 @@ function App() {
   };
 
   // ── Derived Data ──────────────────────────────────────────────────────
-  const latencyDisplay = clientLatency ? `${clientLatency}ms` : (stats.p50_latency_ms ? `${Math.round(stats.p50_latency_ms)}ms` : '32ms');
 
   const categories = [
     { key: 'All',            label: 'All Categories', count: stats.total },
@@ -443,19 +435,14 @@ function App() {
   ];
 
   // ── Derived display values ────────────────────────────────────────────
-  const activeCount = stats.total || upcomingTotal || 0;
   const fmt = (n) => (n || n === 0 ? Number(n).toLocaleString('en-IN') : '—');
-  const prizeDisplay = stats.total_prize_pool_formatted || '—';
-  const sweepProgress = Math.min(1, Math.max(0, 1 - secondsUntilNextScan / SCAN_INTERVAL_SECONDS));
-  const sourceTicker = platformSources.filter((s) => s.key !== 'All' && s.count > 0);
-  const tickerItems = [...sourceTicker, ...sourceTicker, ...sourceTicker, ...sourceTicker];
   const activeTabTotal = activeTab === 'upcoming' ? upcomingTotal : activeTab === 'all' ? (allTotal || upcomingTotal + missedTotal) : missedTotal;
   const hasFilters = Boolean(searchQuery) || activeCategory !== 'All' || activeSource !== 'All';
 
   const navItems = [
-    { key: 'events',    label: 'Radar' },
-    { key: 'dashboard', label: 'Telemetry' },
-    { key: 'about',     label: 'Dev Desk' },
+    { key: 'events',    label: 'Discover' },
+    { key: 'dashboard', label: 'Updates' },
+    { key: 'about',     label: 'About' },
     { key: 'terms',     label: 'Terms' },
   ];
   const isNavActive = (key) =>
@@ -480,6 +467,7 @@ function App() {
   // ── Render ────────────────────────────────────────────────────────────
   return (
     <div className="min-h-screen flex flex-col relative">
+      <a className="skip-link" href="#main-content">Skip to content</a>
       {showTechSpecModal && <TechSpecModal onClose={() => setShowTechSpecModal(false)} />}
       {showAutoListModal && (
         <AutoListModal
@@ -491,7 +479,7 @@ function App() {
 
       {/* ── MOBILE BACKDROP ── */}
       {mobileMenuOpen && (
-        <div className="fixed inset-0 z-40 bg-black/50 md:hidden" onClick={() => setMobileMenuOpen(false)} />
+        <div className="fixed inset-0 z-40 bg-black/50 lg:hidden" onClick={() => setMobileMenuOpen(false)} />
       )}
 
       {/* ── NAVIGATION ── */}
@@ -508,7 +496,7 @@ function App() {
             <span className="truncate">Hackathon Notifier</span>
           </a>
 
-          <nav className="hidden md:flex items-center gap-9" aria-label="Primary">
+          <nav className="hidden lg:flex items-center gap-7" aria-label="Primary">
             {navItems.map(({ key, label }) => (
               <a
                 key={key}
@@ -523,32 +511,27 @@ function App() {
           </nav>
 
           <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-            <button className="icon-btn" onClick={toggleDarkMode} title="Toggle theme" aria-label="Toggle theme">
+            <button className="icon-btn" onClick={toggleDarkMode} title="Toggle theme" aria-label="Toggle theme" aria-pressed={isDarkMode}>
               {isDarkMode ? <SunIcon /> : <MoonIcon />}
             </button>
-            <button className="btn btn-ghost hidden lg:inline-flex" data-on={Boolean(userLocation)} onClick={handleNearMe}>
+            <button className="btn btn-ghost header-near-me" data-on={Boolean(userLocation)} onClick={handleNearMe}>
               <PinIcon /> {isLocating ? 'Locating…' : 'Near me'}
             </button>
-            <button
-              className="btn btn-ghost hidden sm:inline-flex"
-              onClick={() => setShowAutoListModal(true)}
-              title="Autonomous internet hackathon scanner for colleges and cities"
-            >
-              Auto-scanner
-            </button>
-            <button className="btn btn-ink hidden sm:inline-flex min-w-[76px]" onClick={handleSync}>
+            <button className="btn btn-ink header-refresh min-w-[76px]" onClick={handleSync} disabled={loading}>
               {loading ? (
                 <>
                   <span className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                  Syncing
+                  Loading
                 </>
-              ) : 'Sync'}
+              ) : 'Refresh'}
             </button>
             <button
-              className="icon-btn md:hidden"
+              ref={menuToggleRef}
+              className="icon-btn header-menu"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
               aria-label="Toggle menu"
               aria-expanded={mobileMenuOpen}
+              aria-controls="mobile-navigation"
             >
               <HamburgerIcon />
             </button>
@@ -557,8 +540,8 @@ function App() {
 
         {/* Mobile menu */}
         {mobileMenuOpen && (
-          <div className="md:hidden absolute top-full left-0 right-0 bg-paper border-b border-line-strong animate-sheet-pop max-h-[calc(100dvh-4rem)] overflow-y-auto">
-            <nav className="shell py-2" aria-label="Mobile">
+          <div className="lg:hidden absolute top-full left-0 right-0 bg-paper border-b border-line-strong animate-sheet-pop max-h-[calc(100dvh-4rem)] overflow-y-auto">
+            <nav ref={mobileNavigationRef} id="mobile-navigation" className="shell py-2" aria-label="Mobile">
               {navItems.map(({ key, label }) => (
                 <a
                   key={key}
@@ -572,12 +555,12 @@ function App() {
               ))}
             </nav>
             <div className="shell pb-5 pt-3 grid grid-cols-3 gap-2">
-              <button className="btn btn-ghost !px-2 !text-xs truncate" onClick={openScanner}>Scanner</button>
+              <button className="btn btn-ghost !px-2 !text-xs truncate" onClick={openScanner}>Status</button>
               <button className="btn btn-ghost !px-2 !text-xs truncate" onClick={() => { setMobileMenuOpen(false); handleNearMe(); }}>
                 {isLocating ? 'Locating…' : 'Near me'}
               </button>
-              <button className="btn btn-ink !px-2 !text-xs truncate" onClick={() => { setMobileMenuOpen(false); handleSync(); }}>
-                {loading ? 'Syncing…' : 'Sync'}
+              <button className="btn btn-ink !px-2 !text-xs truncate" disabled={loading} onClick={() => { setMobileMenuOpen(false); handleSync(); }}>
+                {loading ? 'Loading…' : 'Refresh'}
               </button>
             </div>
           </div>
@@ -588,155 +571,37 @@ function App() {
       {showColdStartBanner && (
         <div className="border-b border-line bg-sunken text-muted mono text-xs px-4 py-2.5 flex items-center justify-center gap-3">
           <span className="w-3 h-3 border-2 border-accent border-t-transparent rounded-full animate-spin" />
-          Cloud server waking up — free-tier spin-up takes ~25s. Loading live database…
+          The server is taking longer to respond. Loading listings…
         </div>
       )}
 
       {/* ── MAIN CONTENT (RADAR or TERMS) ── */}
-      <main className="flex-1 w-full">
+      <main id="main-content" tabIndex={-1} className="flex-1 w-full">
         {currentView === 'terms' ? (
           <div className="shell py-10 md:py-14">
             <TermsAndConditions onBack={() => navigateToRadar('home')} onShowToast={showToast} />
           </div>
         ) : (
           <>
-            {/* ── HERO ── */}
-            <section ref={homeRef} className="hero overflow-hidden">
-              <div className="shell pt-14 pb-16 md:pt-24 md:pb-24 grid grid-cols-1 lg:grid-cols-12 gap-14 lg:gap-8 items-end">
-                <div className="lg:col-span-8">
-                  <p className="eyebrow inline-flex items-center gap-2.5 rise" style={{ '--d': 0 }}>
-                    <span className="dot dot-live" />
-                    Native OD system · Zero amber tolerance
-                  </p>
-                  <h1
-                    className="display rise mt-7 [font-size:clamp(2.35rem,7.5vw,7.75rem)]"
-                    style={{ '--d': 1 }}
-                  >
-                    Stop missing hackathons <em>while arguing in the canteen.</em>
-                  </h1>
-                  <p className="rise mt-9 text-[17px] md:text-[19px] leading-relaxed text-ink-2 max-w-[54ch]" style={{ '--d': 2 }}>
-                    Continuously scanning{' '}
-                    <strong className="font-medium text-ink">{fmt(activeCount)} active, verified hackathons</strong>{' '}
-                    across top IITs, NITs and premier global hubs. Ended events are archived under Lost
-                    Opportunities and never counted in the active total.
-                  </p>
-                  <div className="rise mt-10 flex flex-wrap items-center gap-3" style={{ '--d': 3 }}>
-                    <button className="btn btn-accent btn-lg" onClick={() => scrollToSection('events')}>
-                      Explore live hacks <ArrowRightIcon />
-                    </button>
-                    <a
-                      href="https://t.me/Pranavhakathon_bot"
-                      target="_blank"
-                      rel="noreferrer"
-                      className="btn btn-ghost btn-lg"
-                    >
-                      <TelegramIcon /> Telegram alerts
-                    </a>
-                  </div>
-                </div>
-
-                {/* Telemetry ledger */}
-                <aside
-                  ref={dashboardRef}
-                  className="lg:col-span-4 panel rise scroll-mt-24"
-                  style={{ '--d': 4 }}
-                  aria-label="Live telemetry"
-                >
-                  <div className="flex items-center justify-between px-5 py-4">
-                    <span className="eyebrow inline-flex items-center gap-2.5 !text-ink">
-                      <span className="dot dot-live" />
-                      Live telemetry
-                    </span>
-                    <span className="tag tag-quiet" title="Autonomous 15-minute background discovery">Auto-sweep 15m</span>
-                  </div>
-
-                  <div className="px-5 pb-6 pt-1">
-                    <div className="eyebrow">Next sweep in</div>
-                    <div className="num mt-3 text-[clamp(2.75rem,8vw,4.25rem)] text-ink" aria-live="off">
-                      {formatCountdown(secondsUntilNextScan)}
-                    </div>
-                    <div className="sweep-track mt-5" role="presentation">
-                      <div className="sweep-fill" style={{ transform: `scaleX(${sweepProgress})` }} />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 border-t border-line">
-                    {[
-                      { v: upcomingTotal, l: 'Active live', tone: 'text-ink' },
-                      { v: stats.top_college_count || 0, l: 'Premier IIT / NIT', tone: 'text-accent-text' },
-                      { v: stats.internship_count || 0, l: 'Internships', tone: 'text-ink' },
-                      { v: missedTotal || stats.lost_opportunities_count || 0, l: 'Lost opps (past)', tone: 'text-muted' },
-                    ].map((cell, i) => (
-                      <div
-                        key={cell.l}
-                        className={`p-3.5 sm:p-5 ${i % 2 === 0 ? 'border-r border-line' : ''} ${i < 2 ? 'border-b border-line' : ''}`}
-                      >
-                        <div className={`num text-[clamp(1.75rem,5.5vw,2.5rem)] ${cell.tone}`}>{fmt(cell.v)}</div>
-                        <div className="eyebrow mt-2.5">{cell.l}</div>
-                      </div>
-                    ))}
-                  </div>
-
-                  <dl>
-                    <div className="panel-row"><dt>Last scraped</dt><dd className="!text-accent-text">{formatLastScraped(stats.last_scraped)}</dd></div>
-                    <div className="panel-row"><dt>Registered students</dt><dd>{stats.total_registrations ? stats.total_registrations.toLocaleString('en-IN') : '—'}</dd></div>
-                    <div className="panel-row"><dt>Active prize pool</dt><dd>{prizeDisplay}</dd></div>
-                  </dl>
-                </aside>
-              </div>
-            </section>
-
-            {/* ── STAT STRIP ── */}
-            <div className="stat-strip" role="group" aria-label="Quick stats">
-              <button type="button" className="stat-cell" onClick={() => handleQuickFilter('prizes')} title="Filter highest cash prize pools">
-                <ArrowUpRightIcon size={18} />
-                <div className="num text-[clamp(2rem,4.6vw,4rem)]">{prizeDisplay}</div>
-                <div className="eyebrow mt-3">Verified prizes</div>
-              </button>
-              <button type="button" className="stat-cell" onClick={() => handleQuickFilter('college')} title="Filter premier IIT / NIT hackathons">
-                <ArrowUpRightIcon size={18} />
-                <div className="num text-[clamp(2rem,4.6vw,4rem)]">
-                  {stats.top_college_count ? stats.top_college_count : '—'}
-                  <span className="text-accent-text italic text-[0.5em] ml-2">premier</span>
-                </div>
-                <div className="eyebrow mt-3">HOD approved</div>
-              </button>
-              <button
-                type="button"
-                className="stat-cell"
-                onClick={() => { scrollToSection('dashboard'); showToast('Telemetry: live 15-minute autonomous radar active'); }}
-                title="View live broadcast telemetry"
-              >
-                <ArrowUpRightIcon size={18} />
-                <div className="num text-[clamp(2rem,4.6vw,4rem)]">{latencyDisplay}</div>
-                <div className="eyebrow mt-3">Push latency</div>
-              </button>
-            </div>
-
-            {/* ── PLATFORM TICKER ── */}
-            {sourceTicker.length > 0 && (
-              <div className="marquee" aria-label="Platforms monitored">
-                <div className="marquee-track">
-                  {tickerItems.map((s, i) => (
-                    <span key={`${s.key}-${i}`} className="marquee-item" aria-hidden={i >= sourceTicker.length ? 'true' : undefined}>
-                      <b>{s.label}</b> {fmt(s.count)}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
+            <HomeIntro
+              homeRef={homeRef} updatesRef={dashboardRef}
+              onBrowse={() => scrollToSection('events')}
+              onShortcut={(kind) => {
+                setActiveTab('upcoming'); setCurrentPage(1);
+                if (kind === 'college') {
+                  setActiveCategory('Top College'); setActiveSource('All'); setSearchQuery('');
+                  scrollToSection('events');
+                } else handleQuickFilter(kind);
+              }}
+              loading={loading} error={error} lastCollected={stats.last_scraped}
+            />
 
             {/* ── RADAR ── */}
-            <section ref={eventsRef} className="shell pt-20 md:pt-28 scroll-mt-16">
+            <section ref={eventsRef} id="events" className="shell discovery-section scroll-mt-20">
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-end reveal">
                 <div className="lg:col-span-7">
-                  <span className="eyebrow">01 — Radar</span>
-                  <h2 className="display mt-4 [font-size:clamp(2.6rem,5.6vw,4.75rem)]">
-                    Verified hackathon <em>radar</em>
-                  </h2>
-                  <p className="mt-5 text-muted max-w-[52ch]">
-                    Zero scam portals. Direct links. Every major platform, aggregated across India and globally.
-                  </p>
+                  <h2 className="text-[28px] font-semibold tracking-tight">Discover hackathons</h2>
+                  <p className="mt-2 text-sm text-muted">Search by topic, venue, or campus. Register directly with the organizer.</p>
                 </div>
                 <div className="lg:col-span-5 flex flex-col sm:flex-row items-stretch sm:items-end gap-3 sm:gap-4">
                   <div className="search flex-1">
@@ -752,7 +617,7 @@ function App() {
                       <button
                         type="button"
                         onClick={() => setSearchQuery('')}
-                        className="absolute right-0 top-1/2 -translate-y-1/2 w-7 h-7 flex items-center justify-center text-muted hover:text-ink"
+                        className="absolute right-0 top-1/2 -translate-y-1/2 w-11 h-11 flex items-center justify-center text-muted hover:text-ink"
                         title="Clear search"
                         aria-label="Clear search"
                       >
@@ -760,37 +625,12 @@ function App() {
                       </button>
                     )}
                   </div>
-                  <button className="btn btn-ghost shrink-0" onClick={() => setShowAutoListModal(true)} title="Autonomous internet hackathon scanner for colleges and cities">
-                    Auto-scanner
-                  </button>
                 </div>
               </div>
 
-              {/* Autonomous engine status */}
-              <div className="mt-12 flex flex-wrap items-center justify-between gap-4 border-y border-line py-4">
-                <div className="flex items-center gap-3 text-sm">
-                  <span className="dot dot-live" />
-                  <span>
-                    <strong className="font-medium">Autonomous radar engine</strong>
-                    <span className="text-muted"> — scanning the web, Instagram &amp; platforms every 15 minutes</span>
-                  </span>
-                </div>
-                <div className="flex items-center gap-4">
-                  <span className="mono text-xs text-muted">
-                    Next sweep <span className="text-ink">{formatCountdown(secondsUntilNextScan)}</span>
-                  </span>
-                  <button
-                    className="btn btn-ghost !h-[30px] !px-3 !text-xs"
-                    onClick={() => {
-                      setSecondsUntilNextScan(SCAN_INTERVAL_SECONDS);
-                      fetchHackathons(true);
-                      showToast('Running a live autonomous sweep across web and social…');
-                    }}
-                    title="Force immediate radar sweep"
-                  >
-                    Scan now
-                  </button>
-                </div>
+              <div className="results-update">
+                <p className="text-sm text-muted">{loading ? 'Loading listings…' : error ? 'Listings could not be loaded.' : 'Check the organizer’s page before registering.'}</p>
+                <button className="btn btn-ghost" disabled={loading} onClick={handleSync}>Refresh listings</button>
               </div>
 
               {/* Filters */}
@@ -918,7 +758,7 @@ function App() {
                 </div>
               )}
               {error && (
-                <div className="mb-4 border border-line border-l-2 border-l-bad px-4 py-3 text-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div role="alert" className="mb-4 border border-line border-l-2 border-l-bad px-4 py-3 text-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div>Connection notice: {error}</div>
                   <button className="btn btn-ink !h-8 !text-xs" onClick={() => fetchHackathons()}>Retry</button>
                 </div>
@@ -978,7 +818,7 @@ function App() {
                   <p className="text-muted mt-4 max-w-md leading-relaxed">
                     {hasFilters
                       ? `Zero matches for “${searchQuery || activeCategory || activeSource}”. Try broader terms like AI, Web3 or Beginner, or reset the filters.`
-                      : 'The scraper pipeline sweeps Unstop, Devfolio, HackerEarth, Devnovate and Devpost around the clock.'}
+                      : 'No listings are available in this view. Try another category or refresh the listings.'}
                   </p>
                   <button
                     className="btn btn-ink mt-8"
@@ -990,67 +830,7 @@ function App() {
               )}
             </section>
 
-            {/* ── DEV DESK ── */}
-            <section ref={aboutRef} className="mt-24 md:mt-32 border-t border-line scroll-mt-16">
-              <div className="shell py-20 md:py-28 grid grid-cols-1 lg:grid-cols-12 gap-16 lg:gap-12">
-                <div className="lg:col-span-7 reveal">
-                  <div className="flex items-center gap-4">
-                    <span className="eyebrow">02 — Dev desk</span>
-                    <span className="tag tag-ok">100% free &amp; open source</span>
-                  </div>
-                  <div className="quote-mark mt-10" aria-hidden="true">“</div>
-                  <blockquote className="display -mt-3 [font-size:clamp(2rem,4.3vw,3.6rem)]">
-                    Why I spent 2 weeks coding this instead of studying for <em>Data Structures</em> and Signals &amp; Systems.
-                  </blockquote>
-                  <p className="mt-10 text-[17px] leading-relaxed text-ink-2 max-w-[58ch]">
-                    I built Hackathon Notifier because missing the Smart India Hackathon internal college round — a forwarded WhatsApp PDF buried under 800 spam messages in our unofficial college group — was the final straw. Built by a 2nd year engineer for fellow developers: no spam portals, no paywalls, just sub-second alerts to your device and instant HOD OD letters.
-                  </p>
-                  <dl className="mt-12 max-w-xl border-b border-line">
-                    <div className="dl-row"><dt>Dev</dt><dd>Pranav D. (2nd year)</dd></div>
-                    <div className="dl-row"><dt>Server cost</dt><dd className="!text-ok">₹0 / month</dd></div>
-                    <div className="dl-row"><dt>Attendance</dt><dd className="!text-accent-text">74.2% (OD pending)</dd></div>
-                    <div className="dl-row"><dt>Engine</dt><dd>FastAPI + Vite</dd></div>
-                  </dl>
-                </div>
-
-                <div className="lg:col-span-5 flex flex-col gap-6">
-                  <div className="reveal relative overflow-hidden bg-accent text-accent-ink p-8 md:p-10 rounded-lg">
-                    <div className="mono text-[11px] tracking-[0.14em] uppercase font-medium flex items-center gap-2.5">
-                      <span className="dot" /> Live Telegram pipeline
-                    </div>
-                    <div className="display mt-6 [font-size:clamp(2rem,3.4vw,2.9rem)] !text-accent-ink">
-                      Never miss a 32 LPA PPI deadline again.
-                    </div>
-                    <p className="mt-5 text-[15px] leading-relaxed opacity-80 max-w-[40ch]">
-                      Direct notifications with sub-second radar ({latencyDisplay}) of registration openings.
-                    </p>
-                    <a
-                      href="https://t.me/Pranavhakathon_bot"
-                      target="_blank"
-                      rel="noreferrer"
-                      className="mt-9 inline-flex items-center gap-2.5 h-12 px-5 rounded-md bg-accent-ink text-paper text-sm font-medium hover:opacity-90 transition-opacity"
-                    >
-                      <TelegramIcon /> Join @Pranavhakathon_bot <ArrowUpRightIcon size={15} />
-                    </a>
-                  </div>
-
-                  <div className="reveal border border-line-strong rounded-lg p-8">
-                    <div className="flex items-center gap-2.5 eyebrow !text-ink">
-                      <ShieldCheckIcon /> Terms, eligibility &amp; OD policy
-                    </div>
-                    <p className="mt-5 text-sm leading-relaxed text-muted">
-                      Hackathon Notifier operates strictly as a zero-middleman student utility. Attendance On-Duty (OD) generation is automated per university guidelines (AICTE, KTU, VTU, Mumbai Univ) and subject to authorized HOD sign-off. Prize distributions are handled directly by the official organizer.
-                    </p>
-                    <button onClick={navigateToTerms} className="btn btn-ghost mt-6">
-                      Read the full terms <ArrowRightIcon />
-                    </button>
-                    <div className="mono text-[11px] text-faint mt-6 pt-5 border-t border-line">
-                      Privacy & data use
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </section>
+            <AboutProject sectionRef={aboutRef} onTerms={navigateToTerms} />
           </>
         )}
       </main>
@@ -1069,28 +849,26 @@ function App() {
               <span>Hackathon Notifier</span>
             </a>
             <p className="mt-5 text-sm text-muted max-w-[34ch] leading-relaxed">
-              Built for Indian engineering students who would rather ship than scroll group chats.
+              Hackathon discovery for students. Find an opportunity, check the requirements, and start building.
             </p>
           </div>
           <nav className="md:col-span-3 flex flex-col gap-3" aria-label="Explore">
             <span className="eyebrow mb-1">Explore</span>
-            <button className="foot-link" onClick={() => navigateToRadar('events')}>Radar</button>
-            <button className="foot-link" onClick={() => navigateToRadar('dashboard')}>Telemetry</button>
-            <button className="foot-link" onClick={() => navigateToRadar('about')}>Dev desk</button>
+            <button className="foot-link" onClick={() => navigateToRadar('events')}>Discover hackathons</button>
+            <button className="foot-link" onClick={() => navigateToRadar('dashboard')}>Listing updates</button>
+            <button className="foot-link" onClick={() => navigateToRadar('about')}>About the project</button>
           </nav>
           <nav className="md:col-span-3 flex flex-col gap-3" aria-label="Project">
             <span className="eyebrow mb-1">Project</span>
             <button className="foot-link" onClick={navigateToTerms}>Terms &amp; Conditions</button>
-            <button className="foot-link" onClick={() => setShowTechSpecModal(true)}>Architecture spec</button>
+            <button className="foot-link" onClick={() => setShowTechSpecModal(true)}>How the system works</button>
+            <button className="foot-link" onClick={openScanner}>Scanner status</button>
             <button className="foot-link" onClick={toggleDarkMode}>Theme: {isDarkMode ? 'Dark' : 'Light'}</button>
           </nav>
         </div>
-        <div className="shell">
-          <div className="foot-word" aria-hidden="true">Hackathon Notifier</div>
-        </div>
         <div className="shell py-5 mt-6 border-t border-line flex flex-col sm:flex-row justify-between gap-2 mono text-[11px] text-faint">
           <span>© 2026 Hackathon Notifier</span>
-          <span>Crafted by Pranav Deshmukh · B.Tech 2nd year</span>
+          <span>Created by Pranav Deshmukh</span>
         </div>
       </footer>
 

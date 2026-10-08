@@ -5,8 +5,8 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="color-scheme" content="light dark" />
-    <title>Hackathon Notifier — Real-Time Student Hackathon Discovery</title>
-    <meta name="description" content="Discover verified student hackathons across IITs, NITs, IIITs and global tech hubs. Real-time scanning of Unstop, Devpost, Devfolio &amp; HackerEarth with instant Telegram alerts." />
+    <title>Hackathon Notifier — Student Hackathon Discovery</title>
+    <meta name="description" content="Find student hackathons, compare deadlines and formats, and follow registration links to the organizers. Browse online, in-person, and campus events." />
     <meta name="theme-color" content="#171D19" media="(prefers-color-scheme: dark)" />
     <meta name="theme-color" content="#F5F4EF" media="(prefers-color-scheme: light)" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -14,20 +14,21 @@
 
     <!-- Open Graph -->
     <meta property="og:type" content="website" />
-    <meta property="og:title" content="Hackathon Notifier — Real-Time Student Hackathon Discovery" />
-    <meta property="og:description" content="Verified hackathons across IITs, NITs, and global tech hubs, with real-time alerts." />
+    <meta property="og:title" content="Hackathon Notifier — Student Hackathon Discovery" />
+    <meta property="og:description" content="Compare hackathon deadlines and formats, then register with the organizer." />
     <meta property="og:site_name" content="Hackathon Notifier" />
 
     <!-- Twitter Card -->
-    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:card" content="summary" />
     <meta name="twitter:title" content="Hackathon Notifier" />
-    <meta name="twitter:description" content="Real-time hackathon discovery for Indian engineering students. Zero spam, verified events only." />
+    <meta name="twitter:description" content="Find online, in-person, and campus hackathons. Check deadlines and registration details." />
 
     <!-- Apply the theme before first paint to avoid a light/dark flash -->
     <script>
       (function () {
+        var saved;
+        try { saved = localStorage.getItem('hackathon_theme'); } catch (e) {}
         try {
-          var saved = localStorage.getItem('hackathon_theme');
           if (saved === 'dark' || (saved !== 'light' && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
             document.documentElement.classList.add('dark');
           }
