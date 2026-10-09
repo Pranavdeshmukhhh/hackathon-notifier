@@ -11,8 +11,8 @@ export function listingsApiUrl(configured, production = false) {
   return url.href;
 }
 
-// Bound both the request and JSON decoding; cancel obsolete work on navigation.
-export async function requestApi(url, { signal, headers, timeout = 30_000 } = {}) {
+// Allow the free Render instance to wake up, while bounding requests and JSON decoding.
+export async function requestApi(url, { signal, headers, timeout = 75_000 } = {}) {
   const controller = new AbortController();
   let timer, cancel;
   const stopped = new Promise((_, reject) => {

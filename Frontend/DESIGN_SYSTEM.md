@@ -133,7 +133,8 @@ is added in a later phase.
 Use an editorial reading column and one restrained registration panel. Registration
 comes first on narrow screens and in keyboard order. Distinguish loading, missing
 events, and unavailable API states; retry failures, cancel obsolete requests, and
-bound requests to 18 seconds. An explicit API remains authoritative. Deploy the
+bound requests to 75 seconds to accommodate the free hosting instance waking up.
+An explicit API remains authoritative. Deploy the
 backend detail endpoint together with the frontend; existing list APIs stay intact.
 
 Phase 4 QA covers 320, 375, 768, 1024, and 1440px, light/dark themes, keyboard focus,

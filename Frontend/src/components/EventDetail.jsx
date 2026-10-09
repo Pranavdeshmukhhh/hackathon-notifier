@@ -34,7 +34,7 @@ export default function EventDetail({ eventId, apiBase, onBack }) {
     const load = async () => {
       try {
         const suffix = `/${eventId.toLowerCase()}`;
-        const { response, payload } = await requestApi(`${apiBase}${suffix}`, { signal: controller.signal, timeout: 18_000 });
+        const { response, payload } = await requestApi(`${apiBase}${suffix}`, { signal: controller.signal });
         if (!active) return;
         if (response.status === 404) { setResult({ id: eventId, phase: 'notFound' }); return; }
         if (!response.ok) throw new Error('Unavailable');

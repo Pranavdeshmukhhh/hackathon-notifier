@@ -19,6 +19,17 @@ describe('API recovery', () => {
     await assertion;
     expect(fetch.mock.calls[0][1].signal.aborted).toBe(true);
   });
+  it('allows a sleeping service to wake up before the default timeout', async () => {
+    vi.useFakeTimers();
+    vi.stubGlobal('fetch', vi.fn(() => new Promise(resolve => setTimeout(() => resolve({
+      ok: true, status: 200, json: async () => ({ success: true, data: [] }),
+    }), 55_000))));
+    const assertion = expect(requestApi('https://example.com/api')).resolves.toMatchObject({
+      payload: { success: true, data: [] },
+    });
+    await vi.advanceTimersByTimeAsync(55_000);
+    await assertion;
+  });
   it('cancels obsolete work without reporting a timeout', async () => {
     const controller = new AbortController();
     vi.stubGlobal('fetch', vi.fn(() => new Promise(() => {})));
