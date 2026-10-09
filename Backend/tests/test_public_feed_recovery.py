@@ -79,3 +79,15 @@ def test_exact_deadline_and_suppressed_rows_are_honored_without_migration(feed):
     assert response['missed_total'] == 1
     assert len(response['data']) == 2
     assert response['data'][0]['deadline_iso'] is None
+
+
+def test_closed_rows_with_missing_dates_do_not_break_mixed_deadline_sorting(feed):
+    client, collection = feed
+    collection.insert_many([
+        {'title': 'Closed without a date', 'status': 'Ended', 'deadline_iso': None},
+        {'title': 'Closed with a date', 'deadline_iso': '2020-01-01'},
+        {'title': 'Upcoming', 'deadline_iso': '2099-01-01'},
+    ])
+    response = client.get('/api/hackathons', params={'tab': 'all'})
+    assert response.status_code == 200
+    assert [row['title'] for row in response.json()['data']] == ['Upcoming', 'Closed with a date', 'Closed without a date']

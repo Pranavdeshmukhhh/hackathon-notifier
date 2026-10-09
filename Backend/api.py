@@ -261,7 +261,7 @@ def _sort_hackathons(docs: list[dict]) -> list[dict]:
             no_date.append(doc)
 
     upcoming.sort(key=lambda d: d.get("deadline_iso", "9999"))
-    past.sort(key=lambda d: d.get("deadline_iso", ""), reverse=True)
+    past.sort(key=lambda d: d.get("deadline_iso") or "", reverse=True)
 
     for doc in upcoming:
         doc["is_past"] = False
