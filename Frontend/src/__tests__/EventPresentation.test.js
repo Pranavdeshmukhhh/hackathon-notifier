@@ -23,11 +23,20 @@ describe('Truthful event presentation', () => {
     const result = eventDeadline({ deadline_iso: '2026-10-09' }, new Date('2026-10-09T23:30:00-07:00'));
     expect(result.iso).toBe('2026-10-09');
     expect(result.text).toBe('9 Oct 2026');
-    expect(result.note).toBe('');
+    expect(result.note).toBe('Registration closed');
     expect(eventDeadline({ deadline_iso: '2026-10-10' }, new Date('2026-10-09T12:00:00Z')).note).toBe('Closes tomorrow');
   });
   it('rejects invalid calendar dates and preserves a supplied human-readable deadline', () => {
     expect(eventDeadline({ deadline_iso: '2026-02-31' }).text).toBe('Not listed');
     expect(eventDeadline({ deadline: 'See organizer schedule' }).text).toBe('See organizer schedule');
+  });
+  it('honors an exact closing time even when a cached listing says it is open', () => {
+    const result = eventDeadline({ is_past: false, deadline_iso: '2026-10-09', registration_deadline: { at: '2026-10-09T14:00:00+05:30' } }, new Date('2026-10-09T09:00:00Z'));
+    expect(result.closed).toBe(true);
+    expect(result.text).toBe('9 Oct 2026 · 08:30 UTC');
+    expect(result.note).toBe('Registration closed');
+  });
+  it.each(['http://localhost/test', 'http://127.1/test', 'http://10.0.0.1', 'https://example.com:8443', 'http://[::1]'])('rejects local and restricted destinations %s', value => {
+    expect(safeRegistrationUrl(value)).toBeNull();
   });
 });

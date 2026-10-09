@@ -33,7 +33,7 @@ export default class ErrorBoundary extends Component {
             </div>
             <h2 className="text-xl font-semibold text-ink">Something went wrong</h2>
             <p className="text-sm text-ink-2 leading-relaxed">
-              An unexpected error occurred. This has been logged. Try refreshing the page.
+              The page couldn’t be displayed. Refresh to try again.
             </p>
             <button
               className="btn btn-ghost"
@@ -41,7 +41,7 @@ export default class ErrorBoundary extends Component {
             >
               Refresh Page
             </button>
-            {this.state.error && (
+            {import.meta.env.DEV && this.state.error && (
               <details className="text-left mt-4 p-4 rounded-surface bg-sunken text-xs text-muted font-mono">
                 <summary className="cursor-pointer font-semibold mb-2">Error Details</summary>
                 <pre className="whitespace-pre-wrap break-words">{this.state.error.toString()}</pre>

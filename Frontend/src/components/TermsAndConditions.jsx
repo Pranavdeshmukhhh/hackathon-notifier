@@ -1,9 +1,11 @@
 import { useEffect } from 'react';
 import { ArrowRightIcon } from './Icons';
+import useCopyLink from '../hooks/useCopyLink';
 
 export default function TermsAndConditions({ onBack, onShowToast }) {
+  const { status: copyStatus, isCopying, copy: copyPageLink } = useCopyLink(window.location.href, () => onShowToast?.('Terms link copied'), 'Could not copy. Copy the address from your browser.');
   useEffect(() => {
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    window.scrollTo({ top: 0, behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth' });
     const handleKeyDown = (e) => {
       if (e.key === 'Escape') onBack();
     };
@@ -11,14 +13,9 @@ export default function TermsAndConditions({ onBack, onShowToast }) {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [onBack]);
 
-  const copyPageLink = () => {
-    navigator.clipboard?.writeText(window.location.href);
-    if (onShowToast) onShowToast('Link to Terms & Conditions copied to clipboard!');
-  };
-
   const scrollToSection = (id) => {
     const el = document.getElementById(id);
-    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    if (el) el.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth', block: 'start' });
   };
 
   const sections = [
@@ -48,6 +45,7 @@ export default function TermsAndConditions({ onBack, onShowToast }) {
         <div className="flex items-center gap-2.5">
           <button
             onClick={copyPageLink}
+            disabled={isCopying}
             className="btn btn-ghost"
             title="Copy URL with direct link"
           >
@@ -64,6 +62,7 @@ export default function TermsAndConditions({ onBack, onShowToast }) {
           </button>
         </div>
       </div>
+      <p role="status" className="text-sm text-muted">{copyStatus}</p>
 
       {/* ── HERO BANNER ── */}
       <div className="bg-surface p-6 sm:p-10 rounded-surface border border-line space-y-5 relative overflow-hidden">
