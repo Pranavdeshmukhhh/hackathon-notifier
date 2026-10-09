@@ -2,9 +2,10 @@ import React, { useEffect, useRef, useState } from 'react';
 import { ArrowRightIcon, ArrowUpRightIcon } from './Icons';
 import useCopyLink from '../hooks/useCopyLink';
 import { validEventId, eventShareUrl } from '../utils/eventRoute';
+import { requestApi } from '../utils/api';
 import { listedText, safeRegistrationUrl, eventDeadline, eventFormat, eventLocation, eventTeam } from '../utils/eventPresentation';
 
-export default function EventDetail({ eventId, apiBase, fallbackApiBase, onBack }) {
+export default function EventDetail({ eventId, apiBase, onBack }) {
   const [result, setResult] = useState({ id: eventId, phase: validEventId(eventId) ? 'loading' : 'notFound' });
   const [attempt, setAttempt] = useState(0);
   const heading = useRef(null);
@@ -28,32 +29,25 @@ export default function EventDetail({ eventId, apiBase, fallbackApiBase, onBack 
     if (!validEventId(eventId)) return;
     const controller = new AbortController();
     let active = true;
-    const timeout = setTimeout(() => controller.abort(), 18_000);
     // oxlint-disable-next-line react/set-state-in-effect -- Detail state synchronizes with an external request.
     setResult({ id: eventId, phase: 'loading' });
     const load = async () => {
       try {
         const suffix = `/${eventId.toLowerCase()}`;
-        let response;
-        try { response = await fetch(`${apiBase}${suffix}`, { signal: controller.signal }); }
-        catch (error) {
-          if (controller.signal.aborted || !fallbackApiBase) throw error;
-          response = await fetch(`${fallbackApiBase}${suffix}`, { signal: controller.signal });
-        }
+        const { response, payload } = await requestApi(`${apiBase}${suffix}`, { signal: controller.signal, timeout: 18_000 });
         if (!active) return;
         if (response.status === 404) { setResult({ id: eventId, phase: 'notFound' }); return; }
         if (!response.ok) throw new Error('Unavailable');
-        const payload = await response.json();
         if (!active) return;
         if (!payload.success || !payload.data || String(payload.data._id).toLowerCase() !== eventId.toLowerCase()) throw new Error('Invalid event response');
         setResult({ id: eventId, phase: 'ready', event: payload.data });
       } catch {
         if (active) setResult({ id: eventId, phase: 'unavailable' });
-      } finally { clearTimeout(timeout); }
+      }
     };
     load();
-    return () => { active = false; controller.abort(); clearTimeout(timeout); };
-  }, [eventId, apiBase, fallbackApiBase, attempt]);
+    return () => { active = false; controller.abort(); };
+  }, [eventId, apiBase, attempt]);
 
   const link = event && safeRegistrationUrl(event.link);
   const deadline = event && eventDeadline(event);
@@ -79,16 +73,16 @@ export default function EventDetail({ eventId, apiBase, fallbackApiBase, onBack 
 
       {event && <>
         <p role="status" className="sr-only">Event details loaded for {title}.</p>
-        {event.is_past === true && <p className="discovery-notice">Registration is closed in this listing. The source page remains available for reference.</p>}
+        {deadline.closed && <p className="discovery-notice">Registration is closed in this listing. The source page remains available for reference.</p>}
         <div className="event-detail-layout">
           <aside className="detail-registration" aria-label="Registration">
             <div className="detail-registration-panel">
               <h2>Registration deadline</h2>
-              <p className="detail-deadline">{deadline.iso ? <time dateTime={deadline.iso}>{deadline.text}</time> : deadline.text}</p>
+              <p className="detail-deadline">{deadline.iso ? <time dateTime={deadline.at || deadline.iso}>{deadline.text}</time> : deadline.text}</p>
               {deadline.note && <p className="detail-deadline-note">{deadline.note}</p>}
-              <p className="detail-note">The feed uses UTC calendar dates. Confirm the closing time and timezone on the source page.</p>
-              <p className="detail-registration-status">{event.is_past === true ? 'Registration closed' : listedText(event.status) || 'Registration status not listed'}</p>
-              {link ? <><a href={link} className={`btn ${event.is_past === true ? 'btn-ghost' : 'btn-accent'} detail-register-button`} target="_blank" rel="noopener noreferrer">{event.is_past === true ? 'View source page' : 'Register on source page'} <ArrowUpRightIcon size={16} /><span className="sr-only"> (opens in a new tab)</span></a><p className="detail-destination">Opens {new URL(link).hostname}</p></> : <p className="detail-link-missing">Registration link unavailable.</p>}
+              <p className="detail-note">{deadline.at ? 'Closing time shown in UTC. Confirm any changes on the source page.' : 'The feed uses UTC calendar dates. Confirm the closing time and timezone on the source page.'}</p>
+              <p className="detail-registration-status">{deadline.closed ? 'Registration closed' : listedText(event.status) || 'Registration status not listed'}</p>
+              {link ? <><a href={link} className={`btn ${deadline.closed ? 'btn-ghost' : 'btn-accent'} detail-register-button`} target="_blank" rel="noopener noreferrer">{deadline.closed ? 'View source page' : 'Register on source page'} <ArrowUpRightIcon size={16} /><span className="sr-only"> (opens in a new tab)</span></a><p className="detail-destination">Opens {new URL(link).hostname}</p></> : <p className="detail-link-missing">Registration link unavailable.</p>}
               <button type="button" className="btn btn-ghost detail-share-button" onClick={copy} disabled={isCopying || !shareUrl}>{isCopying ? 'Copying…' : 'Copy event link'}</button>
               <p role="status" className="detail-copy-status">{copyStatus}</p>
             </div>

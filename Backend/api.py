@@ -51,6 +51,7 @@ from lifecycle import is_expired, normalize_deadline, parse_deadline_iso
 from ingestion import IngestionService, ensure_indexes, ingest_batch, resolve_event
 from db.job_leases import JobLease, LeaseBusy
 from event_normalization import lifecycle_values
+from public_events import public_event, exact_registration_count
 from security import AdminAccessDenied, client_ip, require_admin
 from safe_http import FetchUnavailable, UnsafeURL, public_request, validate_public_url
 from scrapers.internet_scanner import (
@@ -150,7 +151,7 @@ _EVENT_PROJECTION = {key: 1 for key in (
     "location", "venue", "city", "lat", "lng", "tags", "prize",
     "is_top_college", "college_name", "college_type", "is_internship", "status",
     "total_registrations", "registrations", "min_team_size", "max_team_size",
-    "scraped_at", "desc", "tagline", "opportunity_type", "verified",
+    "scraped_at", "desc", "tagline", "organizer", "eligibility", "opportunity_type", "verified",
     "verification_confidence", "discovery_source", "source_account", "instagram_post_url", "registration_deadline", "deadline_kind", "publication_state",
 )}
 
@@ -686,8 +687,7 @@ def get_hackathons(
             cursor = collection.find({"publication_state": {"$ne": "suppressed"}}, _EVENT_PROJECTION)
             docs = []
             for doc in cursor:
-                doc["_id"] = str(doc["_id"])
-                docs.append(doc)
+                docs.append(public_event(doc))
 
             sorted_docs = _sort_hackathons(docs)
             active_docs = [d for d in sorted_docs if not d.get("is_past", False)]
@@ -734,13 +734,13 @@ def get_hackathons(
             else:
                 total_prize_formatted = "₹0"
 
-            total_registrations = sum(int(d.get("total_registrations") or d.get("registrations") or 0) for d in active_docs)
+            total_registrations = sum(exact_registration_count(d) for d in active_docs)
             if total_registrations >= 1_000:
                 total_registrations_formatted = f"{total_registrations / 1000:.1f}k"
             else:
                 total_registrations_formatted = str(total_registrations)
 
-            p50_lat = round(statistics.median(_latencies), 1) if _latencies else 32.0
+            p50_lat = round(statistics.median(_latencies), 1) if _latencies else None
 
             stats = {
                 "total": len(active_docs),  # User constraint: Lost opportunities are not counted in total found
@@ -763,7 +763,7 @@ def get_hackathons(
                 "total_registrations": total_registrations,
                 "total_registrations_formatted": total_registrations_formatted,
                 "p50_latency_ms": p50_lat,
-                "recalculated_cadence": "Every 15 minutes",
+                "recalculated_cadence": None,
                 "calculated_at": datetime.now(timezone.utc).isoformat()
             }
 
@@ -771,7 +771,9 @@ def get_hackathons(
             _cache[_CACHE_KEY] = cached
         except Exception:
             logger.error("Error fetching hackathons", exc_info=True)
-            return {"success": False, "error": "Internal server error", "data": [], "stats": {}}
+            return JSONResponse(status_code=503,
+                content={"success": False, "error": "Listings temporarily unavailable", "data": [], "stats": {}},
+                headers={"Cache-Control": "no-store"})
 
     # Dynamic distance enrichment & proximity sorting on cached in-memory data
     if lat is not None and lng is not None:
@@ -908,23 +910,7 @@ def get_hackathon_detail(request: Request, event_id: str = Path(pattern=r"^[0-9a
         if doc is None:
             return JSONResponse(status_code=404, content={"success": False, "error": "Event not found"}, headers={"Cache-Control": "no-store"})
         doc["_id"] = event_id.lower()  # Alias URLs continue to resolve with the requested public ID.
-        doc = _sort_hackathons([doc])[0]
-        # Some sources store HTML excerpts. Return readable text without active content.
-        for field in ("desc", "tagline", "organizer", "eligibility"):
-            value = doc.get(field)
-            if not isinstance(value, str):
-                doc.pop(field, None)
-            elif "<" in value:
-                fragment = BeautifulSoup(value, "html.parser")
-                for element in fragment.select("script, style, iframe, object"):
-                    element.decompose()
-                for br in fragment.find_all("br"):
-                    br.replace_with("\n")
-                for block in fragment.select("p, div, li, h1, h2, h3, h4, blockquote"):
-                    block.append("\n\n")
-                text = re.sub(r"[ \t]+", " ", fragment.get_text(""))
-                text = re.sub(r" *\n *", "\n", text)
-                doc[field] = re.sub(r"\n{3,}", "\n\n", text).strip()
+        doc = _sort_hackathons([public_event(doc)])[0]
         payload = jsonable_encoder({"success": True, "data": doc})
         etag = '"' + hashlib.md5(json.dumps(payload, sort_keys=True, ensure_ascii=False).encode("utf-8"), usedforsecurity=False).hexdigest() + '"'
         headers = {"ETag": etag, "Cache-Control": "public, max-age=60, must-revalidate"}

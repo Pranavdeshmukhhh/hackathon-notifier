@@ -98,7 +98,7 @@
     background: var(--bg);
     scroll-behavior: smooth;
     -webkit-text-size-adjust: 100%;
-    overflow-x: hidden;
+    overflow-x: clip;
     max-width: 100vw;
   }
 
@@ -109,7 +109,7 @@
     font-size: 16px;
     line-height: 1.6;
     min-height: 100vh;
-    overflow-x: hidden;
+    overflow-x: clip;
     max-width: 100vw;
     position: relative;
     -webkit-font-smoothing: antialiased;
@@ -1102,6 +1102,10 @@ select.field option {
 .discovery-ledger .ledger-cell { margin: 0; border-color: var(--line); border-bottom: 0; }
 .discovery-ledger .ledger-cell:last-child { border-bottom: 1px solid var(--line); }
 .discovery-empty { border-block: 1px solid var(--line); padding: 32px 0; }
+.discovery-error { display: flex; align-items: center; justify-content: space-between; gap: 24px; padding: 24px; margin-bottom: 24px; border: 1px solid var(--line-strong); border-left: 3px solid var(--bad); background: var(--surface); }
+.discovery-error h3 { font-size: 18px; font-weight: 600; }
+.discovery-error p { margin-top: 8px; font-size: 14px; color: var(--ink-2); }
+@media (max-width: 600px) { .discovery-error { align-items: flex-start; flex-direction: column; padding: 20px; } }
 .discovery-empty h3 { font-size: 20px; font-weight: 600; }
 .discovery-empty p { max-width: 52ch; font-size: 14px; color: var(--muted); margin-block: 12px 20px; }
 .event-card { padding: 24px; background: var(--surface); gap: 20px; }
@@ -1197,7 +1201,7 @@ select.field option {
 .detail-link-missing { margin-block: 16px; color: var(--muted); font-size: 14px; }
 .detail-registration-note { padding-inline: 4px; }
 .detail-state-note { max-width: 60ch; color: var(--ink-2); line-height: 1.7; margin-bottom: 24px; }
-@media (min-width: 901px) { .detail-registration { position: sticky; top: 24px; } }
+@media (min-width: 901px) { .detail-registration { position: sticky; top: 88px; } }
 @media (max-width: 900px) {
   .event-detail-layout, .detail-loading { grid-template-columns: minmax(0, 1fr); gap: 32px; }
   .detail-registration { grid-column: 1; grid-row: 1; }

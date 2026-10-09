@@ -25,12 +25,23 @@ describe('TermsAndConditions Component', () => {
     expect(handleBack).toHaveBeenCalledTimes(1);
   });
 
-  it('triggers onShowToast when Share Terms link is clicked', () => {
+  it('reports success only after the terms link is copied', async () => {
+    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: vi.fn().mockResolvedValue(undefined) } });
     const handleToast = vi.fn();
     render(<TermsAndConditions onBack={() => {}} onShowToast={handleToast} />);
 
     const shareBtn = screen.getByText(/Share Terms/i);
     fireEvent.click(shareBtn);
-    expect(handleToast).toHaveBeenCalledWith('Link to Terms & Conditions copied to clipboard!');
+    await screen.findByText('Link copied');
+    expect(handleToast).toHaveBeenCalledWith('Terms link copied');
+    expect(navigator.clipboard.writeText).toHaveBeenCalledWith(window.location.href);
+  });
+  it('does not claim success when clipboard access is blocked', async () => {
+    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: vi.fn().mockRejectedValue(new Error('Denied')) } });
+    const onShowToast = vi.fn();
+    render(<TermsAndConditions onBack={() => {}} onShowToast={onShowToast} />);
+    fireEvent.click(screen.getByText(/Share Terms/i));
+    await screen.findByText('Could not copy. Copy the address from your browser.');
+    expect(onShowToast).not.toHaveBeenCalled();
   });
 });

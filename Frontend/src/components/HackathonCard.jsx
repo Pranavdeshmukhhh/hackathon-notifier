@@ -8,8 +8,8 @@ export default function HackathonCard({ hackathon, onShare, onOpenDetail, viewMo
   const link = safeRegistrationUrl(hackathon.link);
   const detailLink = eventHash(hackathon._id);
   const { status: copyStatus, isCopying, copy: copyLink } = useCopyLink(link, () => onShare?.(hackathon.title));
-  const past = hackathon.is_past === true;
   const deadline = eventDeadline(hackathon);
+  const past = deadline.closed;
   const format = eventFormat(hackathon.mode);
   const distance = typeof hackathon.distance_km === 'number' && Number.isFinite(hackathon.distance_km) && hackathon.distance_km >= 0
     ? hackathon.distance_km.toFixed(1) : null;
@@ -39,12 +39,12 @@ export default function HackathonCard({ hackathon, onShare, onOpenDetail, viewMo
       </div>
 
       <dl className="event-facts">
-        <div className="event-deadline"><dt>Registration deadline</dt><dd>{deadline.iso ? <time dateTime={deadline.iso}>{deadline.text}</time> : deadline.text}{deadline.note && <span className="event-deadline-note">{deadline.note}</span>}</dd></div>
+        <div className="event-deadline"><dt>Registration deadline</dt><dd>{deadline.iso ? <time dateTime={deadline.at || deadline.iso}>{deadline.text}</time> : deadline.text}{deadline.note && <span className="event-deadline-note">{deadline.note}</span>}</dd></div>
         <div><dt>Format</dt><dd>{format}</dd></div>
         <div className="event-location"><dt>Location</dt><dd>{eventLocation(hackathon)}{distance !== null && format !== 'Online' && <span className="event-distance">{distance} km away</span>}</dd></div>
         <div><dt>Prize</dt><dd>{listedText(hackathon.prize) || 'Not listed'}</dd></div>
         <div><dt>Team size</dt><dd>{eventTeam(hackathon)}</dd></div>
-        <div><dt>Eligibility</dt><dd>Check organizer</dd></div>
+        <div><dt>Eligibility</dt><dd>{listedText(hackathon.eligibility) ? (listedText(hackathon.eligibility).length <= 120 ? listedText(hackathon.eligibility) : 'Requirements listed · view details') : 'Check organizer'}</dd></div>
       </dl>
 
       <div className="event-footnotes">

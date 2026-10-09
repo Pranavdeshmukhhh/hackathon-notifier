@@ -1,190 +1,51 @@
-# Frontend — Hackathon Notifier
+# Hackathon Notifier frontend
 
-React 19 + Vite frontend for the [Hackathon Notifier](https://hackathon-notifier.vercel.app) platform.
+React 19, Vite 8, Tailwind 4, and semantic CSS. The visual and accessibility rules
+are in [DESIGN_SYSTEM.md](DESIGN_SYSTEM.md). Extend these primitives instead of
+introducing a separate theme or landing-page template.
 
-**Live URL:** [https://hackathon-notifier.vercel.app](https://hackathon-notifier.vercel.app)  
-**Backend API:** [https://hackathon-notifier.onrender.com](https://hackathon-notifier.onrender.com)
+Students can search titles, topics, campuses, and venues; combine format, platform,
+and event filters; browse upcoming and past listings; and open a shareable event
+detail page. Registration remains on the organizer's website. Unknown facts are
+shown explicitly. Telegram subscriptions remain available through the existing bot.
 
----
+## Local development
 
-## Tech Stack
+Run `npm ci`, then `npm run dev` in `Frontend/`. Development defaults to the local
+API at `http://localhost:8000`. It never falls back to production. For UI QA, use an
+isolated API with labeled sample events and disable scanning, tracking, geocoding,
+and notification delivery. Do not point a UI preview at live records.
 
-| | Library | Version | Purpose |
-|---|---|---|---|
-| ⚛️ | React | 19 | UI component framework |
-| ⚡ | Vite | 8 | Build tool + dev server with HMR |
-| 🎨 | Tailwind CSS | 4 | Utility-first styling |
-| 🧪 | Vitest | 5 | Blazing fast unit test runner |
-| 🧪 | React Testing Library | 16 | DOM & component interaction testing |
-| 🗄️ | jsdom | 30 | Headless browser DOM environment |
-| 🔤 | Inter (Google Fonts) | — | Primary typeface |
-| ✏️ | Lucide React | — | SVG icon set |
-| 🔍 | oxlint | — | Fast Rust-based JavaScript linter |
+Copy `.env.example` to `.env.local` if a different isolated port is needed.
+`VITE_API_URL` accepts a server root, `/api`, `/api/v1`, or the full listings endpoint.
+It is public build-time configuration; never place credentials in a `VITE_` variable.
 
----
+## Verification
 
-## Features
+- `npm test`: mocked API regression tests.
+- `npm run lint`: static checks.
+- `npm run build`: production build.
+- Browser QA: narrow and wide layouts, light/dark, keyboard focus, filtering,
+  details, loading, empty, failed requests, retry, and blocked clipboard access.
 
-- **Apple HIG-inspired design** — clean cards with glassmorphism, category badges, team sizes, and live Unstop participant counts
-- **7-Signal Verification Badges** — clear "✓ Verified" indicators with heuristic confidence percentage tooltips
-- **Auto-Discovery & Listing modal** — trigger background scanner runs for open-web and Instagram channels directly from the web interface
-- **Instagram integration** — direct links to original community reels/posts and custom Instagram gradient styling
-- **Multi-platform source filters** — filter by Devfolio, Unstop, Devpost, HackerEarth, Devnovate, Instagram, MLH, Eventbrite, and KonfHub
-- **Student Code of Practice & Terms dialog** — transparent academic code of conduct and disclaimer modal
-- **Zero-CLS skeleton loaders** — pulsing card placeholders eliminate layout shifts during data loading
-- **Auto dark / light mode** — `@media (prefers-color-scheme: dark)`, zero JS for theming
-- **Server-side pagination** — 12 cards/page fetched efficiently from the FastAPI backend
-- **Debounced search** — 400 ms delay, minimises redundant API calls
-- **Location-aware sorting** — requests device GPS, sends coordinates to backend for Haversine distance sort
-- **Category tabs** — All / Online / Offline / Top College / Internship / Curated
-- **Upcoming / Missed tabs** — separate views for live and already-expired events
-- **Interactive Tech Spec modal** — instant overlay detailing system architecture, data pipeline, and security
-- **Toast notification system** — non-intrusive feedback for user actions and error handling
-- **Error Boundary resilience** — catches component tree exceptions and provides a recovery UI
-- **Floating Scroll-To-Top button** — smooth elevation button with scroll depth tracking
-- **Cold-start banner** — notifies users when the Render free-tier backend is waking up
-- **Stats dashboard popup** — live platform stats (total hackathons, per-source breakdown, mode split)
-- **Inline "Open App" Telegram button** — links directly to the Telegram bot
+Requests have bounded timeouts. Failed refreshes preserve previously loaded
+listings with a notice. A failed initial request is an unavailable state, not an
+empty result. Local query caching and HTTP ETags reduce repeat loading.
 
----
+## Vercel deployment
 
-## Local Setup
+Use `Frontend` as the project root, `npm ci` as the install command,
+`npm run build` as the build command, and `dist` as the output directory.
+Production defaults to `https://hackathon-notifier.onrender.com`; explicitly set
+`VITE_API_URL` if the backend differs. Rebuild after changing it, and update
+`vercel.json`'s CSP and the backend CORS origins for a different server.
 
-```bash
-# From project root
-cd Frontend
-npm install
+The production branch must contain the desired frontend commit. Pushing a phase
+branch alone does not update a Vercel production deployment following `main`.
+Confirm the deployed commit and call the public listing endpoint: `/health` only
+confirms database connectivity, not the complete listings read path.
 
-# Point the app at your local backend
-echo "VITE_API_URL=http://localhost:8000" > .env.local
-
-# Start development server
-npm run dev
-# → http://localhost:5173
-
-# Run tests (20 unit tests)
-npm test
-```
-
-### Environment Variables
-
-| Variable | Required | Default | Description |
-|---|---|---|---|
-| `VITE_API_URL` | No | `https://hackathon-notifier.onrender.com` | Base URL of the FastAPI backend (no trailing slash) |
-
-In production (Vercel), set `VITE_API_URL` in **Project → Settings → Environment Variables** in the Vercel dashboard.
-
----
-
-## Project Structure
-
-```
-Frontend/
-├── src/
-│   ├── assets/              # Logos and hero illustration assets
-│   ├── components/
-│   │   ├── AutoListModal.jsx # Auto-discovery & verification control modal
-│   │   ├── ErrorBoundary.jsx # React Error Boundary to catch render failures
-│   │   ├── HackathonCard.jsx # Card displaying hackathon details, badges, and tags
-│   │   ├── Icons.jsx         # Custom SVG icon set
-│   │   ├── Pagination.jsx    # Responsive pagination with ellipsis logic
-│   │   ├── ScrollToTop.jsx   # Smooth floating scroll button
-│   │   ├── SkeletonCard.jsx  # Zero-CLS pulsing skeleton placeholder
-│   │   ├── TechSpecModal.jsx # Architecture & system overlay modal
-│   │   ├── TermsAndConditions.jsx # Student Code of Practice & Terms dialog
-│   │   └── Toast.jsx         # Ephemeral toast feedback notifications
-│   ├── hooks/
-│   │   ├── useDarkMode.js    # OS-preference-aware dark mode state
-│   │   ├── useGeolocation.js # Browser geolocation access and error handling
-│   │   └── useScrollProgress.js # Scroll depth and header blur tracking
-│   ├── test/
-│   │   └── setup.js          # Vitest and Testing Library matchers setup
-│   ├── __tests__/
-│   │   ├── AutoListModal.test.jsx # Unit tests for auto-list modal
-│   │   ├── HackathonCard.test.jsx # Unit tests for card rendering & interactions
-│   │   ├── Pagination.test.jsx    # Unit tests for pagination navigation
-│   │   ├── SkeletonCard.test.jsx  # Unit tests for loading skeletons
-│   │   └── TermsAndConditions.test.jsx # Unit tests for terms & conditions
-│   ├── App.jsx              # Main composition root, filters, state, modals
-│   ├── index.css            # Apple HIG design system tokens & styles
-│   └── main.jsx             # React 19 bootstrap wrapped in ErrorBoundary
-├── Components/
-│   └── hakathoncard.jsx     # Backwards-compatible re-export
-├── index.html               # Vite HTML template with SEO meta tags
-├── vite.config.js           # Vite configuration with Vitest environment
-├── vercel.json              # Vercel SPA rewrites & security headers
-└── package.json
-```
-
----
-
-## Design System
-
-All colors, shadows, and spacing are CSS custom properties on `:root`, overridden inside `@media (prefers-color-scheme: dark)`. **Zero JavaScript is needed for theming** — the browser applies it at parse time.
-
-Key tokens:
-
-```css
---bg-base           /* page background */
---bg-surface        /* subtle section backgrounds */
---bg-elevated       /* cards, modals, dropdowns */
---text-primary      /* headings and important labels */
---text-secondary    /* body copy */
---text-muted        /* captions and timestamps */
---accent            /* primary indigo action color */
---accent-hover      /* darker indigo for hover states */
---border            /* dividers and outlines */
---card-shadow       /* card elevation shadow */
-```
-
----
-
-## Security & Privacy Headers
-
-For our full security policy, vulnerability reporting, and coordinated disclosure guidelines, see [**SECURITY.md**](../SECURITY.md).
-
-`vercel.json` sets strict OWASP security headers on every response:
-
-| Header | Value | Purpose |
-|---|---|---|
-| `Content-Security-Policy` | Restricts origins for scripts, styles, fonts, and API requests (`object-src 'none'`, `frame-ancestors 'none'`) | Mitigates XSS and data injection |
-| `Strict-Transport-Security` | `max-age=63072000; includeSubDomains; preload` | Enforces HTTPS with 2-year HSTS |
-| `X-Frame-Options` | `DENY` | Prevents clickjacking attacks |
-| `X-Content-Type-Options` | `nosniff` | Prevents MIME-type sniffing |
-| `X-XSS-Protection` | `1; mode=block` | Enables legacy browser XSS filters |
-| `Referrer-Policy` | `strict-origin-when-cross-origin` | Protects referrer leakage |
-| `Permissions-Policy` | `geolocation=(self), camera=(), microphone=(), payment=(), usb=()` | Blocks camera, mic, payments, and USB APIs |
-| `X-Permitted-Cross-Domain-Policies` | `none` | Prevents cross-domain policy file leaks |
-
-### Client-Side Privacy
-
-- **On-Demand Geolocation**: Location permissions are requested only when the user explicitly clicks "Sort by nearest" — never on page load. Coordinates are held in browser memory for distance sorting and are never persisted to a database or sent to external trackers.
-- **Zero Third-Party Scripts**: No tracking cookies, Google Analytics, or third-party pixels are loaded.
-
----
-
-## Build & Test
-
-```bash
-# Run unit test suite (20 tests)
-npm test
-
-# Run linter (oxlint)
-npm run lint
-
-# Production build (outputs to dist/)
-npm run build
-
-# Preview production build locally
-npm run preview
-```
-
-Vercel auto-deploys on every push to `main`. CI runs linter, tests, and build checks before merging.
-
----
-
-## Notes
-
-- The `dist/` directory is git-ignored and not committed to the repository.
-- The app gracefully shows a loading skeleton and cold-start warning while the Render backend wakes from sleep.
-- Geolocation is only requested when the user explicitly clicks "Sort by nearest" — never automatically on page load.
+`vercel.json` provides SPA rewrites and security headers. Event details use
+`#event/<MongoDB ID>`, preserving the existing routing and discovery URL filters.
+Scanner status is read-only; administrative write operations require the API's
+existing authorization. Opening a dialog or refreshing listings never starts a scan.

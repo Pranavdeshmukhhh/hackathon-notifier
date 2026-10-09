@@ -76,8 +76,8 @@ class StatsOut(BaseModel):
     total_prize_pool_formatted: str = Field(default="₹0", description="Formatted prize pool string (Cr/Lakh)")
     total_registrations: int = Field(default=0, description="Sum of registered participants across all events")
     total_registrations_formatted: str = Field(default="0", description="Formatted registration count (e.g. 42.5k)")
-    p50_latency_ms: float = Field(default=32.0, description="Median API server response latency")
-    recalculated_cadence: str = Field(default="Every 15 minutes", description="Background refresh schedule")
+    p50_latency_ms: Optional[float] = Field(default=None, description="Measured median API server response latency, when available")
+    recalculated_cadence: Optional[str] = Field(default=None, description="Reported collection schedule, when available")
     calculated_at: str = Field(default="", description="ISO timestamp of statistics aggregation")
 
 

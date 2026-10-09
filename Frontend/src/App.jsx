@@ -12,6 +12,7 @@ import HomeIntro from './components/HomeIntro';
 import AboutProject from './components/AboutProject';
 import EventDetail from './components/EventDetail';
 import { readEventRoute } from './utils/eventRoute';
+import { listingsApiUrl, listingsPayload, requestApi } from './utils/api';
 import DiscoveryControls from './components/DiscoveryControls';
 import { readDiscoveryQuery, writeDiscoveryQuery, buildDiscoveryParams } from './utils/discoveryQuery';
 import SkeletonCard  from './components/SkeletonCard';
@@ -36,13 +37,8 @@ import useGeolocation    from './hooks/useGeolocation';
 import useScrollProgress from './hooks/useScrollProgress';
 
 // ── Constants ───────────────────────────────────────────────────────────────
-const PROD_API_URL = 'https://hackathon-notifier.onrender.com/api/hackathons';
-const LOCAL_API_URL = 'http://localhost:8000/api/hackathons';
-// Keep explicitly configured APIs authoritative, including isolated previews.
-const ALLOW_DEFAULT_DEV_FALLBACK = !import.meta.env.VITE_API_URL && !import.meta.env.PROD;
-let DEFAULT_API_URL = import.meta.env.VITE_API_URL || (import.meta.env.PROD ? PROD_API_URL : LOCAL_API_URL);
-if (DEFAULT_API_URL.endsWith('/')) DEFAULT_API_URL = DEFAULT_API_URL.slice(0, -1);
-if (!DEFAULT_API_URL.endsWith('/api/hackathons')) DEFAULT_API_URL += '/api/hackathons';
+// Local development stays local, including when the backend is unavailable.
+const DEFAULT_API_URL = listingsApiUrl(import.meta.env.VITE_API_URL, import.meta.env.PROD);
 
 const COLD_START_WARN_MS = 6_000;
 const AUTO_REFRESH_MS = 15 * 60 * 1000; // Refresh listings; this does not trigger a scraper.
@@ -181,13 +177,11 @@ function App() {
     const qParams = buildQueryParams(params);
     const url = `${DEFAULT_API_URL}${qParams}`;
     try {
-      let res;
-      try { res = await fetch(url); }
-      catch { if (ALLOW_DEFAULT_DEV_FALLBACK) { res = await fetch(`${PROD_API_URL}${qParams}`); } else { return; } }
-      if (res && res.ok) {
+      const { response: res, payload } = await requestApi(url, { signal: abortControllerRef.current?.signal });
+      if (res.ok) {
         const etag = res.headers.get('ETag');
-        const result = await res.json();
-        if (result.success) rememberResult(key, { ...result, etag, cachedAt: Date.now() });
+        const result = listingsPayload(payload);
+        rememberResult(key, { ...result, etag, cachedAt: Date.now() });
       }
     } catch { /* Quiet fail for idle background prefetch */ }
   }, [buildQueryParams, getCacheKey, rememberResult]);
@@ -197,6 +191,7 @@ function App() {
     if (abortControllerRef.current) abortControllerRef.current.abort();
     const requestController = new AbortController();
     abortControllerRef.current = requestController;
+    clearTimeout(coldStartTimerRef.current);
     setRefreshing(true);
     setRefreshNotice('');
 
@@ -228,40 +223,18 @@ function App() {
 
     try {
       const queryParams = buildQueryParams(currentParams);
-      let url = `${DEFAULT_API_URL}${queryParams}`;
+      const url = `${DEFAULT_API_URL}${queryParams}`;
       const headers = {};
       if (cachedEntry?.etag) headers['If-None-Match'] = cachedEntry.etag;
 
-      let res;
-      try {
-        if (ALLOW_DEFAULT_DEV_FALLBACK) {
-          // Fast localhost failover: if local backend not running, don't stall for 10s
-          const localCtrl = new AbortController();
-          const timer = setTimeout(() => localCtrl.abort(), 1200);
-          try {
-            res = await fetch(url, { signal: AbortSignal.any([localCtrl.signal, requestController.signal]), headers });
-            clearTimeout(timer);
-          } catch {
-            clearTimeout(timer);
-            if (requestController.signal.aborted) return;
-            res = await fetch(`${PROD_API_URL}${queryParams}`, { signal: requestController.signal, headers });
-          }
-        } else {
-          res = await fetch(url, { signal: requestController.signal, headers });
-        }
-      } catch (networkErr) {
-        if (networkErr.name === 'AbortError') return;
-        if (ALLOW_DEFAULT_DEV_FALLBACK) {
-          res = await fetch(`${PROD_API_URL}${queryParams}`, { signal: requestController.signal, headers });
-        } else { throw networkErr; }
-      }
+      const { response: res, payload } = await requestApi(url, { signal: requestController.signal, headers });
 
       if (requestController.signal.aborted || abortControllerRef.current !== requestController) return;
-      if (res.status === 304) { return; }
+      if (res.status === 304 && cachedEntry) { return; }
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
       const etag = res.headers.get('ETag');
-      const result = await res.json();
+      const result = listingsPayload(payload);
       if (requestController.signal.aborted || abortControllerRef.current !== requestController) return;
       if (result.success) {
         rememberResult(cacheKey, { ...result, etag, cachedAt: Date.now() });
@@ -284,7 +257,9 @@ function App() {
       } else { throw new Error(result.error || 'Unknown API error'); }
     } catch (e) {
       if (e.name === 'AbortError' || requestController.signal.aborted || abortControllerRef.current !== requestController) return;
-      if (!cachedEntry) setError('Could not load listings. Please try again.');
+      if (!cachedEntry) setError(e.name === 'TimeoutError'
+        ? 'Could not load listings. The service took too long to respond. Please retry.'
+        : 'Could not load listings. Please try again.');
       else setRefreshNotice('Could not refresh. Showing previously loaded listings.');
     } finally {
       // A canceled request must not clear a newer request's loading state.
@@ -352,12 +327,13 @@ function App() {
       entries.forEach(entry => {
         if (entry.isIntersecting) {
           if (entry.target === homeRef.current) setActiveSection('home');
+          else if (entry.target === dashboardRef.current) setActiveSection('dashboard');
           else if (entry.target === eventsRef.current) setActiveSection('events');
           else if (entry.target === aboutRef.current) setActiveSection('about');
         }
       });
     }, { rootMargin: '-20% 0px -60% 0px' });
-    [homeRef, eventsRef, aboutRef].forEach(ref => { if (ref.current) observer.observe(ref.current); });
+    [homeRef, dashboardRef, eventsRef, aboutRef].forEach(ref => { if (ref.current) observer.observe(ref.current); });
     return () => observer.disconnect();
   }, [currentView]);
 
@@ -615,7 +591,7 @@ function App() {
             <TermsAndConditions onBack={() => navigateToRadar('home')} onShowToast={showToast} />
           </div>
         )}
-        {currentView === 'event' && <EventDetail key={eventId} eventId={eventId} apiBase={DEFAULT_API_URL} fallbackApiBase={ALLOW_DEFAULT_DEV_FALLBACK ? PROD_API_URL : undefined} onBack={handleDetailBack} />}
+        {currentView === 'event' && <EventDetail key={eventId} eventId={eventId} apiBase={DEFAULT_API_URL} onBack={handleDetailBack} />}
           <div hidden={currentView !== 'radar'}>
             <HomeIntro
               homeRef={homeRef} updatesRef={dashboardRef}
@@ -661,8 +637,8 @@ function App() {
                 </div>
               )}
               {error && (
-                <div role="alert" className="mb-4 border border-line border-l-2 border-l-bad px-4 py-3 text-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                  <div>Connection notice: {error}</div>
+                <div role="alert" className="discovery-error">
+                  <div><h3>Listings are temporarily unavailable</h3><p>{error}</p><p>Your filters are kept. You can retry here.</p></div>
                   <button className="btn btn-ink" onClick={() => fetchHackathons()}>Retry</button>
                 </div>
               )}
@@ -695,7 +671,7 @@ function App() {
                 <div className="discovery-empty">
                   <h3>{hasFilters ? 'No events match these filters.' : activeTab === 'missed' ? 'No past listings available.' : 'No events listed yet.'}</h3>
                   <p>{hasFilters ? 'Try a broader search or remove a filter. Some events do not list a format or deadline.' : 'Refresh the listings or browse another event status.'}</p>
-                  <button type="button" className="btn btn-ghost" onClick={resetFilters}>{hasFilters ? 'Reset all filters' : 'Browse upcoming events'}</button>
+                  <button type="button" className="btn btn-ghost" onClick={hasFilters ? resetFilters : activeTab !== 'upcoming' ? () => handleTabChange('upcoming') : () => fetchHackathons()}>{hasFilters ? 'Reset all filters' : activeTab !== 'upcoming' ? 'Browse upcoming events' : 'Refresh listings'}</button>
                 </div>
               )}
             </section>
