@@ -19,7 +19,7 @@ _env_path = Path(__file__).resolve().parent.parent / ".env"
 load_dotenv(dotenv_path=_env_path)
 
 MONGO_URI              = os.getenv("MONGO_URI", "")
-DB_NAME                = "hackathon_tracker"
+DB_NAME                = os.getenv("MONGO_DB_NAME", "hackathon_tracker")
 COLLECTION_NAME        = "hackathons"
 SUBSCRIBERS_COLLECTION = "subscribers"
 
@@ -31,7 +31,7 @@ _db = None
 
 
 def _connect() -> None:
-    """Establish connection and create unique indexes (idempotent)."""
+    """Establish the shared connection; public reads never create indexes."""
     global _client, _db
 
     if _client is not None:          # Already connected — nothing to do
@@ -53,9 +53,8 @@ def _connect() -> None:
         _db = _client[DB_NAME]
 
         # create_index is a no-op if the index already exists
-        _db[COLLECTION_NAME].create_index("link", unique=True)
-        _db[SUBSCRIBERS_COLLECTION].create_index("chat_id", unique=True)
-        logger.info("MongoDB connected — pool ready, unique indexes confirmed.")
+        # Indexes are managed by the explicit Phase 5 migration/write boundary.
+        logger.info("MongoDB connected — pool ready.")
 
     except (ConnectionFailure, ServerSelectionTimeoutError):
         logger.exception("MongoDB connection failed (timeout / unreachable)")

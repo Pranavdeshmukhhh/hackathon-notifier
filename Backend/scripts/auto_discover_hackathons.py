@@ -184,14 +184,14 @@ def auto_list_one(url: str, custom_title: str = None, dry_run: bool = False) -> 
         "title": title,
         "link": url,
         "source": meta.get("source") or "Auto-Discovery",
-        "mode": meta.get("mode") or "Virtual",
-        "location": meta.get("location") or "Online",
+        "mode": meta.get("mode") or "Unknown",
+        "location": meta.get("location"),
         "deadline": meta.get("deadline") or "TBA",
         "deadline_iso": meta.get("deadline_iso"),
         "prize": meta.get("prize") or "TBA",
         "tags": meta.get("tags") or [],
         "desc": meta.get("desc") or "",
-        "status": "Open",
+        "status": None,
         "is_past": False,
         "scraped_at": datetime.now(timezone.utc).isoformat(),
     }
@@ -200,9 +200,9 @@ def auto_list_one(url: str, custom_title: str = None, dry_run: bool = False) -> 
     classify_hackathon(doc)
 
     # Geocode if offline
-    if doc.get("mode", "").lower() == "offline" and doc.get("location") and doc["location"].lower() not in {"online", "virtual", "tba"}:
+    if not dry_run and doc.get("mode", "").lower() == "offline" and doc.get("location") and doc["location"].lower() not in {"online", "virtual", "tba"}:
         lat, lng = geocode(doc["location"])
-        if lat and lng:
+        if lat is not None and lng is not None:
             doc["lat"] = lat
             doc["lng"] = lng
 
@@ -211,8 +211,12 @@ def auto_list_one(url: str, custom_title: str = None, dry_run: bool = False) -> 
         return doc
 
     collection = get_collection()
-    res = collection.update_one({"link": doc["link"]}, {"$set": doc}, upsert=True)
-    is_new = bool(res.upserted_id)
+    from ingestion import ensure_indexes, IngestionService
+    from db.job_leases import JobLease
+    ensure_indexes(collection.database)
+    with JobLease(collection.database.job_leases) as lease:
+        result = IngestionService(collection, lease=lease).ingest(doc)
+    is_new = result["is_new"]
     logger.info("Successfully %s: %s", "inserted" if is_new else "updated", doc["title"])
     return doc
 

@@ -112,6 +112,8 @@ def _parse_event(item: dict) -> Optional[dict]:
         "tags":         tags,
         "link":         url,
         "source":       "HackerEarth",
+        "source_event_id": item.get("id"),
+        "deadline_kind": "event",
         "location":     "",
         "desc":         desc,
         "tagline":      "",
@@ -145,6 +147,7 @@ def scrape_hackerearth() -> list[dict]:
     Uses their public Chrome extension events API.
     Returns [] on failure (never raises).
     """
+    from scrapers.source_runner import SourceObservations
     logger.info("HackerEarth scraper started.")
     session = _get_session()
 
@@ -164,14 +167,14 @@ def scrape_hackerearth() -> list[dict]:
 
         logger.info("HackerEarth scraper: %d hackathons collected.", len(results))
         logger.debug("scrape_hackerearth() total: %d hackathon(s).", len(results))
-        return results
+        return SourceObservations(results, "ok" if results else "zero_results")
 
     except requests.exceptions.RequestException as e:
         logger.warning("HackerEarth API failed after retries: %s", e)
-        return []
+        return SourceObservations([], "error")
     except Exception:
         logger.warning("HackerEarth API: unexpected error", exc_info=True)
-        return []
+        return SourceObservations([], "error")
 
 
 # ── Self-test ─────────────────────────────────────────────────────────────────

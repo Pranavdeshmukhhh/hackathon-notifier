@@ -115,7 +115,7 @@ def _parse_api_items(items: list) -> list[dict]:
         max_team = regn_reqs.get("max_no") or regn_reqs.get("max_team_size") or item.get("max_team_size")
 
         # Deadline
-        raw_deadline = item.get("regnRequirements", {}).get("end_regn_dt") or item.get("end_date") or ""
+        raw_deadline = regn_reqs.get("end_regn_dt") or item.get("end_date") or ""
         deadline = "TBA"
         deadline_iso = ""
         status = "Open"
@@ -169,6 +169,10 @@ def _parse_api_items(items: list) -> list[dict]:
             "tags":                tags,
             "link":                link,
             "source":              "Unstop",
+            "source_event_id": item.get("id"),
+            "deadline_kind": "registration" if regn_reqs.get("end_regn_dt") else "event",
+            "registration_deadline": (dt.isoformat() if isinstance(raw_deadline, (int, float)) and deadline_iso else raw_deadline) if regn_reqs.get("end_regn_dt") else None,
+            "organizer": org or None,
             "location":            location_str,
             "prize":               prize_str,
             "organization":        org,

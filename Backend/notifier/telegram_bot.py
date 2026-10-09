@@ -142,11 +142,11 @@ def _format_message(h: dict) -> str:
     prize     = h.get("prize", "")
 
     urgency   = _deadline_urgency(deadline)
-    tags_str  = " · ".join(f"#{t.replace(' ','')}" for t in tags[:5]) if tags else "—"
+    tags_str  = " · ".join(f"#{_escape_html(t.replace(' ',''))}" for t in tags[:5]) if tags else "—"
 
     badges = []
     if is_top and college:
-        badges.append(f"🏛 <b>{_escape_html(college)}</b> {f'({col_type})' if col_type else ''}")
+        badges.append(f"🏛 <b>{_escape_html(college)}</b> {f'({_escape_html(col_type)})' if col_type else ''}")
     if is_intern:
         badges.append("💼 <b>Internship</b>")
     badge_line = "  ".join(badges)

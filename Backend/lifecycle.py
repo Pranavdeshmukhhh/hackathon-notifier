@@ -1,24 +1,19 @@
 """
 lifecycle.py — Hackathon lifecycle management (expiry, archival, purge, link health).
 
-This is the single source of truth for "is this hackathon still alive?".
+Phase 5 lifecycle state is derived by event_normalization.lifecycle_values.
 
 Responsibilities
 ----------------
-1. ``parse_deadline_iso`` / ``normalize_deadline`` — turn the many messy date
-   strings scrapers emit ("Oct 01 - 31, 2026", "31st Oct 2026", ISO, ...) into a
-   canonical ``deadline_iso`` (YYYY-MM-DD). Scrapers that never produced an ISO
-   date (Devpost, HackerEarth, MLH ...) used to be immortal because the sweep
-   only looks at ``deadline_iso``; normalising fixes that at the root.
+1. Legacy date compatibility remains available. Labelled Phase 5 records never
+   infer registration deadlines from event date ranges.
 2. ``archive_expired`` — flag documents whose deadline passed (hidden from the
    "active" feed, still visible in the Lost Opportunities tab).
-3. ``purge_expired`` — hard-delete documents that have been expired for longer
-   than ``EXPIRED_RETENTION_DAYS`` (and long-stale undated ones). A safety
-   guard refuses to delete an implausibly large share of the collection in one
-   sweep, so a parsing bug can never wipe the database.
+3. ``purge_expired`` requires an explicit retention argument and is never called
+   by scheduled maintenance. Routine sweeps retain event IDs and records.
 4. ``check_links`` / ``revalidate_links`` — concurrent liveness probes. New
    listings with a definitively dead link are rejected; existing listings that
-   keep returning 404/410 are removed after several consecutive failures.
+   keep returning 404/410 are suppressed after several consecutive failures.
 
 Everything here is pure-python and works against both pymongo and mongomock.
 """
@@ -153,6 +148,10 @@ def today_iso(now: Optional[datetime] = None) -> str:
 
 def normalize_deadline(doc: dict) -> dict:
     """Fill ``deadline_iso`` from the human ``deadline`` string when missing/invalid."""
+    if "deadline_kind" in doc:
+        from event_normalization import parse_date
+        doc["deadline_iso"] = parse_date(doc.get("deadline_iso")) if doc["deadline_kind"] == "registration" else None
+        return doc
     iso = doc.get("deadline_iso")
     parsed = parse_deadline_iso(iso) if iso else None
     if not parsed:
@@ -280,18 +279,25 @@ def filter_dead_links(docs: list[dict], max_workers: int = 12) -> tuple[list[dic
 # ── Collection sweeps ────────────────────────────────────────────────────────
 
 
-def archive_expired(collection, today: Optional[str] = None) -> int:
-    """Flag every document whose deadline has passed as archived/ended."""
-    t = today or today_iso()
-    now = datetime.now(timezone.utc).isoformat()
-    res = collection.update_many(
-        {
-            "deadline_iso": {"$lt": t, "$nin": [None, ""], "$exists": True},
-            "archived": {"$ne": True},
-        },
-        {"$set": {"archived": True, "status": "Ended", "is_past": True, "updated_at": now}},
-    )
-    return int(getattr(res, "modified_count", 0))
+def archive_expired(collection, today=None, session=None, ids=None):
+    from event_normalization import lifecycle_values
+    from ingestion import bump_generation
+    kwargs = {'session': session} if session else {}
+    now = datetime.now(timezone.utc) if today is None else datetime.fromisoformat(today).replace(tzinfo=timezone.utc)
+    count = 0
+    total_changes = 0
+    for doc in collection.find({'_id': {'$in': ids}} if ids is not None else {}, **kwargs):
+        values = lifecycle_values(doc, now)
+        if any(doc.get(key) != value for key, value in values.items()):
+            query = {'_id': doc['_id']}
+            if 'revision' in doc:
+                query['revision'] = doc['revision']
+            changed = collection.update_one(query, {'$set': values}, **kwargs)
+            total_changes += changed.modified_count
+            count += int(changed.modified_count and values['is_past'])
+    if total_changes:
+        bump_generation(collection.database, session)
+    return count
 
 
 def backfill_deadlines(collection, limit: int = 2000) -> int:
@@ -332,6 +338,9 @@ def purge_expired(collection, today: Optional[str] = None, retention: Optional[i
     Permanently remove (a) hackathons expired beyond the retention window and
     (b) undated, scraper-sourced listings no scraper has re-confirmed recently.
     """
+    # Only a deliberate retention operation may hard-delete. Scheduled sweeps never call this.
+    if retention is None:
+        return {'expired_removed': 0, 'stale_removed': 0, 'skipped_by_guard': 0, 'disabled': True}
     now = datetime.now(timezone.utc)
     t = today or today_iso(now)
     keep_days = retention_days() if retention is None else max(0, retention)
@@ -373,7 +382,7 @@ def purge_expired(collection, today: Optional[str] = None, retention: Optional[i
 def revalidate_links(collection, batch: int = 60, max_workers: int = 10) -> dict:
     """
     Probe the links of the least-recently-checked active listings. Listings that
-    keep coming back definitively dead are deleted after ``DEAD_LINK_STRIKES``
+    keep coming back definitively dead are suppressed after ``DEAD_LINK_STRIKES``
     consecutive failures; healthy ones get their counter reset.
     """
     now = datetime.now(timezone.utc).isoformat()
@@ -410,26 +419,21 @@ def revalidate_links(collection, batch: int = 60, max_workers: int = 10) -> dict
                 summary["healthy"] += 1
             collection.update_one(
                 {"_id": d["_id"]},
-                {"$set": {"dead_strikes": 0, "link_status": status.value, "link_checked_at": now}},
+                {"$set": {"dead_strikes": 0 if status is LinkStatus.ALIVE else d.get("dead_strikes", 0), "link_status": status.value, "link_checked_at": now}},
             )
 
     total = collection.count_documents({})
     if _safe_to_delete(len(removable), total, "dead-links"):
-        summary["removed"] = int(collection.delete_many({"_id": {"$in": removable}}).deleted_count)
-        logger.info("Removed %d listings with persistently dead links.", summary["removed"])
+        summary["suppressed"] = int(collection.update_many({"_id": {"$in": removable}}, {"$set": {"publication_state": "suppressed", "link_status": "dead", "dead_strikes": strikes_limit, "link_checked_at": now}}).modified_count)
+        from ingestion import bump_generation
+        bump_generation(collection.database)
     return summary
 
 
-def run_lifecycle_sweep(collection, revalidate: bool = True) -> dict:
-    """Full housekeeping pass: backfill → archive → purge → (optional) link health."""
-    report: dict[str, Any] = {}
-    try:
-        report["backfilled"] = backfill_deadlines(collection)
-        report["archived"] = archive_expired(collection)
-        report.update(purge_expired(collection))
-        if revalidate:
-            report["links"] = revalidate_links(collection)
-    except Exception:  # sweeps must never take the pipeline down
-        logger.exception("Lifecycle sweep failed")
-        report["error"] = True
+def run_lifecycle_sweep(collection, revalidate=True, session=None, ids=None):
+    """Archive and optionally probe links; always retain IDs and event records."""
+    report = {'backfilled': 0, 'expired_removed': 0, 'stale_removed': 0}
+    report['archived'] = archive_expired(collection, session=session, ids=ids)
+    if revalidate:
+        report['links'] = revalidate_links(collection)
     return report

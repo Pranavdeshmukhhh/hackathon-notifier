@@ -37,18 +37,8 @@ async def test_preview_url_empty_link_rejected():
 
 @pytest.mark.anyio
 async def test_auto_list_success_with_classification():
-    mock_col = MagicMock()
-    mock_res = MagicMock()
-    mock_res.upserted_id = "test-mongo-id-123"
-    mock_col.update_one.return_value = mock_res
-    mock_col.find_one.return_value = {
-        "_id": "test-mongo-id-123",
-        "title": "Pune Tech Hackathon (PICT Pune)",
-        "link": "https://pict.edu/hackathon",
-        "tags": ["pict", "pune", "faang"],
-        "is_top_college": True,
-        "college_type": "CFTI",
-    }
+    import mongomock
+    mock_col = mongomock.MongoClient().phase5_restore_test.hackathons
 
     with patch("api.get_collection", return_value=mock_col), \
          patch("api._extract_url_metadata", return_value={"tags": ["pune"]}):
@@ -64,7 +54,8 @@ async def test_auto_list_success_with_classification():
         assert status == 200
         assert data["success"] is True
         assert data["is_new"] is True
-        mock_col.update_one.assert_called_once()
+        assert mock_col.count_documents({}) == 1
+        assert mock_col.find_one({})["is_top_college"] is True
 
 
 def test_extract_url_metadata_domain_parsing():

@@ -92,7 +92,11 @@ def main():
 
     # Start Telegram bot in a daemon thread
     bot_thread = threading.Thread(target=_run_bot_polling, daemon=True)
-    bot_thread.start()
+    if os.getenv("ENABLE_TELEGRAM_POLLING", "true").lower() == "true":
+        bot_thread.start()
+    if os.getenv("ENABLE_NOTIFICATION_DELIVERY", "false").lower() == "true":
+        from notifier.delivery_worker import run_worker
+        threading.Thread(target=run_worker, daemon=True, name="notification-delivery").start()
 
     # Start scheduler in a daemon thread only if explicitly enabled
     enable_scanner = os.getenv("ENABLE_BACKGROUND_SCANNER", "false").lower() in ("true", "1", "yes")

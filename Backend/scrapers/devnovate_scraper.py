@@ -163,6 +163,10 @@ def _normalise(item: dict) -> dict | None:
         "tags":                tags[:8],
         "link":                link,
         "source":              "Devnovate",
+        "source_event_id": item.get("id") or slug,
+        "deadline_kind": "registration" if item.get("registrationDeadline") else "event",
+        "registration_deadline": item.get("registrationDeadline"),
+        "organizer": org or None,
         "location":            location,
         "prize":               prize,
         "organization":        org,
@@ -200,6 +204,7 @@ def scrape_devnovate() -> list[dict]:
     Return a list of normalised hackathon dicts from Devnovate.co.
     Follows the same schema as other scrapers in this project.
     """
+    from scrapers.source_runner import SourceObservations
     logger.info("Devnovate scraper started.")
 
     try:
@@ -207,12 +212,12 @@ def scrape_devnovate() -> list[dict]:
     except Exception as e:
         logger.error("Devnovate: API fetch failed: %s", e)
         logger.debug("scrape_devnovate() total: 0 events (fetch error).")
-        return []
+        return SourceObservations([], "error")
 
     if not isinstance(raw_items, list):
         logger.warning("Devnovate: unexpected API response type: %s", type(raw_items))
         logger.debug("scrape_devnovate() total: 0 events (bad response).")
-        return []
+        return SourceObservations([], "error")
 
     results = []
     for item in raw_items:
@@ -225,7 +230,7 @@ def scrape_devnovate() -> list[dict]:
 
     logger.info("Devnovate scraper complete: %d event(s) found.", len(results))
     logger.debug("scrape_devnovate() total: %d event(s).", len(results))
-    return results
+    return SourceObservations(results, "ok" if results else "empty_unconfirmed" if raw_items else "zero_results")
 
 
 if __name__ == "__main__":

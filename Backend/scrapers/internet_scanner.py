@@ -21,7 +21,6 @@ from urllib.parse import urlparse
 import requests
 from bs4 import BeautifulSoup
 
-from db.mongo_client import get_collection
 from filters.keyword_filter import classify_hackathon
 from scrapers.geocoder import geocode
 from scrapers.hackathon_verifier import verify_hackathon
@@ -316,155 +315,39 @@ def scan_single_keyword(keyword: str) -> list[dict]:
     return cleaned
 
 
-def run_internet_scan(keywords: list[str] = None) -> dict:
-    """
-    Execute an autonomous internet scan sweep across college, city, and FAANG keywords.
-    Deduplicates against MongoDB, classifies, geocodes, and inserts new items.
-    """
-    if _scanner_state["is_scanning"]:
-        return {
-            "success": False,
-            "message": "Scanner is already actively running an internet sweep.",
-            "new_indexed": 0,
-        }
+def collect_keyword_events(keywords=None):
+    items = []
+    for keyword in (keywords or DEFAULT_KEYWORDS)[:30]:
+        items.extend(scan_single_keyword(keyword))
+    return items
 
+
+def run_internet_scan(keywords=None):
+    """Compatibility adapter; the scan coordinator owns persistence and leases."""
+    from run_scan import execute_scan
+    from scrapers.source_runner import bounded_scrape
+    target = keywords or DEFAULT_KEYWORDS
+    started = time.monotonic()
     with _scanner_lock:
-        _scanner_state["is_scanning"] = True
-        start_time = time.time()
-        logs = []
-
-    target_keywords = keywords if (keywords and len(keywords) > 0) else DEFAULT_KEYWORDS
-    logs.append(f"Starting autonomous sweep across {len(target_keywords)} target keyword channels...")
-    with _scanner_lock:
-        _scanner_state["last_scan_logs"] = list(logs)
-
-    collection = get_collection()
-    new_indexed = 0
-    total_found = 0
-
+        if _scanner_state['is_scanning']:
+            return {'success': False, 'message': 'Scanner is already running', 'new_indexed': 0, 'total_found': 0}
+        _scanner_state['is_scanning'] = True
     try:
-        for kw in target_keywords:
-            with _scanner_lock:
-                logs.append(f"Scanning internet channel '{kw}'...")
-                _scanner_state["last_scan_logs"] = list(logs[-15:])
-            found_items = scan_single_keyword(kw)
-            total_found += len(found_items)
-
-            for doc in found_items:
-                link = doc.get("link")
-                if not link:
-                    continue
-
-                # Classify academic tier, internship flags, and FAANG tags
-                classify_hackathon(doc)
-
-                # Geocode physical events
-                if doc.get("mode", "").lower() == "offline" and doc.get("location"):
-                    loc = doc["location"]
-                    if loc.lower() not in {"online", "virtual", "tba"} and not doc.get("lat"):
-                        lat, lng = geocode(loc)
-                        if lat and lng:
-                            doc["lat"] = lat
-                            doc["lng"] = lng
-
-                # Upsert to MongoDB
-                if collection is not None:
-                    res = collection.update_one({"link": link}, {"$set": doc}, upsert=True)
-                    if res.upserted_id:
-                        new_indexed += 1
-                        logger.info("Auto-indexed new internet hackathon: %s", doc["title"])
-
-        # 4. Instagram scan (runs once per sweep, not per-keyword)
-        if target_keywords == DEFAULT_KEYWORDS:  # Only on full sweeps
-            try:
-                from scrapers.instagram_scraper import scrape_instagram_hackathons
-                ig_items = scrape_instagram_hackathons()
-                total_found += len(ig_items)
-                for doc in ig_items:
-                    link = doc.get("link")
-                    if not link:
-                        continue
-                    classify_hackathon(doc)
-                    if doc.get("mode", "").lower() == "offline" and doc.get("location"):
-                        loc = doc["location"]
-                        if loc.lower() not in {"online", "virtual", "tba"} and not doc.get("lat"):
-                            lat, lng = geocode(loc)
-                            if lat and lng:
-                                doc["lat"] = lat
-                                doc["lng"] = lng
-                    if collection is not None:
-                        res = collection.update_one({"link": link}, {"$set": doc}, upsert=True)
-                        if res.upserted_id:
-                            new_indexed += 1
-                            logger.info("Auto-indexed Instagram hackathon: %s", doc["title"])
-                logs.append(f"Instagram scan: found {len(ig_items)} posts.")
-            except Exception as e:
-                logger.warning("Instagram scanner error: %s", e)
-                logs.append(f"Instagram scan error: {e}")
-
-        # 5. Web discovery scan (runs once per sweep)
-        if target_keywords == DEFAULT_KEYWORDS:
-            try:
-                from scrapers.web_discovery_scraper import run_web_discovery
-                web_items = run_web_discovery()
-                total_found += len(web_items)
-                for doc in web_items:
-                    link = doc.get("link")
-                    if not link:
-                        continue
-                    classify_hackathon(doc)
-                    if doc.get("mode", "").lower() == "offline" and doc.get("location"):
-                        loc = doc["location"]
-                        if loc.lower() not in {"online", "virtual", "tba"} and not doc.get("lat"):
-                            lat, lng = geocode(loc)
-                            if lat and lng:
-                                doc["lat"] = lat
-                                doc["lng"] = lng
-                    if collection is not None:
-                        res = collection.update_one({"link": link}, {"$set": doc}, upsert=True)
-                        if res.upserted_id:
-                            new_indexed += 1
-                            logger.info("Auto-indexed web discovery hackathon: %s", doc["title"])
-                logs.append(f"Web discovery scan: found {len(web_items)} events.")
-            except Exception as e:
-                logger.warning("Web discovery scanner error: %s", e)
-                logs.append(f"Web discovery scan error: {e}")
-
-        elapsed = round(time.time() - start_time, 2)
-        logs.append(f"Sweep complete in {elapsed}s. Scanned: {total_found} items, New indexed: {new_indexed}.")
-
-        # Invalidate API cache so fresh items are visible immediately
-        try:
-            from api import _cache
-            _cache.clear()
-        except Exception:
-            pass
-
+        def collect():
+            items = bounded_scrape('scrapers.internet_scanner', 'collect_keyword_events', {'keywords': target})
+            return items, {'InternetScanner': {'found': len(items), 'status': getattr(items, 'source_status', 'ok' if items else 'empty_unconfirmed')}}
+        summary = execute_scan(scraper_runner=collect)
         with _scanner_lock:
-            _scanner_state["last_scanned_at"] = datetime.now(timezone.utc).isoformat()
-            _scanner_state["total_scans_run"] += 1
-            _scanner_state["total_new_indexed"] += new_indexed
-            _scanner_state["last_scan_logs"] = logs[-15:]
-
-        return {
-            "success": True,
-            "message": f"Autonomous sweep completed in {elapsed}s. Found {total_found} opportunities, indexed {new_indexed} new events.",
-            "total_found": total_found,
-            "new_indexed": new_indexed,
-            "keywords_scanned": target_keywords,
-            "elapsed_seconds": elapsed,
-        }
-
-    except Exception as e:
-        logger.exception("Internet scanner sweep error: %s", e)
-        return {
-            "success": False,
-            "message": f"Scanner error: {str(e)}",
-            "new_indexed": 0,
-        }
+            _scanner_state['last_scanned_at'] = datetime.now(timezone.utc).isoformat()
+            _scanner_state['total_scans_run'] += 1
+            _scanner_state['total_new_indexed'] += summary.get('new', 0)
+            _scanner_state['last_scan_logs'] = [summary.get('status', 'failed')]
+        return {'success': summary.get('success', False), 'message': 'Scan '+summary.get('status', 'failed'),
+                'new_indexed': summary.get('new', 0), 'total_found': summary.get('scraped', 0),
+                'keywords_scanned': target, 'elapsed_seconds': round(time.monotonic() - started, 2)}
     finally:
         with _scanner_lock:
-            _scanner_state["is_scanning"] = False
+            _scanner_state['is_scanning'] = False
 
 
 def start_continuous_background_scanner(interval_hours: float = 0.25):

@@ -184,6 +184,7 @@ def _extract_metadata_from_url(url: str) -> Optional[dict]:
             "mode": mode,
             "location": location,
             "deadline": deadline_str or "TBA",
+            "deadline_kind": "registration" if deadline_iso else "unknown",
             "deadline_iso": deadline_iso,
             "prize": prize or "TBA",
             "tags": tags,
@@ -248,29 +249,8 @@ def _detect_tags(text: str) -> list[str]:
 
 
 def _scan_for_dates(text: str) -> tuple[Optional[str], Optional[str]]:
-    """Extract dates from text."""
-    months_map = {
-        "jan": "01", "feb": "02", "mar": "03", "apr": "04",
-        "may": "05", "jun": "06", "jul": "07", "aug": "08",
-        "sep": "09", "oct": "10", "nov": "11", "dec": "12",
-    }
-
-    # "Jan 15, 2026" or "January 15, 2026"
-    match = re.search(r"(\w{3,9})\s+(\d{1,2})(?:st|nd|rd|th)?,?\s+(\d{4})", text, re.IGNORECASE)
-    if match:
-        month_str, day, year = match.groups()
-        month = months_map.get(month_str.lower()[:3])
-        if month:
-            iso = f"{int(year):04d}-{month}-{int(day):02d}"
-            return f"{month_str} {day}, {year}", iso
-
-    # ISO format
-    match = re.search(r"(\d{4})-(\d{2})-(\d{2})", text)
-    if match:
-        iso = match.group(0)
-        return iso, iso
-
-    return None, None
+    from event_normalization import extract_registration_date
+    return extract_registration_date(text)
 
 
 def _scan_for_prize(text: str) -> Optional[str]:
@@ -434,6 +414,7 @@ def _scrape_mlh_events() -> list[dict]:
                 "title": title,
                 "link": link,
                 "source": "MLH",
+                "deadline_kind": "event",
                 "mode": mode,
                 "location": location,
                 "deadline": end_iso or "TBA",

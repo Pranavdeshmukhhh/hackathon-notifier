@@ -50,38 +50,18 @@ def run():
     skipped = 0
     geocoded = 0
 
+    from ingestion import ensure_indexes, ingest_batch
+    from db.job_leases import JobLease
+    if collection is None:
+        raise RuntimeError('Database unavailable')
+    ensure_indexes(collection.database)
     for h in hackathons:
-        link = h.get("link", "").strip()
-        if not link:
-            logger.warning("Skipping entry with no link: %s", h.get("title"))
-            skipped += 1
-            continue
-
-        # Geocode offline events if lat/lng missing
-        location = h.get("location", "")
-        mode = h.get("mode", "").lower()
-        if mode == "offline" and should_geocode(location) and (not h.get("lat") or not h.get("lng")):
-            lat, lng = geocode(location)
-            if lat and lng:
-                h["lat"] = lat
-                h["lng"] = lng
-                geocoded += 1
-                logger.info("Geocoded '%s' → (%s, %s)", location, lat, lng)
-            else:
-                logger.warning("Could not geocode: '%s'", location)
-
-        # Add metadata and classification
-        h["scraped_at"] = h.get("scraped_at") or now_iso
-        h["source"] = h.get("source") or "Unique Sources"
+        h['source'] = h.get('source') or 'Unique Sources'
+        h['deadline_kind'] = 'registration'
         classify_hackathon(h)
-
-        res = collection.update_one({"link": link}, {"$set": h}, upsert=True)
-        if res.upserted_id:
-            inserted += 1
-            logger.info("Inserted: %s", h.get("title"))
-        else:
-            updated += 1
-            logger.info("Updated existing: %s", h.get("title"))
+    with JobLease(collection.database.job_leases) as lease:
+        result = ingest_batch(collection, hackathons, lease=lease, authority=3)
+    inserted, updated, skipped = result['new'], result['updated'], result['rejected']
 
     logger.info("Done! Inserted=%d  Updated=%d  Skipped=%d  Geocoded=%d", inserted, updated, skipped, geocoded)
 

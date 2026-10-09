@@ -91,62 +91,8 @@ def _polite_delay():
 
 
 def _extract_dates_from_text(text: str) -> tuple[Optional[str], Optional[str]]:
-    """Extract deadline date and ISO date from caption text."""
-    # Common date patterns: "Jan 15, 2026", "15th January 2026", "2026-01-15"
-    date_patterns = [
-        # ISO format: 2026-01-15
-        r"(\d{4})-(\d{1,2})-(\d{1,2})",
-        # "Jan 15, 2026" or "January 15, 2026"
-        r"(\w+)\s+(\d{1,2})(?:st|nd|rd|th)?,?\s+(\d{4})",
-        # "15 Jan 2026" or "15th January 2026"
-        r"(\d{1,2})(?:st|nd|rd|th)?\s+(\w+),?\s+(\d{4})",
-        # "15/01/2026" or "15-01-2026"
-        r"(\d{1,2})[/\-](\d{1,2})[/\-](\d{4})",
-    ]
-
-    months_map = {
-        "jan": "01", "january": "01", "feb": "02", "february": "02",
-        "mar": "03", "march": "03", "apr": "04", "april": "04",
-        "may": "05", "jun": "06", "june": "06", "jul": "07", "july": "07",
-        "aug": "08", "august": "08", "sep": "09", "september": "09",
-        "oct": "10", "october": "10", "nov": "11", "november": "11",
-        "dec": "12", "december": "12",
-    }
-
-    for pattern in date_patterns:
-        match = re.search(pattern, text, re.IGNORECASE)
-        if match:
-            groups = match.groups()
-            try:
-                if re.match(r"\d{4}", groups[0]):
-                    # ISO format
-                    year, month, day = groups
-                    iso = f"{int(year):04d}-{int(month):02d}-{int(day):02d}"
-                    return iso, iso
-                elif re.match(r"[a-zA-Z]", groups[0]):
-                    # Month-first: "Jan 15, 2026"
-                    month_str, day, year = groups
-                    month = months_map.get(month_str.lower()[:3])
-                    if month:
-                        iso = f"{int(year):04d}-{month}-{int(day):02d}"
-                        return f"{month_str} {day}, {year}", iso
-                elif re.match(r"\d{1,2}", groups[0]) and len(groups) == 3:
-                    if re.match(r"[a-zA-Z]", groups[1]):
-                        # "15 Jan 2026"
-                        day, month_str, year = groups
-                        month = months_map.get(month_str.lower()[:3])
-                        if month:
-                            iso = f"{int(year):04d}-{month}-{int(day):02d}"
-                            return f"{day} {month_str} {year}", iso
-                    else:
-                        # "15/01/2026" (DD/MM/YYYY)
-                        day, month, year = groups
-                        iso = f"{int(year):04d}-{int(month):02d}-{int(day):02d}"
-                        return iso, iso
-            except (ValueError, TypeError):
-                continue
-
-    return None, None
+    from event_normalization import extract_registration_date
+    return extract_registration_date(text)
 
 
 def _extract_prize_from_text(text: str) -> str:
@@ -543,6 +489,7 @@ def _build_post_from_text(
         "mode": mode,
         "location": location,
         "deadline": deadline or "TBA",
+        "deadline_kind": "registration" if deadline_iso else "unknown",
         "deadline_iso": deadline_iso,
         "prize": prize,
         "tags": tags,

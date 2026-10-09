@@ -3,6 +3,7 @@ import os
 import re
 import sys
 import time
+import threading
 import statistics
 from collections import deque
 from datetime import datetime, timedelta, timezone
@@ -47,6 +48,9 @@ from schemas import (
 from filters.keyword_filter import classify_hackathon
 from scrapers.geocoder import geocode
 from lifecycle import is_expired, normalize_deadline, parse_deadline_iso
+from ingestion import IngestionService, ensure_indexes, ingest_batch, resolve_event
+from db.job_leases import JobLease, LeaseBusy
+from event_normalization import lifecycle_values
 from security import AdminAccessDenied, client_ip, require_admin
 from safe_http import FetchUnavailable, UnsafeURL, public_request, validate_public_url
 from scrapers.internet_scanner import (
@@ -110,8 +114,34 @@ v1_router = APIRouter(prefix="/api/v1", tags=["v1"])
 #     cached per unique user location area without allowing cache exhaustion attacks.
 #   - On a cache HIT the MongoDB round-trip is skipped entirely.
 #
-_CACHE_TTL = int(os.getenv("CACHE_TTL_SECONDS", 900))
-_cache: TTLCache = TTLCache(maxsize=32, ttl=_CACHE_TTL)
+_CACHE_TTL = min(60, max(1, int(os.getenv("CACHE_TTL_SECONDS", 60))))
+class _LockedTTLCache(TTLCache):
+    def __init__(self, *args, **kwargs):
+        self._lock = threading.RLock()
+        super().__init__(*args, **kwargs)
+
+    def get(self, *args):
+        with self._lock:
+            return super().get(*args)
+
+    def __getitem__(self, key):
+        with self._lock:
+            return super().__getitem__(key)
+
+    def __setitem__(self, key, value):
+        with self._lock:
+            return super().__setitem__(key, value)
+
+    def __len__(self):
+        with self._lock:
+            return super().__len__()
+
+    def clear(self):
+        with self._lock:
+            return super().clear()
+
+
+_cache: TTLCache = _LockedTTLCache(maxsize=32, ttl=_CACHE_TTL)
 _CACHE_KEY = "hackathons"
 
 # Explicit public fields keep scraper traces and administrator metadata private.
@@ -121,8 +151,37 @@ _EVENT_PROJECTION = {key: 1 for key in (
     "is_top_college", "college_name", "college_type", "is_internship", "status",
     "total_registrations", "registrations", "min_team_size", "max_team_size",
     "scraped_at", "desc", "tagline", "opportunity_type", "verified",
-    "verification_confidence", "discovery_source", "source_account", "instagram_post_url",
+    "verification_confidence", "discovery_source", "source_account", "instagram_post_url", "registration_deadline", "deadline_kind", "publication_state",
 )}
+
+_last_generation = None
+_generation_checked_at = 0.0
+_generation_lock = threading.Lock()
+
+
+def _check_dataset_generation():
+    with _generation_lock:
+        _poll_dataset_generation()
+
+
+def _poll_dataset_generation():
+    global _last_generation, _generation_checked_at
+    now = time.monotonic()
+    if now - _generation_checked_at < 5:
+        return
+    try:
+        col = get_collection('dataset_state')
+        if col is None:
+            return
+        state = col.find_one({'_id': 'events'}, {'generation': 1}) or {}
+        generation = state.get('generation', 0)
+        if generation != _last_generation:
+            _cache.clear()
+            _last_generation = generation
+        _generation_checked_at = now
+    except Exception:
+        pass  # The 60-second TTL bounds stale data even if this poll fails.
+
 
 def _matches_format(doc: dict, category: str) -> bool:
     """Recognize scraper format aliases consistently in counts and filters."""
@@ -240,10 +299,10 @@ def _sort_hackathons(docs: list[dict]) -> list[dict]:
     upcoming, no_date, past = [], [], []
 
     for doc in docs:
-        normalize_deadline(doc)  # derive deadline_iso from text so every source can expire
+        normalize_deadline(doc)  # Legacy compatibility; labelled records never infer event-end deadlines.
         iso = parse_deadline_iso(doc.get("deadline_iso")) or ""
         status = str(doc.get("status") or "").strip().lower()
-        closed = status in {"ended", "closed", "completed", "cancelled", "canceled", "finished"}
+        closed = lifecycle_values(doc)["is_past"]
 
         if iso and iso >= today and not closed:
             upcoming.append(doc)
@@ -613,6 +672,7 @@ def get_hackathons(
 
     # --- cache hit → skip Mongo entirely ---
     # Store base dataset in _cache[_CACHE_KEY]; compute distance dynamically to prevent cache thrashing attacks
+    _check_dataset_generation()
     cached = _cache.get(_CACHE_KEY)
     today = datetime.now(timezone.utc).date()
     if cached and cached.get("day") != today.isoformat():
@@ -623,7 +683,7 @@ def get_hackathons(
         try:
             collection = get_collection()
             # Projection: only fetch UI fields, skipping raw debug/trace metadata to speed up MongoDB transit
-            cursor = collection.find({}, _EVENT_PROJECTION)
+            cursor = collection.find({"publication_state": {"$ne": "suppressed"}}, _EVENT_PROJECTION)
             docs = []
             for doc in cursor:
                 doc["_id"] = str(doc["_id"])
@@ -820,7 +880,7 @@ def get_hackathons(
     if if_none_match and if_none_match.strip() == etag:
         return Response(status_code=304, headers={
             "ETag": etag,
-            "Cache-Control": "public, max-age=60, stale-while-revalidate=300"
+            "Cache-Control": "public, max-age=60, must-revalidate"
         })
 
     return JSONResponse(
@@ -828,7 +888,7 @@ def get_hackathons(
         media_type="application/json; charset=utf-8",
         headers={
             "ETag": etag,
-            "Cache-Control": "public, max-age=60, stale-while-revalidate=300"
+            "Cache-Control": "public, max-age=60, must-revalidate"
         }
     )
 
@@ -843,10 +903,11 @@ def get_hackathon_detail(request: Request, event_id: str = Path(pattern=r"^[0-9a
         if collection is None:
             raise RuntimeError("Database unavailable")
         projection = {**_EVENT_PROJECTION, "organizer": 1, "eligibility": 1}
-        doc = collection.find_one({"_id": {"$in": [ObjectId(event_id), event_id.lower()]}}, projection)
+        resolved = resolve_event(collection, event_id, projection)
+        doc = {key: value for key, value in (resolved or {}).items() if key in projection} if resolved else None
         if doc is None:
             return JSONResponse(status_code=404, content={"success": False, "error": "Event not found"}, headers={"Cache-Control": "no-store"})
-        doc["_id"] = str(doc["_id"])
+        doc["_id"] = event_id.lower()  # Alias URLs continue to resolve with the requested public ID.
         doc = _sort_hackathons([doc])[0]
         # Some sources store HTML excerpts. Return readable text without active content.
         for field in ("desc", "tagline", "organizer", "eligibility"):
@@ -949,7 +1010,7 @@ def _extract_url_metadata(url: str) -> dict:
         "title": None,
         "desc": None,
         "source": "Community / Direct",
-        "mode": "Virtual",
+        "mode": None,
         "location": None,
         "tags": [],
         "image": None,
@@ -1056,7 +1117,7 @@ def _extract_url_metadata(url: str) -> dict:
                     result["location"] = "New Delhi, Delhi, India"
             elif any(term in combined_text for term in ["hybrid"]):
                 result["mode"] = "Hybrid"
-            else:
+            elif any(term in combined_text for term in ["online", "virtual", "remote"]):
                 result["mode"] = "Virtual"
                 result["location"] = "Online"
 
@@ -1107,7 +1168,7 @@ def auto_list_hackathon(request: Request, body: HackathonAutoListRequest):
 
     meta = {}
     try:
-        link = validate_public_url(link)
+        validate_public_url(link)
         if body.fetch_metadata or not body.title or not body.desc:
             meta = _extract_url_metadata(link)
     except UnsafeURL as exc:
@@ -1117,7 +1178,7 @@ def auto_list_hackathon(request: Request, body: HackathonAutoListRequest):
 
     title = (body.title or meta.get("title") or "Community Hackathon").strip()
     source = (body.source or meta.get("source") or "Community / Auto-Listed").strip()
-    mode = (body.mode or meta.get("mode") or "Virtual").strip().capitalize()
+    mode = (body.mode or meta.get("mode") or "Unknown").strip().capitalize()
     location = body.location if body.location is not None else meta.get("location")
     desc = (body.desc or meta.get("desc") or "").strip()
 
@@ -1140,7 +1201,7 @@ def auto_list_hackathon(request: Request, body: HackathonAutoListRequest):
         "prize": body.prize or "TBA",
         "tags": sorted(list(tag_set)),
         "desc": desc,
-        "status": "Open",
+        "status": None,
         "is_past": False,
         "scraped_at": now_iso,
     }
@@ -1156,7 +1217,7 @@ def auto_list_hackathon(request: Request, body: HackathonAutoListRequest):
         loc = doc["location"]
         if loc.lower() not in {"online", "virtual", "remote", "tba"}:
             lat, lng = geocode(loc)
-            if lat and lng:
+            if lat is not None and lng is not None:
                 doc["lat"] = lat
                 doc["lng"] = lng
 
@@ -1168,15 +1229,26 @@ def auto_list_hackathon(request: Request, body: HackathonAutoListRequest):
                 status_code=503,
                 content={"success": False, "message": "Database unavailable", "is_new": False, "data": None}
             )
-        res = col.update_one({"link": link}, {"$set": doc}, upsert=True)
-        is_new = bool(res.upserted_id)
+        ensure_indexes(col.database)
+        doc["deadline_kind"] = "registration"
+        supplied = body.model_fields_set - {"link", "fetch_metadata"}
+        authorities = {field: 3 for field in supplied}
+        if supplied & {"deadline", "deadline_iso"}:
+            supplied.update({"deadline_kind", "registration_deadline", "deadline", "deadline_iso"})
+            authorities.update({field: 3 for field in ("deadline_kind", "registration_deadline", "deadline", "deadline_iso")})
+        clear_fields = {field for field in body.model_fields_set if getattr(body, field, None) is None}
+        if "deadline_iso" in clear_fields and "deadline" not in body.model_fields_set:
+            clear_fields.add("registration_deadline")
+        with JobLease(col.database.job_leases) as lease:
+            result = IngestionService(col, lease=lease).ingest(doc, authority=1, protected_fields=supplied, clear_fields=clear_fields, field_authorities=authorities)
+        is_new = result["is_new"]
 
         # Clear API in-memory cache so newly listed hackathon is immediately visible
         _cache.clear()
         logger.info("Auto-listed hackathon '%s' (is_new=%s)", title, is_new)
 
         # Fetch inserted/updated doc with _id stringified
-        saved = col.find_one({"link": link})
+        saved = {key: value for key, value in result["data"].items() if key in {**_EVENT_PROJECTION, "organizer": 1, "eligibility": 1}}
         if saved and "_id" in saved:
             saved["_id"] = str(saved["_id"])
 
@@ -1186,6 +1258,10 @@ def auto_list_hackathon(request: Request, body: HackathonAutoListRequest):
             "is_new": is_new,
             "data": saved or doc,
         }
+    except LeaseBusy:
+        return JSONResponse(status_code=409, content={"success": False, "message": "An ingestion job is running; retry later", "is_new": False, "data": None})
+    except ValueError:
+        return JSONResponse(status_code=422, content={"success": False, "message": "Event facts or identities require review", "is_new": False, "data": None})
     except Exception as e:
         logger.error("Failed to save hackathon (%s)", type(e).__name__)
         return JSONResponse(
@@ -1215,7 +1291,9 @@ def get_latest_scan_status(request: Request):
             latest = col.find_one(sort=[("timestamp", -1)])
             if latest:
                 latest["_id"] = str(latest["_id"])
-                return JSONResponse(content=latest)
+                safe = {key: latest[key] for key in ("_id", "success", "status", "run_at", "timestamp", "duration_s", "scraped", "new", "updated", "archived", "purged", "notified") if key in latest}
+                safe["sources"] = {name: {key: info[key] for key in ("found", "status") if key in info} for name, info in latest.get("sources", {}).items() if isinstance(info, dict)}
+                return JSONResponse(content=safe)
     except Exception as e:
         logger.warning("Failed to fetch latest scan status: %s", e)
 
@@ -1248,39 +1326,20 @@ def trigger_internet_scanner(request: Request, body: ScannerTriggerRequest):
 def trigger_instagram_scan(request: Request, body: InstagramScanRequest):
     """Trigger an Instagram scan for hackathon posts from known accounts and hashtags."""
     import time as _time
-    from scrapers.instagram_scraper import scrape_instagram_hackathons
+    from scrapers.source_runner import bounded_scrape
 
     start = _time.time()
     try:
-        items = scrape_instagram_hackathons(
-            accounts=body.accounts,
-            hashtags=body.hashtags,
-        )
-
-        new_indexed = 0
         collection = get_collection()
-
-        for doc in items:
-            link = doc.get("link")
-            if not link or collection is None:
-                continue
-
-            normalize_deadline(doc)
-            if is_expired(doc):
-                continue
-            doc["last_seen_at"] = datetime.now(timezone.utc).isoformat()
-            classify_hackathon(doc)
-            if doc.get("mode", "").lower() == "offline" and doc.get("location"):
-                loc = doc["location"]
-                if loc.lower() not in {"online", "virtual", "tba"} and not doc.get("lat"):
-                    lat, lng = geocode(loc)
-                    if lat and lng:
-                        doc["lat"] = lat
-                        doc["lng"] = lng
-
-            res = collection.update_one({"link": link}, {"$set": doc}, upsert=True)
-            if res.upserted_id:
-                new_indexed += 1
+        if collection is None:
+            return JSONResponse(status_code=503, content={"success": False, "message": "Database unavailable", "total_found": 0, "new_indexed": 0})
+        ensure_indexes(collection.database)
+        with JobLease(collection.database.job_leases) as lease:
+            items = bounded_scrape("scrapers.instagram_scraper", "scrape_instagram_hackathons", {"accounts": body.accounts, "hashtags": body.hashtags})
+            for doc in items:
+                classify_hackathon(doc)
+            batch = ingest_batch(collection, items, lease=lease)
+        new_indexed = batch['new']
 
         _cache.clear()
         elapsed = round(_time.time() - start, 2)
@@ -1292,8 +1351,10 @@ def trigger_instagram_scan(request: Request, body: InstagramScanRequest):
             "new_indexed": new_indexed,
             "elapsed_seconds": elapsed,
         }
+    except LeaseBusy:
+        return JSONResponse(status_code=409, content={"success": False, "message": "An ingestion job is running; retry later", "total_found": 0, "new_indexed": 0})
     except Exception as e:
-        logger.error("Instagram scan error: %s", e)
+        logger.error("Instagram scan error (%s)", type(e).__name__)
         return JSONResponse(
             status_code=500,
             content={"success": False, "message": "Instagram scan failed", "total_found": 0, "new_indexed": 0}
@@ -1308,36 +1369,20 @@ def trigger_instagram_scan(request: Request, body: InstagramScanRequest):
 def trigger_web_discovery(request: Request, body: WebDiscoveryRequest):
     """Trigger a web discovery scan across Google, MLH, Eventbrite, and KonfHub."""
     import time as _time
-    from scrapers.web_discovery_scraper import run_web_discovery
+    from scrapers.source_runner import bounded_scrape
 
     start = _time.time()
     try:
-        items = run_web_discovery(queries=body.queries)
-
-        new_indexed = 0
         collection = get_collection()
-
-        for doc in items:
-            link = doc.get("link")
-            if not link or collection is None:
-                continue
-
-            normalize_deadline(doc)
-            if is_expired(doc):
-                continue
-            doc["last_seen_at"] = datetime.now(timezone.utc).isoformat()
-            classify_hackathon(doc)
-            if doc.get("mode", "").lower() == "offline" and doc.get("location"):
-                loc = doc["location"]
-                if loc.lower() not in {"online", "virtual", "tba"} and not doc.get("lat"):
-                    lat, lng = geocode(loc)
-                    if lat and lng:
-                        doc["lat"] = lat
-                        doc["lng"] = lng
-
-            res = collection.update_one({"link": link}, {"$set": doc}, upsert=True)
-            if res.upserted_id:
-                new_indexed += 1
+        if collection is None:
+            return JSONResponse(status_code=503, content={"success": False, "message": "Database unavailable", "total_found": 0, "new_indexed": 0})
+        ensure_indexes(collection.database)
+        with JobLease(collection.database.job_leases) as lease:
+            items = bounded_scrape("scrapers.web_discovery_scraper", "run_web_discovery", {"queries": body.queries})
+            for doc in items:
+                classify_hackathon(doc)
+            batch = ingest_batch(collection, items, lease=lease)
+        new_indexed = batch['new']
 
         _cache.clear()
         elapsed = round(_time.time() - start, 2)
@@ -1349,8 +1394,10 @@ def trigger_web_discovery(request: Request, body: WebDiscoveryRequest):
             "new_indexed": new_indexed,
             "elapsed_seconds": elapsed,
         }
+    except LeaseBusy:
+        return JSONResponse(status_code=409, content={"success": False, "message": "An ingestion job is running; retry later", "total_found": 0, "new_indexed": 0})
     except Exception as e:
-        logger.error("Web discovery error: %s", e)
+        logger.error("Web discovery error (%s)", type(e).__name__)
         return JSONResponse(
             status_code=500,
             content={"success": False, "message": "Web discovery failed", "total_found": 0, "new_indexed": 0}

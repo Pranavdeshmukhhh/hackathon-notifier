@@ -83,15 +83,13 @@ def test_run_internet_scan_upsert():
         }
     ]
 
-    mock_col = MagicMock()
-    mock_res = MagicMock()
-    mock_res.upserted_id = "test-id-123"
-    mock_col.update_one.return_value = mock_res
-
-    with patch("scrapers.internet_scanner.scan_single_keyword", return_value=mock_items), \
-         patch("scrapers.internet_scanner.get_collection", return_value=mock_col):
-        res = run_internet_scan(keywords=["iiit"])
-        assert res["success"] is True
-        assert res["total_found"] == 1
-        assert res["new_indexed"] == 1
-        mock_col.update_one.assert_called_once()
+    import mongomock
+    database = mongomock.MongoClient().phase5_restore_test
+    with patch('scrapers.source_runner.bounded_scrape', return_value=mock_items), \
+         patch('run_scan.get_collection', side_effect=lambda name='hackathons': database[name]), \
+         patch('run_scan.batch_verify', side_effect=lambda docs, **kwargs: docs):
+        res = run_internet_scan(keywords=['iiit'])
+        assert res['success'] is True
+        assert res['total_found'] == 1
+        assert res['new_indexed'] == 1
+        assert database.hackathons.count_documents({}) == 1

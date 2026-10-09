@@ -4,7 +4,9 @@
 
 **Never miss a hackathon again.**
 
-A full-stack, production-grade hackathon aggregation platform — scraping Devfolio, Unstop, Devpost, HackerEarth, and Devnovate in real-time, scanning the open internet and Instagram for hidden hackathons, verifying listings with an automated 7-signal verification engine, classifying opportunities with smart metadata, and delivering them straight to your Telegram and a sleek web dashboard.
+A hackathon discovery product using React, FastAPI and MongoDB. It collects platform and community listings, classifies opportunities with deterministic rules, and supports discovery, filtering, event details and Telegram subscriptions. Background collection and delivery require explicit operator configuration.
+
+Phase 5 data reliability and its staged migration requirements are documented in [Backend/PHASE5.md](Backend/PHASE5.md). Deploying code does not migrate live records or enable notification delivery.
 
 [![Live Demo](https://img.shields.io/badge/🌍_Live_Demo-Vercel-black?style=for-the-badge)](https://hackathon-notifier.vercel.app)
 [![Backend API](https://img.shields.io/badge/⚡_Backend_API-Render-46E3B7?style=for-the-badge)](https://hackathon-notifier.onrender.com)
@@ -14,8 +16,6 @@ A full-stack, production-grade hackathon aggregation platform — scraping Devfo
 <div style="margin-top: 8px;">
 
 [![CI Pipeline](https://github.com/Pranavdeshmukhhh/hackathon-notifier/actions/workflows/ci.yml/badge.svg)](https://github.com/Pranavdeshmukhhh/hackathon-notifier/actions)
-[![Tests](https://img.shields.io/badge/tests-138%20passed-brightgreen?style=flat-square&logo=pytest)](https://github.com/Pranavdeshmukhhh/hackathon-notifier)
-[![Coverage](https://img.shields.io/badge/coverage-85%2B%25-brightgreen?style=flat-square&logo=codecov)](https://github.com/Pranavdeshmukhhh/hackathon-notifier)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square)](LICENSE)
 [![Python 3.12](https://img.shields.io/badge/python-3.12-blue.svg?style=flat-square&logo=python)](https://python.org)
 [![FastAPI](https://img.shields.io/badge/FastAPI-v1.0.0-009688.svg?style=flat-square&logo=fastapi)](https://hackathon-notifier.onrender.com/docs)
@@ -119,7 +119,7 @@ A full-stack, production-grade hackathon aggregation platform — scraping Devfo
 | 📡 | Requests | latest | HTTP client (geocoder, HackerEarth, Web Discovery) |
 | 🔐 | python-dotenv | latest | Environment variable loading |
 | 🌐 | Certifi | latest | TLS CA bundle |
-| 🧪 | pytest + pytest-cov | latest | Test suite (115 backend tests) |
+| 🧪 | pytest + pytest-cov | latest | Backend regression and isolated MongoDB integration tests |
 | 🗄️ | mongomock | latest | In-memory MongoDB for unit tests |
 
 ### Frontend
@@ -129,7 +129,7 @@ A full-stack, production-grade hackathon aggregation platform — scraping Devfo
 | ⚛️ | React | 19 | UI framework |
 | ⚡ | Vite | 8 | Build tool + dev server |
 | 🎨 | Tailwind CSS | 4 | Utility-first styling |
-| 🧪 | Vitest | 5 | Next-generation unit test runner (23 unit tests) |
+| 🧪 | Vitest | 5 | Frontend regression tests |
 | 🧪 | React Testing Library | 16 | DOM & component interaction testing |
 | 🔤 | Inter (Google Fonts) | — | Typography |
 | ✏️ | Lucide React | — | Icon set |
@@ -139,11 +139,11 @@ A full-stack, production-grade hackathon aggregation platform — scraping Devfo
 
 | Service / Tool | Purpose |
 |---|---|
-| **Render** | `unified_server.py` — FastAPI API + Telegram polling bot + hourly scraper |
+| **Render** | `unified_server.py` — API and separately configured polling, scanning and delivery roles |
 | **Vercel** | React frontend (CDN, global edge, auto-deploy on push to `main`) |
-| **MongoDB Atlas** | Free-tier M0 cluster (512 MB), collections: `hackathons` + `subscribers` + `visitors` |
+| **MongoDB Atlas** | Existing events/subscribers plus persistent leases, delivery ledger and cache generation; production writes require transactions |
 | **Docker & Compose** | Containerized reproducible environment for local dev & production |
-| **GitHub Actions** | Unified CI: Python 3.12 (115 tests) + Node.js 20 (oxlint + 23 vitest tests + build) |
+| **GitHub Actions** | Backend/frontend workflow configuration in `.github/workflows/ci.yml`; confirm the current workflow run before relying on CI |
 
 ---
 
@@ -164,8 +164,8 @@ hackathon-notifier/
 ├── Backend/
 │   ├── api.py                   # FastAPI app, /api and /api/v1 routes, rate limiting, telemetry
 │   ├── schemas.py               # Pydantic models (HackathonOut, StatsOut, Responses)
-│   ├── main.py                  # One-shot pipeline: scrape → classify → dedup → notify
-│   ├── unified_server.py        # Render entry point: API + bot polling + hourly scraper
+│   ├── main.py                  # Compatibility entry point for the shared scan pipeline
+│   ├── unified_server.py        # API and explicitly configured background roles
 │   ├── scrape_job.py            # Standalone cron-safe scrape runner
 │   ├── Procfile                 # web: python unified_server.py
 │   ├── requirements.txt         # Pinned Python dependencies with upper bounds
@@ -207,7 +207,7 @@ hackathon-notifier/
 │       ├── conftest.py          # Shared fixtures (mongomock, sample data)
 │       ├── test_api_security.py # Security, rate limits, v1 routes, OpenAPI tests
 │       ├── test_pipeline.py     # Pipeline integration & concurrent scraper tests
-│       └── ...                  # 109 comprehensive test cases
+│       └── ...                  # Regression and reliability tests
 │
 └── Frontend/
     ├── src/
@@ -307,8 +307,15 @@ WEBAPP_URL=https://hackathon-notifier.vercel.app
 # Optional: Admin secret for the /api/refresh endpoint (any random string)
 ADMIN_SECRET=some-random-secret
 
-# Optional: Cache TTL in seconds (default 10800 = 3 hours)
-CACHE_TTL_SECONDS=10800
+# Optional: API dataset cache TTL (default/max: 60 seconds)
+CACHE_TTL_SECONDS=60
+
+# Keep all background side effects off until the Phase 5 rollout is reviewed.
+PHASE5_WRITE_TRANSACTIONS=false
+ENABLE_BACKGROUND_SCANNER=false
+ENABLE_NOTIFICATION_DELIVERY=false
+ENABLE_TELEGRAM_POLLING=false
+ENABLE_GEOCODING=false
 ```
 
 **Start the backend:**
@@ -317,10 +324,10 @@ CACHE_TTL_SECONDS=10800
 # FastAPI server only (API at http://localhost:8000)
 uvicorn api:app --reload --port 8000
 
-# Full unified server (API + Telegram bot + hourly scraper)
+# API with separately configured polling/scanning/delivery roles
 python unified_server.py
 
-# Run the scraper pipeline once — writes to DB, sends Telegram alerts
+# Run the scraper pipeline once — writes events and durable delivery intents
 python -m main
 
 # Dry run — scrapes only, no DB writes, no Telegram messages
@@ -374,7 +381,7 @@ The bot responds to these commands (also available as a tap-able reply keyboard)
 | `/broadcast <message>` | Send a custom message to all subscribers |
 | `/subscribers` | View total active subscriber count |
 
-**Push notifications** are sent automatically for every new top-college or internship event discovered during a scheduled scrape.
+**Push notifications** for new top-college or internship events use a durable recipient delivery queue. Sending requires `ENABLE_NOTIFICATION_DELIVERY=true`; see [the Phase 5 rollout guide](Backend/PHASE5.md) before enabling it.
 
 ---
 
@@ -417,19 +424,19 @@ For our full security policy, vulnerability reporting guidelines, and coordinate
 ## 🧪 Tests
 
 ```bash
-# Backend tests (115 test cases)
+# Backend tests (real MongoDB cases skip unless explicitly configured)
 cd Backend
 pytest tests/ -v
 
 # Run with coverage report
 pytest tests/ -v --cov=. --cov-report=term-missing
 
-# Frontend tests (23 test cases)
+# Frontend tests
 cd ../Frontend
 npm test
 ```
 
-All 138 tests (115 backend + 23 frontend) pass on every push (enforced by GitHub Actions CI — see `.github/workflows/ci.yml`).
+For isolated real MongoDB transaction and recovery checks, follow [Backend/PHASE5.md](Backend/PHASE5.md). Local verification and a passing GitHub workflow are separate checks; inspect the branch's actual Actions result.
 
 ---
 
