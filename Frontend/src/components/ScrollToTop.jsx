@@ -15,7 +15,7 @@ export function ScrollToTop() {
   return (
     <button
       type="button"
-      className="hn-btn"
+      className="hn-btn hn-icon-btn"
       aria-label="Scroll to top"
       onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
       style={{
@@ -23,9 +23,6 @@ export function ScrollToTop() {
         bottom: '20px',
         left: '20px',
         zIndex: 50,
-        width: '34px',
-        height: '34px',
-        padding: 0,
       }}
     >
       <ArrowUpIcon size={15} />

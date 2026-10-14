@@ -45,12 +45,15 @@ export function filterAndSortEvents(
     format = 'all',
     source = 'all',
     sort = 'deadline_asc',
+    scope = 'all', // 'all' | 'closing' | 'saved'
+    savedIds = [],
     hideClosed = false,
     userCoords = null,
   } = {}
 ) {
   if (!Array.isArray(events)) return [];
   const query = String(search || '').trim().toLowerCase();
+  const savedSet = new Set(savedIds);
 
   const normalized = events.map((ev) => {
     const item = ev?.sourceLabel ? { ...ev } : normalizeEventPresentation(ev);
@@ -64,6 +67,8 @@ export function filterAndSortEvents(
 
   const filtered = normalized.filter((item) => {
     if (hideClosed && item.lifecycleKey === 'closed') return false;
+    if (scope === 'saved' && !savedSet.has(item.id)) return false;
+    if (scope === 'closing' && item.lifecycleKey !== 'closing') return false;
     if (format && format !== 'all' && item.formatKey !== format.toLowerCase()) return false;
     if (source && source !== 'all' && item.sourceKey !== source.toLowerCase()) return false;
 
@@ -74,6 +79,7 @@ export function filterAndSortEvents(
         item.sourceLabel,
         item.organizer,
         item.summary,
+        item.prizeLabel,
         ...(item.tags || []),
       ]
         .join(' ')

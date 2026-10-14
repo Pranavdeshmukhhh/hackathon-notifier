@@ -77,6 +77,47 @@ export const ArrowUpIcon = ({ size = 15 }) => (
   </svg>
 );
 
+export const GridIcon = ({ size = 14 }) => (
+  <svg {...svgProps(size)}>
+    <rect x="3" y="3" width="7" height="7" rx="1" />
+    <rect x="14" y="3" width="7" height="7" rx="1" />
+    <rect x="14" y="14" width="7" height="7" rx="1" />
+    <rect x="3" y="14" width="7" height="7" rx="1" />
+  </svg>
+);
+
+export const TableListIcon = ({ size = 14 }) => (
+  <svg {...svgProps(size)}>
+    <line x1="8" y1="6" x2="21" y2="6" />
+    <line x1="8" y1="12" x2="21" y2="12" />
+    <line x1="8" y1="18" x2="21" y2="18" />
+    <line x1="3" y1="6" x2="3.01" y2="6" />
+    <line x1="3" y1="12" x2="3.01" y2="12" />
+    <line x1="3" y1="18" x2="3.01" y2="18" />
+  </svg>
+);
+
+export const BookmarkIcon = ({ size = 14, filled = false }) => (
+  <svg {...svgProps(size)} fill={filled ? 'currentColor' : 'none'}>
+    <path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z" />
+  </svg>
+);
+
+export const CalendarIcon = ({ size = 14 }) => (
+  <svg {...svgProps(size)}>
+    <rect x="3" y="4" width="18" height="18" rx="2" />
+    <line x1="16" y1="2" x2="16" y2="6" />
+    <line x1="8" y1="2" x2="8" y2="6" />
+    <line x1="3" y1="10" x2="21" y2="10" />
+  </svg>
+);
+
+export const CommandIcon = ({ size = 14 }) => (
+  <svg {...svgProps(size)}>
+    <path d="M18 3a3 3 0 0 0-3 3v12a3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3H6a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3V6a3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3h12a3 3 0 0 0 3-3 3 3 0 0 0-3-3z" />
+  </svg>
+);
+
 export default {
   SearchIcon,
   ExternalArrowIcon,
@@ -88,4 +129,9 @@ export default {
   CopyIcon,
   TerminalIcon,
   ArrowUpIcon,
+  GridIcon,
+  TableListIcon,
+  BookmarkIcon,
+  CalendarIcon,
+  CommandIcon,
 };

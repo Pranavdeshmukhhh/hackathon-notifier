@@ -1,10 +1,8 @@
-# Hackathon Notifier — Industrial UI Design System
+# Hackathon Notifier — V2 Industrial Console Design System
 
-## 1. Strict Anti-AI-Slop Ruleset (Enforced)
-1. **Zero Neon Gradients**: No purple-to-cyan or indigo-to-pink gradients on text, buttons, or borders.
-2. **Zero Blur Blobs**: No floating `filter: blur(120px)` decorative background circles.
-3. **Zero Emoji Clutter**: No emojis in UI buttons, badges, filter controls, or section headers. Use 1.5px monoline SVG geometry (`Icons.jsx`).
-4. **Zero Bouncy Card Hovers**: Cards never scale or float upward (`translateY(-8px)`). Hover states use a 120ms border and surface luminance shift.
-5. **Strict Tabular Monospace Telemetry**: Dates, countdowns, distances, pagination counters, and platform sources use `JetBrains Mono` with `font-variant-numeric: tabular-nums`.
-6. **Zero Marketing Fluff**: Copywriting is direct, technical, and utilitarian.
-7. **Deterministic Normalization**: Raw `null`, `undefined`, or unparsed ISO timestamps never leak into the DOM (`eventPresentation.js`).
+## Architectural Principles
+1. **Exposed Hairline Bento Grid**: Structural 1px borders with precision `+` intersection crosshairs.
+2. **Tactile Beveled Surfaces**: Inset top-edge specular highlights (`inset 0 1px 0 rgba(255,255,255,0.07)`) instead of blurry drop-shadows or neon blobs.
+3. **Platform Identity Micro-Tokens**: Dedicated SVG monograms and semantic status indicators for Devfolio, Unstop, Devpost, HackerEarth, and Devnovate.
+4. **Dual-Mode Density**: Instant switching between Tactile Spec Cards (with deadline urgency gauges) and a Linear-style Tabular Terminal Matrix.
+5. **Keyboard-First Workflow**: Global `⌘K` Command Palette, `/` quick filter, and `J`/`K` event stepping inside the slide-over inspector sheet.

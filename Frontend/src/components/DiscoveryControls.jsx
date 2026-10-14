@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { SearchIcon, CompassIcon } from './Icons';
+import { SearchIcon, CompassIcon, GridIcon, TableListIcon, BookmarkIcon } from './Icons';
 
 const FORMAT_OPTIONS = [
   { id: 'all', label: 'All Formats' },
@@ -24,6 +24,11 @@ export function DiscoveryControls({
   availableSources = ['devfolio', 'unstop', 'devpost', 'hackerearth', 'devnovate'],
   sortBy = 'deadline_asc',
   onSortChange,
+  scope = 'all',
+  onScopeChange,
+  savedCount = 0,
+  viewMode = 'grid',
+  onViewModeChange,
   onUseLocation,
   locationActive = false,
   resultCount = 0,
@@ -53,16 +58,17 @@ export function DiscoveryControls({
     Boolean(searchQuery?.trim()) ||
     selectedFormat !== 'all' ||
     selectedSource !== 'all' ||
+    scope !== 'all' ||
     locationActive;
 
   return (
-    <div className="hn-controls-bar" role="region" aria-label="Discovery filters">
-      <div className="hn-search-row">
-        <div className="hn-input-wrapper">
+    <div className="hn-controls-deck" role="region" aria-label="Discovery filters">
+      <div className="hn-controls-top">
+        <div className="hn-search-box">
           <span
             style={{
               position: 'absolute',
-              left: '12px',
+              left: '11px',
               color: 'var(--text-tertiary)',
               display: 'inline-flex',
               pointerEvents: 'none',
@@ -76,13 +82,15 @@ export function DiscoveryControls({
             className="hn-search-input"
             value={searchQuery}
             onChange={(e) => onSearchChange?.(e.target.value)}
-            placeholder="Filter by title, city, college, stack, or organizer..."
+            placeholder="Filter by title, city, college, stack (e.g. Rust, eBPF, Mumbai)..."
             aria-label="Search hackathons"
           />
-          <kbd className="hn-kbd">/</kbd>
+          <div className="hn-kbd-group">
+            <kbd className="hn-kbd">/</kbd>
+          </div>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
           {onUseLocation && (
             <button
               type="button"
@@ -90,42 +98,100 @@ export function DiscoveryControls({
               onClick={onUseLocation}
               aria-pressed={locationActive}
               style={{
-                height: '38px',
-                borderColor: locationActive ? 'var(--accent-brand)' : undefined,
+                height: '36px',
+                borderColor: locationActive ? 'var(--accent-signal)' : undefined,
+                color: locationActive ? 'var(--accent-signal)' : undefined,
               }}
             >
               <CompassIcon size={14} />
-              <span>{locationActive ? 'Near Me Active' : 'Locate'}</span>
+              <span>{locationActive ? 'Near Me Active' : 'Proximity'}</span>
             </button>
+          )}
+
+          {/* Grid vs Table View Switcher */}
+          {onViewModeChange && (
+            <div className="hn-segmented" role="group" aria-label="Display layout" style={{ height: '36px', alignItems: 'center' }}>
+              <button
+                type="button"
+                className={`hn-seg-btn ${viewMode === 'grid' ? 'active' : ''}`}
+                onClick={() => onViewModeChange('grid')}
+                title="Bento Card Grid"
+                aria-label="Grid view"
+              >
+                <GridIcon />
+              </button>
+              <button
+                type="button"
+                className={`hn-seg-btn ${viewMode === 'table' ? 'active' : ''}`}
+                onClick={() => onViewModeChange('table')}
+                title="Terminal Table View"
+                aria-label="Table view"
+              >
+                <TableListIcon />
+              </button>
+            </div>
           )}
         </div>
       </div>
 
-      <div className="hn-filter-strip">
-        <div className="hn-segmented-group" role="group" aria-label="Event format">
-          {FORMAT_OPTIONS.map((fmt) => {
-            const active = selectedFormat === fmt.id;
-            return (
+      <div className="hn-controls-bottom">
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+          {/* Format Segmented Control */}
+          <div className="hn-segmented" role="group" aria-label="Event format">
+            {FORMAT_OPTIONS.map((fmt) => {
+              const active = selectedFormat === fmt.id;
+              return (
+                <button
+                  key={fmt.id}
+                  type="button"
+                  className={`hn-seg-btn ${active ? 'active' : ''}`}
+                  aria-pressed={active}
+                  onClick={() => onFormatChange?.(fmt.id)}
+                >
+                  {fmt.label}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Scope Tabs: All vs Closing Soon vs Saved Shortlist */}
+          {onScopeChange && (
+            <div className="hn-segmented" role="group" aria-label="Feed scope">
               <button
-                key={fmt.id}
                 type="button"
-                className={`hn-segment-btn ${active ? 'active' : ''}`}
-                aria-pressed={active}
-                onClick={() => onFormatChange?.(fmt.id)}
+                className={`hn-seg-btn ${scope === 'all' ? 'active' : ''}`}
+                onClick={() => onScopeChange('all')}
               >
-                {fmt.label}
+                All
               </button>
-            );
-          })}
+              <button
+                type="button"
+                className={`hn-seg-btn ${scope === 'closing' ? 'active' : ''}`}
+                onClick={() => onScopeChange('closing')}
+              >
+                Closing Soon
+              </button>
+              <button
+                type="button"
+                className={`hn-seg-btn ${scope === 'saved' ? 'active' : ''}`}
+                onClick={() => onScopeChange('saved')}
+              >
+                <BookmarkIcon size={12} filled={scope === 'saved'} />
+                <span>Saved</span>
+                <span className="hn-seg-count">{savedCount}</span>
+              </button>
+            </div>
+          )}
         </div>
 
+        {/* Right Controls: Source Select, Sort Select, Reset & Counter */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
           <select
             aria-label="Filter by platform source"
             value={selectedSource}
             onChange={(e) => onSourceChange?.(e.target.value)}
             className="hn-btn"
-            style={{ fontFamily: 'var(--font-mono)', fontSize: '0.74rem' }}
+            style={{ fontFamily: 'var(--font-mono)', fontSize: '0.72rem' }}
           >
             <option value="all">SOURCE: ALL</option>
             {availableSources.map((src) => (
@@ -140,7 +206,7 @@ export function DiscoveryControls({
             value={sortBy}
             onChange={(e) => onSortChange?.(e.target.value)}
             className="hn-btn"
-            style={{ fontFamily: 'var(--font-mono)', fontSize: '0.74rem' }}
+            style={{ fontFamily: 'var(--font-mono)', fontSize: '0.72rem' }}
           >
             {SORT_OPTIONS.map((opt) => (
               <option key={opt.id} value={opt.id}>
@@ -154,7 +220,7 @@ export function DiscoveryControls({
               type="button"
               className="hn-btn"
               onClick={onResetFilters}
-              style={{ color: 'var(--accent-brand)' }}
+              style={{ color: 'var(--accent-signal)', borderColor: 'var(--accent-signal)' }}
             >
               Reset
             </button>
@@ -163,13 +229,13 @@ export function DiscoveryControls({
           <span
             style={{
               fontFamily: 'var(--font-mono)',
-              fontSize: '0.74rem',
+              fontSize: '0.72rem',
               color: 'var(--text-tertiary)',
-              marginLeft: '4px',
               fontVariantNumeric: 'tabular-nums',
+              paddingLeft: '4px',
             }}
           >
-            {resultCount} {resultCount === 1 ? 'EVENT' : 'EVENTS'}
+            {resultCount} {resultCount === 1 ? 'MATCH' : 'MATCHES'}
           </span>
         </div>
       </div>

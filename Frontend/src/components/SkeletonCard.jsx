@@ -11,8 +11,8 @@ export function SkeletonCard() {
   return (
     <div className="hn-card" aria-busy="true" aria-label="Loading event">
       <div>
-        <div className="hn-card-header">
-          <div style={bar('72px', '18px')} />
+        <div className="hn-card-top">
+          <div style={bar('78px', '18px')} />
           <div style={bar('64px', '18px')} />
         </div>
         <div style={{ ...bar('85%', '20px'), marginBottom: '10px' }} />

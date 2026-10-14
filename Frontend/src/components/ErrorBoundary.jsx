@@ -24,7 +24,7 @@ export class ErrorBoundary extends React.Component {
             borderRadius: 'var(--radius-md)',
           }}
         >
-          <div className="hn-spec-label" style={{ color: 'var(--accent-brand)' }}>
+          <div className="hn-spec-label" style={{ color: 'var(--accent-signal)' }}>
             RUNTIME EXCEPTION
           </div>
           <h2 style={{ fontSize: '1.1rem', fontWeight: 600, margin: '6px 0 8px' }}>

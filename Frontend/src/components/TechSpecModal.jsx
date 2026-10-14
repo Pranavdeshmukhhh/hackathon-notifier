@@ -16,8 +16,8 @@ export function TechSpecModal({ isOpen, onClose }) {
             display: 'grid',
             gridTemplateColumns: 'repeat(2, 1fr)',
             gap: '12px',
-            padding: '12px',
-            backgroundColor: 'var(--bg-surface)',
+            padding: '14px',
+            backgroundColor: 'var(--bg-inset)',
             border: '1px solid var(--border-default)',
             borderRadius: 'var(--radius-sm)',
           }}

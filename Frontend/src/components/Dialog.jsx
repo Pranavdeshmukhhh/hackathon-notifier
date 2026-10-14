@@ -6,7 +6,7 @@ export function Dialog({
   onClose,
   title,
   subtitle,
-  maxWidth = '640px',
+  maxWidth = '620px',
   children,
 }) {
   useEffect(() => {
@@ -31,9 +31,9 @@ export function Dialog({
       style={{
         position: 'fixed',
         inset: 0,
-        zIndex: 100,
-        backgroundColor: 'rgba(9, 9, 11, 0.74)',
-        backdropFilter: 'blur(4px)',
+        zIndex: 110,
+        backgroundColor: 'rgba(6, 6, 8, 0.75)',
+        backdropFilter: 'blur(5px)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -48,7 +48,7 @@ export function Dialog({
           display: 'flex',
           flexDirection: 'column',
           backgroundColor: 'var(--bg-elevated)',
-          border: '1px solid var(--border-default)',
+          border: '1px solid var(--border-strong)',
           borderRadius: 'var(--radius-md)',
           boxShadow: 'var(--shadow-modal)',
           overflow: 'hidden',
@@ -61,24 +61,24 @@ export function Dialog({
             justifyContent: 'space-between',
             padding: '16px 20px',
             borderBottom: '1px solid var(--border-default)',
+            background: 'var(--bg-surface)',
           }}
         >
           <div>
             {subtitle && (
-              <div className="hn-spec-label" style={{ marginBottom: '2px' }}>
+              <div className="hn-spec-label" style={{ marginBottom: '2px', color: 'var(--accent-signal)' }}>
                 {subtitle}
               </div>
             )}
-            <h2 style={{ fontSize: '1.05rem', fontWeight: 600, letterSpacing: '-0.015em' }}>
+            <h2 style={{ fontSize: '1.02rem', fontWeight: 600, letterSpacing: '-0.015em' }}>
               {title}
             </h2>
           </div>
           <button
             type="button"
-            className="hn-btn"
+            className="hn-btn hn-icon-btn"
             onClick={onClose}
             aria-label="Close modal"
-            style={{ width: '32px', padding: 0 }}
           >
             <CloseIcon />
           </button>

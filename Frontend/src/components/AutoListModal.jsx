@@ -43,8 +43,8 @@ export function AutoListModal({ isOpen, onClose, onSuccess }) {
       maxWidth="520px"
     >
       <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-        <p style={{ fontSize: '0.84rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-          Paste a public event link from Devfolio, Unstop, Devpost, HackerEarth, or an official university domain. The verifier extracts deadlines, geocodes the venue, and publishes to the index.
+        <p style={{ fontSize: '0.83rem', color: 'var(--text-secondary)', lineHeight: 1.55 }}>
+          Paste a public event link from Devfolio, Unstop, Devpost, HackerEarth, or an official university domain. The verifier extracts deadlines, geocodes the venue, and dispatches to the live index.
         </p>
 
         <div>
@@ -70,7 +70,7 @@ export function AutoListModal({ isOpen, onClose, onSuccess }) {
               padding: '10px 12px',
               borderRadius: 'var(--radius-xs)',
               fontFamily: 'var(--font-mono)',
-              fontSize: '0.75rem',
+              fontSize: '0.74rem',
               backgroundColor: status === 'error' ? 'rgba(239, 68, 68, 0.1)' : 'var(--status-open-bg)',
               color: status === 'error' ? '#ef4444' : 'var(--status-open-text)',
               border: '1px solid var(--border-default)',
@@ -86,7 +86,7 @@ export function AutoListModal({ isOpen, onClose, onSuccess }) {
           </button>
           <button
             type="submit"
-            className="hn-btn hn-btn-primary"
+            className="hn-btn hn-btn-signal"
             disabled={status === 'loading'}
           >
             {status === 'loading' ? 'Verifying URL...' : 'Verify & Index'}

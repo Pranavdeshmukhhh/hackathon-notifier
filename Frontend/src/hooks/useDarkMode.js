@@ -16,12 +16,11 @@ export function useDarkMode(defaultDark = true) {
     try {
       window.localStorage.setItem('hn-theme', isDark ? 'dark' : 'light');
     } catch {
-      // Ignore storage quota errors
+      // ignore
     }
   }, [isDark]);
 
   const toggleDarkMode = () => setIsDark((prev) => !prev);
-
   return [isDark, toggleDarkMode, setIsDark];
 }
 
