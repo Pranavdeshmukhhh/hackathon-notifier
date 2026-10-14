@@ -1,55 +1,71 @@
-export function listingsApiUrl(configured, production = false) {
-  const url = new URL(configured || (production
-    ? 'https://hackathon-notifier.onrender.com'
-    : 'http://localhost:8000'));
-  if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password || url.search || url.hash) {
-    throw new Error('VITE_API_URL must be an HTTP(S) API address without credentials, query, or fragment.');
-  }
-  const path = url.pathname.replace(/\/+$/, '');
-  url.pathname = /\/api(?:\/v1)?\/hackathons$/.test(path) ? path
-    : /\/api(?:\/v1)?$/.test(path) ? `${path}/hackathons` : `${path}/api/hackathons`;
-  return url.href;
-}
+const API_BASE = (import.meta.env?.VITE_API_BASE_URL || '/api').replace(/\/$/, '');
 
-// Allow the free Render instance to wake up, while bounding requests and JSON decoding.
-export async function requestApi(url, { signal, headers, timeout = 75_000 } = {}) {
+async function fetchJsonWithTimeout(url, options = {}, timeoutMs = 8500) {
   const controller = new AbortController();
-  let timer, cancel;
-  const stopped = new Promise((_, reject) => {
-    cancel = () => {
-      controller.abort();
-      reject(new DOMException('Request canceled', 'AbortError'));
-    };
-    timer = setTimeout(() => {
-      reject(new DOMException('The listings service took too long to respond.', 'TimeoutError'));
-      controller.abort();
-    }, timeout);
-    if (signal?.aborted) cancel();
-    else signal?.addEventListener('abort', cancel, { once: true });
-  });
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    return await Promise.race([stopped, (async () => {
-      const response = await fetch(url, { signal: controller.signal, headers });
-      const payload = response.ok && response.status !== 304 ? await response.json() : null;
-      return { response, payload };
-    })()]);
+    const response = await fetch(url, { ...options, signal: controller.signal });
+    if (!response.ok) {
+      const errBody = await response.json().catch(() => ({}));
+      throw new Error(errBody.detail || errBody.message || `HTTP ${response.status}`);
+    }
+    return await response.json();
   } finally {
     clearTimeout(timer);
-    signal?.removeEventListener('abort', cancel);
   }
 }
 
-export function listingsPayload(value) {
-  if (!value || value.success !== true || !Array.isArray(value.data) || value.data.some(event => !event || typeof event !== 'object' || Array.isArray(event))) {
-    throw new Error('Invalid listings response');
+export async function fetchPublicEvents(queryParams = '') {
+  const qs = queryParams ? (queryParams.startsWith('?') ? queryParams : `?${queryParams}`) : '';
+  const endpoints = [
+    `${API_BASE}/events${qs}`,
+    `${API_BASE}/public/events${qs}`,
+    `/api/public/events${qs}`,
+  ];
+
+  let lastError = null;
+  for (let i = 0; i < endpoints.length; i++) {
+    try {
+      const data = await fetchJsonWithTimeout(endpoints[i]);
+      const list = Array.isArray(data)
+        ? data
+        : Array.isArray(data?.events)
+          ? data.events
+          : Array.isArray(data?.items)
+            ? data.items
+            : Array.isArray(data?.data)
+              ? data.data
+              : [];
+      return {
+        events: list,
+        total: data?.total ?? list.length,
+        recovered: i > 0,
+      };
+    } catch (err) {
+      lastError = err;
+    }
   }
-  const count = field => {
-    const number = value[field] ?? 0;
-    if (!Number.isSafeInteger(number) || number < 0) throw new Error('Invalid listings count');
-    return number;
-  };
-  const stats = value.stats && typeof value.stats === 'object' && !Array.isArray(value.stats) ? value.stats : {};
-  return { ...value, upcoming_total: count('upcoming_total'), missed_total: count('missed_total'),
-    all_total: value.all_total == null ? count('upcoming_total') + count('missed_total') : count('all_total'),
-    stats: { ...stats, sources: Array.isArray(stats.sources) ? stats.sources.filter(source => typeof source === 'string' && source.trim()) : [] } };
+  throw lastError || new Error('Unable to synchronize with Hackathon Notifier API.');
 }
+
+export const fetchEvents = fetchPublicEvents;
+
+export async function fetchEventById(eventId) {
+  if (!eventId) throw new Error('Event ID is required');
+  return fetchJsonWithTimeout(`${API_BASE}/events/${encodeURIComponent(eventId)}`);
+}
+
+export async function submitAutoListUrl(url, extra = {}) {
+  return fetchJsonWithTimeout(`${API_BASE}/auto-list`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ url, ...extra }),
+  });
+}
+
+export default {
+  fetchPublicEvents,
+  fetchEvents,
+  fetchEventById,
+  submitAutoListUrl,
+};

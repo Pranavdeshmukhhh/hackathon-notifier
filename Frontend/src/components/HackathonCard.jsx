@@ -1,67 +1,116 @@
 import React from 'react';
-import { ArrowUpRightIcon } from './Icons';
-import useCopyLink from '../hooks/useCopyLink';
-import { eventHash } from '../utils/eventRoute';
-import { listedText, safeRegistrationUrl, eventFormat, eventLocation, eventTeam, eventDeadline } from '../utils/eventPresentation';
+import { normalizeEventPresentation } from '../utils/eventPresentation';
+import { ExternalArrowIcon, CopyIcon, CheckIcon } from './Icons';
 
-export default function HackathonCard({ hackathon, onShare, onOpenDetail, viewMode = 'grid' }) {
-  const link = safeRegistrationUrl(hackathon.link);
-  const detailLink = eventHash(hackathon._id);
-  const { status: copyStatus, isCopying, copy: copyLink } = useCopyLink(link, () => onShare?.(hackathon.title));
-  const deadline = eventDeadline(hackathon);
-  const past = deadline.closed;
-  const format = eventFormat(hackathon.mode);
-  const distance = typeof hackathon.distance_km === 'number' && Number.isFinite(hackathon.distance_km) && hackathon.distance_km >= 0
-    ? hackathon.distance_km.toFixed(1) : null;
-  const tags = [...new Set((Array.isArray(hackathon.tags) ? hackathon.tags : []).filter(tag => typeof tag === 'string' && listedText(tag)))];
-  const topCollege = hackathon.is_top_college === true;
-  const internship = hackathon.is_internship === true;
-  const account = listedText(hackathon.source_account);
-  const participants = hackathon.total_registrations ?? hackathon.registrations;
-  const entrants = participants != null && /^\d[\d,]*(?:\.\d+)?[km]?\+?$/i.test(String(participants).trim())
-    ? `${participants} registered` : '';
+export function HackathonCard({
+  event,
+  onSelect,
+  onCopyLink,
+  copied = false,
+}) {
+  if (!event) return null;
+
+  const spec = event.sourceLabel ? event : normalizeEventPresentation(event);
+
+  const handleCardClick = (e) => {
+    if (e.target.closest('button') || e.target.closest('a')) return;
+    onSelect?.(spec);
+  };
 
   return (
-    <article className={`hcard event-card${viewMode === 'compact' ? ' event-card-compact' : ''}`} data-past={past}>
-      <div className="event-heading">
-        <div className="event-source-line">
-          <span>{listedText(hackathon.source) || 'Platform not listed'}</span>
-          <span className={past ? 'text-muted' : 'text-accent-text'}>{past ? 'Registration closed' : listedText(hackathon.status) || 'Status not listed'}</span>
+    <article
+      className="hn-card"
+      onClick={handleCardClick}
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if ((e.key === 'Enter' || e.key === ' ') && !e.target.closest('button, a')) {
+          e.preventDefault();
+          onSelect?.(spec);
+        }
+      }}
+      aria-label={spec.title}
+    >
+      <div>
+        <div className="hn-card-header">
+          <span className="hn-source-tag">{spec.sourceLabel}</span>
+          <span className={`hn-status-badge ${spec.lifecycleKey}`}>
+            <span
+              style={{
+                width: '5px',
+                height: '5px',
+                borderRadius: '50%',
+                backgroundColor: 'currentColor',
+              }}
+            />
+            {spec.lifecycleLabel}
+          </span>
         </div>
-        <h3 className="event-title">{detailLink ? <a href={detailLink} className="event-title-link" data-event-id={hackathon._id} onClick={event => onOpenDetail?.(event, hackathon._id)}>{listedText(hackathon.title) || 'Untitled event'}</a> : listedText(hackathon.title) || 'Untitled event'}</h3>
-        {(topCollege || internship) && (
-          <p className="event-context">
-            {topCollege && <span title={listedText(hackathon.college_name) || undefined}>{listedText(hackathon.college_name) || listedText(hackathon.college_type) || 'Top college event'}</span>}
-            {internship && <span>Internship opportunity</span>}
-          </p>
-        )}
-        {tags.length > 0 && <p className="event-topics">{tags.slice(0, 3).join(' · ')}{tags.length > 3 ? ` · +${tags.length - 3} topics` : ''}</p>}
+
+        <h2 className="hn-card-title">{spec.title}</h2>
+        <p className="hn-card-summary">{spec.summary}</p>
       </div>
 
-      <dl className="event-facts">
-        <div className="event-deadline"><dt>Registration deadline</dt><dd>{deadline.iso ? <time dateTime={deadline.at || deadline.iso}>{deadline.text}</time> : deadline.text}{deadline.note && <span className="event-deadline-note">{deadline.note}</span>}</dd></div>
-        <div><dt>Format</dt><dd>{format}</dd></div>
-        <div className="event-location"><dt>Location</dt><dd>{eventLocation(hackathon)}{distance !== null && format !== 'Online' && <span className="event-distance">{distance} km away</span>}</dd></div>
-        <div><dt>Prize</dt><dd>{listedText(hackathon.prize) || 'Not listed'}</dd></div>
-        <div><dt>Team size</dt><dd>{eventTeam(hackathon)}</dd></div>
-        <div><dt>Eligibility</dt><dd>{listedText(hackathon.eligibility) ? (listedText(hackathon.eligibility).length <= 120 ? listedText(hackathon.eligibility) : 'Requirements listed · view details') : 'Check organizer'}</dd></div>
-      </dl>
+      <div>
+        <div className="hn-spec-grid">
+          <div className="hn-spec-cell">
+            <span className="hn-spec-label">FORMAT</span>
+            <span className="hn-spec-value">{spec.formatLabel}</span>
+          </div>
+          <div className="hn-spec-cell">
+            <span className="hn-spec-label">LOCATION</span>
+            <span className="hn-spec-value" title={spec.locationLabel}>
+              {spec.distanceKm != null
+                ? `${spec.locationLabel} (${spec.distanceKm} km)`
+                : spec.locationLabel}
+            </span>
+          </div>
+          <div className="hn-spec-cell">
+            <span className="hn-spec-label">DEADLINE / SCHEDULE</span>
+            <span className="hn-spec-value">{spec.deadlineLabel}</span>
+          </div>
+          <div className="hn-spec-cell">
+            <span className="hn-spec-label">BOUNTY / TRACK</span>
+            <span className="hn-spec-value">{spec.prizeLabel}</span>
+          </div>
+        </div>
 
-      <div className="event-footnotes">
-        {entrants && <span>{entrants}</span>}
-        {hackathon.verified === true && <span title="Automated source checks; confirm requirements with the organizer">Source checks passed</span>}
-        {account && <span>Via {account}</span>}
-      </div>
-      <div className="event-actions">
-        {link ? (
-          <a href={link} target="_blank" rel="noopener noreferrer" className="btn btn-ghost event-register">
-            {past ? 'View event page' : 'Register'} <ArrowUpRightIcon size={16} /><span className="sr-only"> (opens in a new tab)</span>
-          </a>
-        ) : <span className="event-link-unavailable">Registration link unavailable</span>}
-        {detailLink && <a className="home-text-link event-details-link" href={detailLink} onClick={event => onOpenDetail?.(event, hackathon._id)} aria-label={`View details for ${hackathon.title || 'event'}`}>View details</a>}
-        <button type="button" className="btn btn-ghost event-copy" disabled={!link || isCopying} onClick={copyLink} aria-label={`Copy link for ${hackathon.title || 'event'}`}>{isCopying ? 'Copying…' : 'Copy link'}</button>
-        <p role="status" className="event-copy-status">{copyStatus}</p>
+        <div className="hn-card-footer">
+          <div style={{ display: 'flex', gap: '6px' }}>
+            <button
+              type="button"
+              className="hn-btn"
+              onClick={() => onSelect?.(spec)}
+            >
+              Inspect Spec
+            </button>
+            {onCopyLink && (
+              <button
+                type="button"
+                className="hn-btn"
+                onClick={() => onCopyLink(spec)}
+                aria-label="Copy event link"
+              >
+                {copied ? <CheckIcon /> : <CopyIcon />}
+                <span>{copied ? 'Copied' : 'Share'}</span>
+              </button>
+            )}
+          </div>
+
+          {spec.url && (
+            <a
+              href={spec.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hn-btn hn-btn-primary"
+            >
+              <span>Register</span>
+              <ExternalArrowIcon />
+            </a>
+          )}
+        </div>
       </div>
     </article>
   );
 }
+
+export default HackathonCard;

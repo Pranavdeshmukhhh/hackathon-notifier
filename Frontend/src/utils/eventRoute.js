@@ -1,16 +1,35 @@
-export const validEventId = value => typeof value === 'string' && /^[a-f\d]{24}$/i.test(value);
-export const eventHash = id => validEventId(id) ? `#event/${id.toLowerCase()}` : null;
+export function getEventIdFromUrl(locationObj = typeof window !== 'undefined' ? window.location : { search: '', pathname: '' }) {
+  const params = new URLSearchParams(locationObj?.search || '');
+  const queryId = params.get('event') || params.get('id');
+  if (queryId) return decodeURIComponent(queryId);
 
-export function readEventRoute(hash = window.location.hash) {
-  if (hash.startsWith('#event/')) return { view: 'event', id: hash.slice(7) };
-  return { view: hash === '#terms' ? 'terms' : 'radar', id: null };
+  const match = (locationObj?.pathname || '').match(/^\/events\/([^/]+)$/);
+  return match ? decodeURIComponent(match[1]) : null;
 }
 
-export function eventShareUrl(id, pageUrl = window.location.href) {
-  const hash = eventHash(id);
-  if (!hash) return null;
-  const url = new URL(pageUrl);
-  url.search = ''; // Event links do not share discovery preferences or location.
-  url.hash = hash;
-  return url.href;
+export function buildEventShareUrl(eventId, locationObj = typeof window !== 'undefined' ? window.location : { href: 'http://localhost/' }) {
+  const url = new URL(locationObj?.href || 'http://localhost/');
+  if (eventId) {
+    url.searchParams.set('event', String(eventId));
+  } else {
+    url.searchParams.delete('event');
+  }
+  return url.toString();
 }
+
+export function pushEventRoute(eventId) {
+  if (typeof window === 'undefined') return;
+  const url = new URL(window.location.href);
+  if (eventId) {
+    url.searchParams.set('event', String(eventId));
+  } else {
+    url.searchParams.delete('event');
+  }
+  window.history.pushState({ eventId }, '', url.toString());
+}
+
+export default {
+  getEventIdFromUrl,
+  buildEventShareUrl,
+  pushEventRoute,
+};

@@ -1,69 +1,180 @@
-import React from 'react';
-import { GridViewIcon, ListViewIcon, SearchIcon } from './Icons';
-import { EVENT_TYPES, FORMATS } from '../utils/discoveryQuery';
+import React, { useEffect, useRef } from 'react';
+import { SearchIcon, CompassIcon } from './Icons';
 
-export default function DiscoveryControls({
-  search, onSearch, category, onCategory, source, onSource, sources,
-  format, onFormat, closingSoon, onClosingSoon, tab, onTab,
-  counts, loading, pendingSearch, error, onRefresh, onReset,
-  sort, onSort, pageSize, onPageSize, viewMode, onViewMode,
-  onNearMe, isLocating, hasLocation,
+const FORMAT_OPTIONS = [
+  { id: 'all', label: 'All Formats' },
+  { id: 'offline', label: 'In-Person' },
+  { id: 'online', label: 'Remote' },
+  { id: 'hybrid', label: 'Hybrid' },
+];
+
+const SORT_OPTIONS = [
+  { id: 'deadline_asc', label: 'Closing Soonest' },
+  { id: 'newest', label: 'Recently Indexed' },
+  { id: 'distance_asc', label: 'Nearest Venue' },
+];
+
+export function DiscoveryControls({
+  searchQuery = '',
+  onSearchChange,
+  selectedFormat = 'all',
+  onFormatChange,
+  selectedSource = 'all',
+  onSourceChange,
+  availableSources = ['devfolio', 'unstop', 'devpost', 'hackerearth', 'devnovate'],
+  sortBy = 'deadline_asc',
+  onSortChange,
+  onUseLocation,
+  locationActive = false,
+  resultCount = 0,
+  onResetFilters,
 }) {
-  const filters = [
-    search.trim() && ['Search', search.trim(), () => onSearch('')],
-    category !== 'All' && ['Type', EVENT_TYPES.find(([key]) => key === category)?.[1] || category, () => onCategory('All')],
-    source !== 'All' && ['Platform', source, () => onSource('All')],
-    format !== 'All' && ['Format', FORMATS.find(([key]) => key === format)?.[1] || format, () => onFormat('All')],
-    closingSoon && ['Deadline', 'Next 7 days', () => onClosingSoon(false)],
-  ].filter(Boolean);
-  const platforms = [...new Set([...sources, ...(source !== 'All' ? [source] : [])])].sort((a, b) => a.localeCompare(b));
+  const searchInputRef = useRef(null);
+
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (
+        e.key === '/' &&
+        document.activeElement !== searchInputRef.current &&
+        !['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName)
+      ) {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+      }
+      if (e.key === 'Escape' && document.activeElement === searchInputRef.current) {
+        searchInputRef.current?.blur();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
+  const hasActiveFilters =
+    Boolean(searchQuery?.trim()) ||
+    selectedFormat !== 'all' ||
+    selectedSource !== 'all' ||
+    locationActive;
+
   return (
-    <div className="discovery-controls">
-      <div className="discovery-search-row">
-        <div>
-          <label htmlFor="discovery-search" className="control-label">Search</label>
-          <div className="discovery-search-field">
-            <SearchIcon />
-            <input id="discovery-search" type="search" maxLength={100} value={search} onChange={event => onSearch(event.target.value)} placeholder="Topic, city, campus, or event name" aria-describedby="discovery-search-hint" />
-            {search && <button type="button" className="discovery-clear" aria-label="Clear search" onClick={() => onSearch('')}>×</button>}
-          </div>
-          <p id="discovery-search-hint" className="control-hint">Search across titles, topics, venues, and campuses.</p>
+    <div className="hn-controls-bar" role="region" aria-label="Discovery filters">
+      <div className="hn-search-row">
+        <div className="hn-input-wrapper">
+          <span
+            style={{
+              position: 'absolute',
+              left: '12px',
+              color: 'var(--text-tertiary)',
+              display: 'inline-flex',
+              pointerEvents: 'none',
+            }}
+          >
+            <SearchIcon size={15} />
+          </span>
+          <input
+            ref={searchInputRef}
+            type="search"
+            className="hn-search-input"
+            value={searchQuery}
+            onChange={(e) => onSearchChange?.(e.target.value)}
+            placeholder="Filter by title, city, college, stack, or organizer..."
+            aria-label="Search hackathons"
+          />
+          <kbd className="hn-kbd">/</kbd>
         </div>
-        <button className="btn btn-ghost" type="button" disabled={loading} onClick={onRefresh}>Refresh listings</button>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          {onUseLocation && (
+            <button
+              type="button"
+              className="hn-btn"
+              onClick={onUseLocation}
+              aria-pressed={locationActive}
+              style={{
+                height: '38px',
+                borderColor: locationActive ? 'var(--accent-brand)' : undefined,
+              }}
+            >
+              <CompassIcon size={14} />
+              <span>{locationActive ? 'Near Me Active' : 'Locate'}</span>
+            </button>
+          )}
+        </div>
       </div>
 
-      <div className="discovery-filter-row">
-        <label className="control-label">Format<select className="field" value={format} onChange={event => onFormat(event.target.value)}>{FORMATS.map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select></label>
-        <label className="control-label">Event type<select className="field" value={category} onChange={event => onCategory(event.target.value)}>{EVENT_TYPES.map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select></label>
-        <label className="control-label">Platform<select className="field" value={source} onChange={event => onSource(event.target.value)}><option value="All">All platforms</option>{platforms.map(platform => <option key={platform} value={platform}>{platform === 'Unique Sources' ? 'Curated sources' : platform === 'Web Discovery' ? 'Open web' : platform}</option>)}</select></label>
-      </div>
-      <div className="discovery-options-row">
-        <label className="discovery-deadline-toggle"><input type="checkbox" checked={closingSoon} disabled={tab === 'missed'} onChange={event => onClosingSoon(event.target.checked)} />Closes within 7 days</label>
-        <button type="button" className="home-text-link" disabled={isLocating} onClick={onNearMe}>{isLocating ? 'Finding location…' : hasLocation ? 'Sort near me' : 'Find events near me'}</button>
-      </div>
-      {closingSoon && <p className="control-hint deadline-hint">Includes listed deadlines from today through the next 7 calendar days. The feed uses UTC dates; confirm the organizer’s closing time.</p>}
-      {filters.length > 0 && (
-        <div className="discovery-active-filters" role="group" aria-label="Selected filters">
-          {filters.map(([label, value, remove]) => <button key={label} type="button" className="selected-filter" onClick={remove} aria-label={`Remove ${label.toLowerCase()} filter: ${value}`}><span>{label}: {value}</span><span aria-hidden="true">×</span></button>)}
-          <button type="button" className="home-text-link" onClick={onReset}>Clear filters</button>
+      <div className="hn-filter-strip">
+        <div className="hn-segmented-group" role="group" aria-label="Event format">
+          {FORMAT_OPTIONS.map((fmt) => {
+            const active = selectedFormat === fmt.id;
+            return (
+              <button
+                key={fmt.id}
+                type="button"
+                className={`hn-segment-btn ${active ? 'active' : ''}`}
+                aria-pressed={active}
+                onClick={() => onFormatChange?.(fmt.id)}
+              >
+                {fmt.label}
+              </button>
+            );
+          })}
         </div>
-      )}
 
-      <div className="discovery-toolbar">
-        <div className="discovery-status" role="group" aria-label="Event status">
-          {[['upcoming', 'Upcoming'], ['missed', 'Past'], ['all', 'All']].map(([key, label]) => <button key={key} type="button" aria-pressed={tab === key} onClick={() => onTab(key)}>{label}{!loading && !pendingSearch && !error && !(closingSoon && key === 'missed') && <span>{counts[key].toLocaleString('en-IN')}</span>}</button>)}
-        </div>
-        <div className="discovery-display-controls">
-          <label className="control-label">Sort by<select className="field" value={sort} onChange={event => onSort(event.target.value)}>
-            <option value="deadline">{tab === 'missed' ? 'Deadline: most recent' : 'Deadline: soonest'}</option><option value="newest">Recently added</option><option value="name">Name A–Z</option><option value="distance">Nearest (uses location)</option>
-          </select></label>
-          <label className="control-label">Per page<select className="field" value={pageSize} onChange={event => onPageSize(Number(event.target.value))}>{[12, 24, 48, 96].map(value => <option key={value} value={value}>{value}</option>)}</select></label>
-          <div className="seg" role="group" aria-label="Results layout">
-            <button type="button" aria-label="Card grid view" aria-pressed={viewMode === 'grid'} onClick={() => onViewMode('grid')}><GridViewIcon /></button>
-            <button type="button" aria-label="Compact list view" aria-pressed={viewMode === 'compact'} onClick={() => onViewMode('compact')}><ListViewIcon /></button>
-          </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+          <select
+            aria-label="Filter by platform source"
+            value={selectedSource}
+            onChange={(e) => onSourceChange?.(e.target.value)}
+            className="hn-btn"
+            style={{ fontFamily: 'var(--font-mono)', fontSize: '0.74rem' }}
+          >
+            <option value="all">SOURCE: ALL</option>
+            {availableSources.map((src) => (
+              <option key={src} value={src}>
+                SOURCE: {src.toUpperCase()}
+              </option>
+            ))}
+          </select>
+
+          <select
+            aria-label="Sort events"
+            value={sortBy}
+            onChange={(e) => onSortChange?.(e.target.value)}
+            className="hn-btn"
+            style={{ fontFamily: 'var(--font-mono)', fontSize: '0.74rem' }}
+          >
+            {SORT_OPTIONS.map((opt) => (
+              <option key={opt.id} value={opt.id}>
+                SORT: {opt.label.toUpperCase()}
+              </option>
+            ))}
+          </select>
+
+          {hasActiveFilters && onResetFilters && (
+            <button
+              type="button"
+              className="hn-btn"
+              onClick={onResetFilters}
+              style={{ color: 'var(--accent-brand)' }}
+            >
+              Reset
+            </button>
+          )}
+
+          <span
+            style={{
+              fontFamily: 'var(--font-mono)',
+              fontSize: '0.74rem',
+              color: 'var(--text-tertiary)',
+              marginLeft: '4px',
+              fontVariantNumeric: 'tabular-nums',
+            }}
+          >
+            {resultCount} {resultCount === 1 ? 'EVENT' : 'EVENTS'}
+          </span>
         </div>
       </div>
     </div>
   );
 }
+
+export default DiscoveryControls;

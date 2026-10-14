@@ -1,25 +1,51 @@
 import React from 'react';
-import Dialog from './Dialog';
+import { Dialog } from './Dialog';
 
-export default function TechSpecModal({ onClose }) {
+export function TechSpecModal({ isOpen, onClose }) {
   return (
-    <Dialog label="System Architecture" onClose={onClose} className="dialog-compact">
-      <header className="dialog-heading mb-6">
-        <p className="eyebrow mb-2">Behind the listings</p>
-        <h2 className="text-xl font-semibold">System Architecture</h2>
-      </header>
-      <div className="dialog-body space-y-6">
-        <p className="text-sm text-ink-2">Platform scrapers collect event information. MongoDB stores the listings, FastAPI serves search results, and the React app helps students compare opportunities.</p>
-        <div className="inset-surface p-4 mono text-sm leading-relaxed">Scrapers → MongoDB → FastAPI → React</div>
-        <dl className="space-y-1 text-sm">
-          <div className="dl-row"><dt>Frontend</dt><dd>React 19 · Vite 8</dd></div>
-          <div className="dl-row"><dt>Backend</dt><dd>FastAPI · Python 3.12</dd></div>
-          <div className="dl-row"><dt>Event storage</dt><dd>MongoDB</dd></div>
-          <div className="dl-row"><dt>Notifications</dt><dd>Telegram</dd></div>
-          <div className="dl-row"><dt>Location lookup</dt><dd>Nominatim</dd></div>
-        </dl>
-        <p className="text-sm text-muted">Scan schedules are configured by the operator. Registration and final eligibility details are managed by each event organizer.</p>
+    <Dialog
+      isOpen={isOpen}
+      onClose={onClose}
+      subtitle="SYSTEM ARCHITECTURE & PIPELINE TELEMETRY"
+      title="Hackathon Notifier Technical Specification"
+      maxWidth="620px"
+    >
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', fontSize: '0.84rem', color: 'var(--text-secondary)' }}>
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(2, 1fr)',
+            gap: '12px',
+            padding: '12px',
+            backgroundColor: 'var(--bg-surface)',
+            border: '1px solid var(--border-default)',
+            borderRadius: 'var(--radius-sm)',
+          }}
+        >
+          <div className="hn-spec-cell">
+            <span className="hn-spec-label">INGESTION SCRAPERS</span>
+            <span className="hn-spec-value">Devfolio, Unstop, Devpost, HackerEarth, Devnovate</span>
+          </div>
+          <div className="hn-spec-cell">
+            <span className="hn-spec-label">DEDUPLICATION & STORAGE</span>
+            <span className="hn-spec-value">MongoDB + Deterministic Slug & URL Hashing</span>
+          </div>
+          <div className="hn-spec-cell">
+            <span className="hn-spec-label">GEOCODING & LIFECYCLE</span>
+            <span className="hn-spec-value">Automated Venue Resolution & Expiry Sweeps</span>
+          </div>
+          <div className="hn-spec-cell">
+            <span className="hn-spec-label">REALTIME DISPATCH</span>
+            <span className="hn-spec-value">Telegram Bot Subscriber Broadcast</span>
+          </div>
+        </div>
+
+        <p style={{ lineHeight: 1.6 }}>
+          Events are continuously polled across primary hackathon platforms, verified against SSRF and schema constraints, normalized into a unified lifecycle state machine, and exposed via a resilient public JSON feed.
+        </p>
       </div>
     </Dialog>
   );
 }
+
+export default TechSpecModal;

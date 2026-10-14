@@ -1,35 +1,50 @@
 import { useState, useCallback } from 'react';
 
-/**
- * useGeolocation — Encapsulates browser Geolocation API access.
- * Returns location state, loading indicator, error, and a trigger function.
- *
- * @returns {{ userLocation, isLocating, locationError, setLocationError, requestLocation }}
- */
-export default function useGeolocation() {
-  const [userLocation, setUserLocation]   = useState(null);
-  const [isLocating, setIsLocating]       = useState(false);
-  const [locationError, setLocationError] = useState(null);
+export function useGeolocation() {
+  const [coords, setCoords] = useState(null);
+  const [locating, setLocating] = useState(false);
+  const [geoError, setGeoError] = useState(null);
 
   const requestLocation = useCallback(() => {
-    if (!navigator.geolocation) {
-      setLocationError('Geolocation not supported by browser');
+    if (coords) {
+      setCoords(null);
       return;
     }
-    setIsLocating(true);
-    setLocationError(null);
+    if (typeof navigator === 'undefined' || !navigator.geolocation) {
+      setGeoError('Geolocation is not supported by your browser.');
+      return;
+    }
+    setLocating(true);
+    setGeoError(null);
     navigator.geolocation.getCurrentPosition(
       (pos) => {
-        setUserLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude });
-        setIsLocating(false);
+        setCoords({
+          lat: pos.coords.latitude,
+          lng: pos.coords.longitude,
+        });
+        setLocating(false);
       },
-      () => {
-        setLocationError('Location permission denied or unavailable');
-        setIsLocating(false);
+      (err) => {
+        setGeoError(err?.message || 'Unable to retrieve location.');
+        setLocating(false);
       },
-      { timeout: 8000 }
+      { enableHighAccuracy: false, timeout: 8000 }
     );
+  }, [coords]);
+
+  const clearLocation = useCallback(() => {
+    setCoords(null);
+    setGeoError(null);
   }, []);
 
-  return { userLocation, isLocating, locationError, setLocationError, requestLocation };
+  return {
+    coords,
+    locating,
+    geoError,
+    requestLocation,
+    clearLocation,
+    isActive: Boolean(coords),
+  };
 }
+
+export default useGeolocation;

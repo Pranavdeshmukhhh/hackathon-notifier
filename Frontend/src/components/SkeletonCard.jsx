@@ -1,18 +1,32 @@
 import React from 'react';
 
-/** Mirrors event facts without fake information or animated shimmer. */
-export default function SkeletonCard({ viewMode = 'grid' }) {
+export function SkeletonCard() {
+  const bar = (width, height = '12px') => ({
+    width,
+    height,
+    backgroundColor: 'var(--bg-subtle)',
+    borderRadius: '3px',
+  });
+
   return (
-    <div className={`hcard event-card${viewMode === 'compact' ? ' event-card-compact' : ''}`} aria-hidden="true">
-      <div className="event-heading space-y-4">
-        <div className="flex justify-between"><div className="skeleton h-3 w-20" /><div className="skeleton h-3 w-12" /></div>
-        <div className="space-y-2"><div className="skeleton h-5 w-5/6" /><div className="skeleton h-5 w-3/5" /></div>
-        <div className="skeleton h-3 w-40 max-w-full" />
+    <div className="hn-card" aria-busy="true" aria-label="Loading event">
+      <div>
+        <div className="hn-card-header">
+          <div style={bar('72px', '18px')} />
+          <div style={bar('64px', '18px')} />
+        </div>
+        <div style={{ ...bar('85%', '20px'), marginBottom: '10px' }} />
+        <div style={{ ...bar('100%', '13px'), marginBottom: '6px' }} />
+        <div style={{ ...bar('65%', '13px'), marginBottom: '18px' }} />
       </div>
-      <div className="event-facts">{['event-deadline', '', 'event-location', '', '', ''].map((className, index) => (
-        <div key={index} className={`${className} space-y-2`}><div className="skeleton h-3 w-20 max-w-full" /><div className="skeleton h-4 w-28 max-w-full" /></div>
-      ))}</div>
-      <div className="event-actions"><div className="skeleton h-11 flex-1" /><div className="skeleton h-11 w-20" /><div className="event-details-link flex items-center"><div className="skeleton h-4 w-24" /></div></div>
+      <div className="hn-spec-grid">
+        <div style={bar('80%', '26px')} />
+        <div style={bar('80%', '26px')} />
+        <div style={bar('80%', '26px')} />
+        <div style={bar('80%', '26px')} />
+      </div>
     </div>
   );
 }
+
+export default SkeletonCard;

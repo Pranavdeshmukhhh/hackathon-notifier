@@ -1,53 +1,116 @@
-export const EVENT_TYPES = [
-  ['All', 'All event types'], ['Hackathon', 'Hackathons'],
-  ['Top College', 'Top college events'], ['Internship', 'Internship opportunities'],
-  ['Unique Sources', 'Curated events'],
-];
-export const FORMATS = [['All', 'Any format'], ['Online', 'Online'], ['Offline', 'In person'], ['Hybrid', 'Hybrid']];
+import { normalizeEventPresentation } from './eventPresentation';
 
-export function readDiscoveryQuery(search = window.location.search) {
-  const query = new URLSearchParams(search);
-  const pick = (key, values, fallback) => values.includes(query.get(key)) ? query.get(key) : fallback;
-  const page = Number(query.get('page'));
-  return {
-    search: (query.get('q') || '').trim().slice(0, 100),
-    category: pick('type', EVENT_TYPES.map(([value]) => value), 'All'),
-    source: (query.get('platform') || 'All').trim().slice(0, 50) || 'All',
-    format: pick('format', FORMATS.map(([value]) => value), 'All'),
-    closingSoon: query.get('closing') === '7',
-    tab: pick('status', ['upcoming', 'missed', 'all'], 'upcoming'),
-    sort: pick('sort', ['deadline', 'newest', 'name'], 'deadline'),
-    limit: Number(pick('size', ['12', '24', '48', '96'], '12')),
-    page: Number.isInteger(page) && page >= 1 && page <= 1000 ? page : 1,
-  };
-}
-
-export function writeDiscoveryQuery(state) {
-  const query = new URLSearchParams();
-  if (state.search.trim()) query.set('q', state.search.trim());
-  if (state.category !== 'All') query.set('type', state.category);
-  if (state.source !== 'All') query.set('platform', state.source);
-  if (state.format !== 'All') query.set('format', state.format);
-  if (state.closingSoon) query.set('closing', '7');
-  if (state.tab !== 'upcoming') query.set('status', state.tab);
-  // Location is deliberately absent from shareable links.
-  if (state.sort !== 'deadline' && state.sort !== 'distance') query.set('sort', state.sort);
-  if (state.limit !== 12) query.set('size', String(state.limit));
-  if (state.page > 1) query.set('page', String(state.page));
-  return query.toString();
-}
-
-export function buildDiscoveryParams(state) {
-  const query = new URLSearchParams({
-    page: String(state.page), limit: String(state.limit), category: state.category,
-    sort: state.sort, tab: state.tab,
-  });
-  if (state.source !== 'All') query.set('source', state.source);
-  if (state.search.trim()) query.set('search', state.search.trim());
-  if (state.format !== 'All') query.set('format', state.format);
-  if (state.closingSoon) query.set('deadline_days', '7');
-  if (typeof state.lat === 'number' && typeof state.lng === 'number' && Number.isFinite(state.lat) && Number.isFinite(state.lng)) {
-    query.set('lat', String(state.lat)); query.set('lng', String(state.lng));
+export function calculateDistanceKm(lat1, lon1, lat2, lon2) {
+  if ([lat1, lon1, lat2, lon2].some((v) => typeof v !== 'number' || Number.isNaN(v))) {
+    return null;
   }
-  return `?${query}`;
+  const R = 6371;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLon = ((lon2 - lon1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLon / 2) ** 2;
+  return Math.round(R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
 }
+
+export function buildDiscoveryQueryParams({
+  search = '',
+  format = 'all',
+  source = 'all',
+  sort = 'deadline_asc',
+  page = 1,
+  limit = 12,
+  coords = null,
+} = {}) {
+  const params = new URLSearchParams();
+  if (search && search.trim()) params.set('q', search.trim());
+  if (format && format !== 'all') params.set('format', format.toLowerCase());
+  if (source && source !== 'all') params.set('source', source.toLowerCase());
+  if (sort) params.set('sort', sort);
+  if (page > 1) params.set('page', String(page));
+  if (limit) params.set('limit', String(limit));
+  if (coords?.lat != null && coords?.lng != null) {
+    params.set('lat', String(coords.lat));
+    params.set('lng', String(coords.lng));
+  }
+  return params.toString();
+}
+
+export function filterAndSortEvents(
+  events = [],
+  {
+    search = '',
+    format = 'all',
+    source = 'all',
+    sort = 'deadline_asc',
+    hideClosed = false,
+    userCoords = null,
+  } = {}
+) {
+  if (!Array.isArray(events)) return [];
+  const query = String(search || '').trim().toLowerCase();
+
+  const normalized = events.map((ev) => {
+    const item = ev?.sourceLabel ? { ...ev } : normalizeEventPresentation(ev);
+    const lat = Number(ev?.latitude ?? ev?.raw?.latitude);
+    const lng = Number(ev?.longitude ?? ev?.raw?.longitude);
+    if (userCoords && !Number.isNaN(lat) && !Number.isNaN(lng) && lat !== 0 && lng !== 0) {
+      item.distanceKm = calculateDistanceKm(userCoords.lat, userCoords.lng, lat, lng);
+    }
+    return item;
+  });
+
+  const filtered = normalized.filter((item) => {
+    if (hideClosed && item.lifecycleKey === 'closed') return false;
+    if (format && format !== 'all' && item.formatKey !== format.toLowerCase()) return false;
+    if (source && source !== 'all' && item.sourceKey !== source.toLowerCase()) return false;
+
+    if (query) {
+      const haystack = [
+        item.title,
+        item.locationLabel,
+        item.sourceLabel,
+        item.organizer,
+        item.summary,
+        ...(item.tags || []),
+      ]
+        .join(' ')
+        .toLowerCase();
+      if (!haystack.includes(query)) return false;
+    }
+    return true;
+  });
+
+  return filtered.sort((a, b) => {
+    if (a.lifecycleKey === 'closed' && b.lifecycleKey !== 'closed') return 1;
+    if (a.lifecycleKey !== 'closed' && b.lifecycleKey === 'closed') return -1;
+
+    if (sort === 'distance_asc') {
+      const da = a.distanceKm ?? Number.POSITIVE_INFINITY;
+      const db = b.distanceKm ?? Number.POSITIVE_INFINITY;
+      return da - db;
+    }
+
+    if (sort === 'newest') {
+      const ta = new Date(a.raw?.created_at || a.raw?.scraped_at || a.raw?.start_date || 0).getTime() || 0;
+      const tb = new Date(b.raw?.created_at || b.raw?.scraped_at || b.raw?.start_date || 0).getTime() || 0;
+      return tb - ta;
+    }
+
+    const da =
+      new Date(a.raw?.registration_deadline || a.raw?.end_date || '2099-12-31').getTime() ||
+      Number.POSITIVE_INFINITY;
+    const db =
+      new Date(b.raw?.registration_deadline || b.raw?.end_date || '2099-12-31').getTime() ||
+      Number.POSITIVE_INFINITY;
+    return da - db;
+  });
+}
+
+export default {
+  calculateDistanceKm,
+  buildDiscoveryQueryParams,
+  filterAndSortEvents,
+};

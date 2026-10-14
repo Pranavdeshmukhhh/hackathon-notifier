@@ -1,37 +1,125 @@
 import React from 'react';
-import { ArrowRightIcon, TelegramIcon } from './Icons';
 
-export default function HomeIntro({ onBrowse, onShortcut, loading, error, lastCollected, homeRef, updatesRef }) {
-  const date = lastCollected ? new Date(lastCollected) : null;
-  const collected = date && !Number.isNaN(date.getTime())
-    ? date.toLocaleString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit' })
-    : 'Not reported';
-
+export function HomeIntro({
+  totalCount = 0,
+  openCount = 0,
+  sourcesCount = 6,
+  onOpenAutoList,
+  onOpenTechSpec,
+}) {
   return (
-    <section ref={homeRef} id="home" className="shell home-intro" aria-labelledby="home-title">
-      <div className="home-copy">
-        <p className="eyebrow">For students who like to build</p>
-        <h1 id="home-title" className="display home-title">Find a hackathon<br />worth building for.</h1>
-        <p className="home-description">Deadlines, formats, and registration links from across the hackathon community. Compare opportunities and find your next team project.</p>
-        <div className="home-actions flex flex-wrap items-center gap-4 mt-6">
-          <button type="button" className="btn btn-accent btn-lg" onClick={onBrowse}>Browse hackathons <ArrowRightIcon /></button>
-          <a href="https://t.me/Pranavhakathon_bot" target="_blank" rel="noopener noreferrer" className="home-text-link"><TelegramIcon /> Get Telegram alerts</a>
+    <section
+      aria-label="Hackathon index overview"
+      style={{
+        padding: '28px 0 22px',
+        borderBottom: '1px solid var(--border-default)',
+        display: 'flex',
+        flexWrap: 'wrap',
+        alignItems: 'flex-end',
+        justifyContent: 'space-between',
+        gap: '20px',
+      }}
+    >
+      <div style={{ maxWidth: '660px' }}>
+        <div
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '10px',
+            marginBottom: '10px',
+            flexWrap: 'wrap',
+          }}
+        >
+          <span className="hn-telemetry-badge">
+            <span className="hn-pulse-dot" />
+            <span>LIVE TELEMETRY INDEX</span>
+          </span>
+          <span
+            style={{
+              fontFamily: 'var(--font-mono)',
+              fontSize: '0.7rem',
+              color: 'var(--text-tertiary)',
+              letterSpacing: '0.04em',
+            }}
+          >
+            DEVFOLIO · UNSTOP · DEVPOST · HACKEREARTH · DEVNOVATE
+          </span>
         </div>
+
+        <h1
+          style={{
+            fontSize: 'clamp(1.45rem, 2.5vw, 1.95rem)',
+            fontWeight: 600,
+            letterSpacing: '-0.03em',
+            lineHeight: 1.15,
+            color: 'var(--text-primary)',
+            marginBottom: '8px',
+          }}
+        >
+          Verified Engineering & Hackathon Directory
+        </h1>
+
+        <p
+          style={{
+            fontSize: '0.875rem',
+            color: 'var(--text-secondary)',
+            lineHeight: 1.55,
+          }}
+        >
+          Normalized, deduplicated competition feed with automated deadline verification, venue geocoding, and real-time Telegram dispatch.
+        </p>
       </div>
-      <aside ref={updatesRef} id="dashboard" className="home-notes scroll-mt-24" aria-label="Listing information">
-        <h2 className="home-registration-note text-base font-semibold mb-3">Before you register</h2>
-        <p className="home-registration-note text-sm text-ink-2 leading-relaxed">Check the organizer’s page for the final deadline, eligibility, and team requirements. Listings can change after collection.</p>
-        <dl className="home-update">
-          <div><dt>Latest collection</dt><dd>{loading ? 'Loading…' : error ? 'Unavailable' : collected}</dd></div>
-        </dl>
-        <p className="home-registration-note text-sm text-muted">No account needed to browse.</p>
-      </aside>
-      <div className="home-shortcuts" aria-label="Discovery shortcuts">
-        <span className="text-sm text-muted">Start with</span>
-        <button className="home-text-link" type="button" onClick={() => onShortcut('online')}>Online events <ArrowRightIcon /></button>
-        <button className="home-text-link" type="button" onClick={() => onShortcut('inperson')}>In-person events <ArrowRightIcon /></button>
-        <button className="home-text-link" type="button" onClick={() => onShortcut('college')}>Top college events <ArrowRightIcon /></button>
+
+      <div
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'flex-end',
+          gap: '10px',
+        }}
+      >
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(3, auto)',
+            gap: '18px',
+            padding: '8px 14px',
+            background: 'var(--bg-surface)',
+            border: '1px solid var(--border-default)',
+            borderRadius: 'var(--radius-sm)',
+          }}
+        >
+          <div>
+            <div className="hn-spec-label">INDEXED</div>
+            <div className="hn-spec-value">{totalCount}</div>
+          </div>
+          <div>
+            <div className="hn-spec-label">ACTIVE</div>
+            <div className="hn-spec-value" style={{ color: 'var(--status-open-text)' }}>
+              {openCount}
+            </div>
+          </div>
+          <div>
+            <div className="hn-spec-label">SOURCES</div>
+            <div className="hn-spec-value">{sourcesCount}</div>
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+          {onOpenTechSpec && (
+            <button type="button" className="hn-btn" onClick={onOpenTechSpec}>
+              System Architecture
+            </button>
+          )}
+          {onOpenAutoList && (
+            <button type="button" className="hn-btn hn-btn-primary" onClick={onOpenAutoList}>
+              + Submit Event URL
+            </button>
+          )}
+        </div>
       </div>
     </section>
   );
 }
+
+export default HomeIntro;

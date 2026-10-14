@@ -1,52 +1,93 @@
-import React, { useEffect, useRef } from 'react';
-import { createPortal } from 'react-dom';
+import React, { useEffect } from 'react';
+import { CloseIcon } from './Icons';
 
-/** Shared modal surface with keyboard containment and focus restoration. */
-export default function Dialog({ label, onClose, children, className = '' }) {
-  const surface = useRef(null);
-  const close = useRef(onClose);
-  useEffect(() => { close.current = onClose; }, [onClose]);
-
+export function Dialog({
+  isOpen,
+  onClose,
+  title,
+  subtitle,
+  maxWidth = '640px',
+  children,
+}) {
   useEffect(() => {
-    const previousFocus = document.activeElement;
-    const previousOverflow = document.body.style.overflow;
-    const appRoot = document.getElementById('root');
-    const previousInert = appRoot?.inert;
-    document.body.style.overflow = 'hidden';
-    if (appRoot) appRoot.inert = true;
-    surface.current.querySelector('[data-dialog-close]').focus();
-
-    const handleKey = (event) => {
-      if (event.key === 'Escape') { event.preventDefault(); close.current(); }
-      if (event.key !== 'Tab') return;
-      const controls = [...surface.current.querySelectorAll(
-        'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex="0"]'
-      )].filter(element => element.getClientRects().length && !element.closest('[hidden], [inert]'));
-      const first = controls[0];
-      const last = controls.at(-1);
-      if (!first) { event.preventDefault(); surface.current.focus(); return; }
-      if (event.shiftKey && (document.activeElement === first || document.activeElement === surface.current)) {
-        event.preventDefault(); last.focus();
-      } else if (!event.shiftKey && document.activeElement === last) {
-        event.preventDefault(); first.focus();
-      }
+    if (!isOpen) return;
+    const handleKey = (e) => {
+      if (e.key === 'Escape') onClose?.();
     };
-    document.addEventListener('keydown', handleKey);
-    return () => {
-      document.removeEventListener('keydown', handleKey);
-      document.body.style.overflow = previousOverflow;
-      if (appRoot) appRoot.inert = previousInert;
-      if (previousFocus?.isConnected) previousFocus.focus();
-    };
-  }, []);
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
+  }, [isOpen, onClose]);
 
-  return createPortal(
-    <div className="dialog-backdrop" onClick={event => { if (event.target === event.currentTarget) onClose(); }}>
-      <section ref={surface} role="dialog" aria-modal="true" aria-label={label} tabIndex={-1}
-        className={`dialog-surface animate-sheet-pop ${className}`}>
-        <button type="button" className="icon-btn dialog-close" data-dialog-close onClick={onClose} aria-label="Close dialog">×</button>
-        {children}
-      </section>
-    </div>, document.body
+  if (!isOpen) return null;
+
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label={title || 'Dialog'}
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose?.();
+      }}
+      style={{
+        position: 'fixed',
+        inset: 0,
+        zIndex: 100,
+        backgroundColor: 'rgba(9, 9, 11, 0.74)',
+        backdropFilter: 'blur(4px)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '20px',
+      }}
+    >
+      <div
+        style={{
+          width: '100%',
+          maxWidth,
+          maxHeight: '88vh',
+          display: 'flex',
+          flexDirection: 'column',
+          backgroundColor: 'var(--bg-elevated)',
+          border: '1px solid var(--border-default)',
+          borderRadius: 'var(--radius-md)',
+          boxShadow: 'var(--shadow-modal)',
+          overflow: 'hidden',
+        }}
+      >
+        <header
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: '16px 20px',
+            borderBottom: '1px solid var(--border-default)',
+          }}
+        >
+          <div>
+            {subtitle && (
+              <div className="hn-spec-label" style={{ marginBottom: '2px' }}>
+                {subtitle}
+              </div>
+            )}
+            <h2 style={{ fontSize: '1.05rem', fontWeight: 600, letterSpacing: '-0.015em' }}>
+              {title}
+            </h2>
+          </div>
+          <button
+            type="button"
+            className="hn-btn"
+            onClick={onClose}
+            aria-label="Close modal"
+            style={{ width: '32px', padding: 0 }}
+          >
+            <CloseIcon />
+          </button>
+        </header>
+
+        <div style={{ padding: '20px', overflowY: 'auto', flex: 1 }}>{children}</div>
+      </div>
+    </div>
   );
 }
+
+export default Dialog;

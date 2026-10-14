@@ -1,87 +1,49 @@
 import React from 'react';
 
-/**
- * Pagination — Professional page navigator with ellipsis compression
- * and "Page X of Y" position indicator.
- */
-
-const ChevronLeftIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-    <polyline points="15 18 9 12 15 6" />
-  </svg>
-);
-
-const ChevronRightIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-    <polyline points="9 18 15 12 9 6" />
-  </svg>
-);
-
-export default function Pagination({ currentPage, totalPages, onPageChange, disabled = false }) {
+export function Pagination({
+  currentPage = 1,
+  totalPages = 1,
+  onPageChange,
+}) {
   if (totalPages <= 1) return null;
 
-  const pages = [];
-  for (let i = 1; i <= totalPages; i++) {
-    if (i === 1 || i === totalPages || (i >= currentPage - 1 && i <= currentPage + 1)) pages.push(i);
-  }
-
-  const withEllipsis = [];
-  let prev = null;
-  for (const page of pages) {
-    if (prev !== null && page - prev > 1) withEllipsis.push('...');
-    withEllipsis.push(page);
-    prev = page;
-  }
-
-  const btnBase = "page-btn";
-  const btnInactive = "";
-
   return (
-    <nav aria-label="Pagination" className="flex flex-col items-center gap-3 mt-8">
-      {/* Navigation Controls */}
-      <div className="pagination-controls">
+    <nav
+      aria-label="Pagination"
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        padding: '16px 0 36px',
+        borderTop: '1px solid var(--border-default)',
+        fontFamily: 'var(--font-mono)',
+        fontSize: '0.76rem',
+      }}
+    >
+      <span style={{ color: 'var(--text-secondary)', fontVariantNumeric: 'tabular-nums' }}>
+        PAGE {currentPage} OF {totalPages}
+      </span>
+
+      <div style={{ display: 'flex', gap: '8px' }}>
         <button
-          className={`${btnBase} ${btnInactive} px-3 sm:px-4 flex items-center gap-1.5`}
-          onClick={() => onPageChange(currentPage - 1)}
-          disabled={disabled || currentPage === 1}
-          aria-label="Previous page"
+          type="button"
+          className="hn-btn"
+          disabled={currentPage <= 1}
+          onClick={() => onPageChange?.(currentPage - 1)}
         >
-          <ChevronLeftIcon />
-          <span className="hidden sm:inline">Previous</span>
+          Previous
         </button>
-
-        {withEllipsis.map((item, i) =>
-          item === '...'
-            ? <span key={`e-${i}`} className="px-1.5 sm:px-2 text-muted text-xs select-none">…</span>
-            : <button
-                key={item}
-                className={`${btnBase} min-w-11 flex items-center justify-center ${
-                  currentPage === item ? '' : btnInactive
-                }`}
-                onClick={() => onPageChange(item)}
-                disabled={disabled}
-                aria-label={`Go to page ${item}`}
-                aria-current={currentPage === item ? 'page' : undefined}
-              >
-                {item}
-              </button>
-        )}
-
         <button
-          className={`${btnBase} ${btnInactive} px-3 sm:px-4 flex items-center gap-1.5`}
-          onClick={() => onPageChange(currentPage + 1)}
-          disabled={disabled || currentPage === totalPages}
-          aria-label="Next page"
+          type="button"
+          className="hn-btn"
+          disabled={currentPage >= totalPages}
+          onClick={() => onPageChange?.(currentPage + 1)}
         >
-          <span className="hidden sm:inline">Next</span>
-          <ChevronRightIcon />
+          Next
         </button>
-      </div>
-
-      {/* Page Position Indicator */}
-      <div className="text-[11px] font-medium text-muted tabular-nums tracking-tight">
-        Page {currentPage} of {totalPages}
       </div>
     </nav>
   );
 }
+
+export default Pagination;

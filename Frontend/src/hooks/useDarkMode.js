@@ -1,32 +1,28 @@
-import { useEffect, useRef, useState } from 'react';
+import { useState, useEffect } from 'react';
 
-function savedTheme() {
-  try {
-    const value = localStorage.getItem('hackathon_theme');
-    return value === 'light' || value === 'dark' ? value : null;
-  } catch { return null; }
-}
-
-/** Follow the OS until a student explicitly chooses a theme. */
-export default function useDarkMode() {
-  const manual = useRef(savedTheme() !== null);
-  const [isDarkMode, setIsDarkMode] = useState(() => {
-    const saved = savedTheme();
-    return saved ? saved === 'dark' : window.matchMedia('(prefers-color-scheme: dark)').matches;
+export function useDarkMode(defaultDark = true) {
+  const [isDark, setIsDark] = useState(() => {
+    if (typeof window === 'undefined') return defaultDark;
+    const saved = window.localStorage.getItem('hn-theme');
+    if (saved === 'dark' || saved === 'light') return saved === 'dark';
+    return defaultDark;
   });
-  useEffect(() => {
-    const matcher = window.matchMedia('(prefers-color-scheme: dark)');
-    const changed = event => { if (!manual.current) setIsDarkMode(event.matches); };
-    matcher.addEventListener('change', changed);
-    return () => matcher.removeEventListener('change', changed);
-  }, []);
-  useEffect(() => { document.documentElement.classList.toggle('dark', isDarkMode); }, [isDarkMode]);
 
-  const toggleDarkMode = () => {
-    manual.current = true;
-    const next = !isDarkMode;
-    setIsDarkMode(next);
-    try { localStorage.setItem('hackathon_theme', next ? 'dark' : 'light'); } catch { /* Theme works without storage. */ }
-  };
-  return { isDarkMode, toggleDarkMode };
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+    const root = document.documentElement;
+    root.classList.toggle('dark', isDark);
+    root.setAttribute('data-theme', isDark ? 'dark' : 'light');
+    try {
+      window.localStorage.setItem('hn-theme', isDark ? 'dark' : 'light');
+    } catch {
+      // Ignore storage quota errors
+    }
+  }, [isDark]);
+
+  const toggleDarkMode = () => setIsDark((prev) => !prev);
+
+  return [isDark, toggleDarkMode, setIsDark];
 }
+
+export default useDarkMode;

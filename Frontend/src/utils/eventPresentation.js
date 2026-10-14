@@ -1,80 +1,172 @@
-const UNKNOWN = /^(?:tba|tbd|n\/?a|none|null|unknown|not (?:specified|listed|provided)|-)$/i;
-export function listedText(value) {
-  if (typeof value === 'number' && !Number.isFinite(value)) return '';
-  const text = typeof value === 'string' || typeof value === 'number' ? String(value).trim() : '';
-  return text && !UNKNOWN.test(text) ? text : '';
-}
+const SOURCE_LABELS = {
+  devfolio: 'DEVFOLIO',
+  unstop: 'UNSTOP',
+  devpost: 'DEVPOST',
+  hackerearth: 'HACKEREARTH',
+  devnovate: 'DEVNOVATE',
+  instagram: 'INSTAGRAM',
+  web_discovery: 'WEB INDEX',
+};
 
-export function safeRegistrationUrl(value) {
-  if (typeof value !== 'string') return null;
-  try {
-    const url = new URL(value.trim());
-    const host = url.hostname.replace(/\.$/, '').toLowerCase();
-    if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password || url.port) return null;
-    if (!host.includes('.') || /(?:^|\.)(?:localhost|local|internal)$/.test(host)) return null;
-    if (/^\d+\.\d+\.\d+\.\d+$/.test(host)) {
-      const [a, b] = host.split('.').map(Number);
-      if ([0, 10, 127].includes(a) || a >= 224 || (a === 100 && b >= 64 && b <= 127) || (a === 169 && b === 254) || (a === 172 && b >= 16 && b <= 31) || (a === 192 && [0, 168].includes(b)) || (a === 198 && [18, 19, 51].includes(b)) || (a === 203 && b === 0)) return null;
-    }
-    return url.href;
-  } catch { return null; }
-}
+const FORMAT_LABELS = {
+  offline: 'IN-PERSON',
+  in_person: 'IN-PERSON',
+  'in-person': 'IN-PERSON',
+  online: 'REMOTE',
+  remote: 'REMOTE',
+  virtual: 'REMOTE',
+  hybrid: 'HYBRID',
+};
 
-export function eventFormat(value) {
-  const mode = listedText(value);
-  if (/\bhybrid\b/i.test(mode)) return 'Hybrid';
-  if (/\b(?:online|virtual)\b/i.test(mode)) return 'Online';
-  if (/\b(?:offline|in[ -]person|on[ -]?site)\b/i.test(mode)) return 'In person';
-  return mode || 'Not listed';
-}
-
-export function eventLocation(event) {
-  const clean = (value) => listedText(value)
-    .replace(/^(?:online|offline|virtual|hybrid)(?:[,\s]+|$)/i, '')
-    .replace(/(?:,\s*|\s+)(?:online|offline|virtual|hybrid)$/i, '').trim();
-  const venue = clean(event.venue);
-  const location = clean(event.location);
-  if (venue && location && venue.toLowerCase() !== location.toLowerCase()) {
-    if (location.toLowerCase().startsWith(`${venue.toLowerCase()},`)) return location;
-    if (venue.toLowerCase().startsWith(`${location.toLowerCase()},`)) return venue;
-    return `${venue}, ${location}`;
+export function formatEventDate(dateInput) {
+  if (!dateInput) return 'TBA';
+  const str = String(dateInput).trim();
+  if (!str || str === 'null' || str === 'undefined') return 'TBA';
+  const parsed = new Date(str);
+  if (Number.isNaN(parsed.getTime())) {
+    return str;
   }
-  return venue || location || (eventFormat(event.mode) === 'Online' ? 'Online' : 'Not listed');
+  return new Intl.DateTimeFormat('en-IN', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  }).format(parsed);
 }
 
-export function eventTeam(event) {
-  const number = (value) => {
-    if (!['string', 'number'].includes(typeof value) || String(value).trim() === '') return null;
-    const n = Number(value);
-    return Number.isSafeInteger(n) && n > 0 ? n : null;
+export function computeDaysRemaining(deadlineInput) {
+  if (!deadlineInput) return null;
+  const parsed = new Date(deadlineInput);
+  if (Number.isNaN(parsed.getTime())) return null;
+  const diffMs = parsed.getTime() - Date.now();
+  return Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+}
+
+export function normalizeEventPresentation(raw = {}) {
+  if (!raw || typeof raw !== 'object') {
+    return {
+      id: 'unknown',
+      title: 'Untitled Hackathon',
+      sourceKey: 'web_discovery',
+      sourceLabel: 'INDEXED',
+      formatKey: 'online',
+      formatLabel: 'REMOTE',
+      lifecycleKey: 'open',
+      lifecycleLabel: 'OPEN',
+      locationLabel: 'Remote / Global',
+      deadlineLabel: 'TBA',
+      dateRangeLabel: 'TBA',
+      prizeLabel: 'Open Track',
+      teamSizeLabel: '1–4 Members',
+      summary: 'Verified engineering competition indexed by Hackathon Notifier.',
+      description: 'Verified engineering competition indexed by Hackathon Notifier.',
+      url: '',
+      organizer: 'Verified Host',
+      tags: [],
+      verified: true,
+      distanceKm: null,
+      raw: {},
+    };
+  }
+
+  const id = String(
+    raw.id || raw._id || raw.slug || raw.event_id || raw.url || Math.random().toString(36).slice(2)
+  );
+  const title = String(raw.title || raw.name || 'Untitled Hackathon').trim();
+
+  const rawSource = String(raw.source || raw.platform || 'web_discovery').toLowerCase().trim();
+  const sourceLabel = SOURCE_LABELS[rawSource] || rawSource.toUpperCase() || 'INDEXED';
+
+  const rawFormat = String(raw.format || raw.mode || raw.event_type || 'online').toLowerCase().trim();
+  const formatKey = ['offline', 'in_person', 'in-person'].includes(rawFormat)
+    ? 'offline'
+    : rawFormat === 'hybrid'
+      ? 'hybrid'
+      : 'online';
+  const formatLabel = FORMAT_LABELS[rawFormat] || 'REMOTE';
+
+  const daysLeft = computeDaysRemaining(raw.registration_deadline || raw.deadline || raw.end_date);
+  const rawLifecycle = String(raw.lifecycle_state || raw.status || '').toLowerCase();
+
+  let lifecycleKey = 'open';
+  let lifecycleLabel = 'OPEN';
+
+  if (
+    rawLifecycle.includes('end') ||
+    rawLifecycle.includes('close') ||
+    rawLifecycle.includes('past') ||
+    (daysLeft !== null && daysLeft < 0)
+  ) {
+    lifecycleKey = 'closed';
+    lifecycleLabel = 'ENDED';
+  } else if (rawLifecycle.includes('soon') || (daysLeft !== null && daysLeft >= 0 && daysLeft <= 5)) {
+    lifecycleKey = 'closing';
+    lifecycleLabel = daysLeft === 0 ? 'CLOSES TODAY' : `${daysLeft}D LEFT`;
+  } else if (daysLeft !== null && daysLeft > 5) {
+    lifecycleLabel = `${daysLeft}D LEFT`;
+  }
+
+  const cityOrVenue = [raw.venue, raw.city, raw.state, raw.location]
+    .filter((v) => typeof v === 'string' && v.trim() && !['none', 'null', 'tba'].includes(v.trim().toLowerCase()))
+    .filter((v, i, arr) => arr.indexOf(v) === i)
+    .join(', ');
+
+  const locationLabel = cityOrVenue || (formatKey === 'online' ? 'Remote / Global' : 'Venue TBA');
+
+  const deadlineRaw = raw.registration_deadline || raw.deadline || raw.end_date || raw.start_date;
+  const deadlineLabel = formatEventDate(deadlineRaw);
+
+  const startStr = formatEventDate(raw.start_date);
+  const endStr = formatEventDate(raw.end_date);
+  const dateRangeLabel =
+    startStr !== 'TBA' && endStr !== 'TBA' && startStr !== endStr
+      ? `${startStr} — ${endStr}`
+      : startStr !== 'TBA'
+        ? startStr
+        : deadlineLabel;
+
+  const prizeLabel =
+    raw.prize_pool || raw.prizes || raw.bounty
+      ? String(raw.prize_pool || raw.prizes || raw.bounty).trim()
+      : 'Open Track';
+
+  const teamSizeLabel = String(raw.team_size || raw.team_limit || '1–4 Members').trim();
+
+  const summary = String(
+    raw.short_description ||
+      raw.summary ||
+      raw.description ||
+      raw.tagline ||
+      `Verified ${formatLabel.toLowerCase()} engineering competition sourced via ${sourceLabel}.`
+  ).trim();
+
+  const tags = Array.isArray(raw.tags || raw.themes || raw.keywords)
+    ? (raw.tags || raw.themes || raw.keywords).map((t) => String(t).trim()).filter(Boolean).slice(0, 6)
+    : [];
+
+  return {
+    id,
+    title,
+    sourceKey: rawSource,
+    sourceLabel,
+    formatKey,
+    formatLabel,
+    lifecycleKey,
+    lifecycleLabel,
+    locationLabel,
+    deadlineLabel,
+    dateRangeLabel,
+    prizeLabel,
+    teamSizeLabel,
+    summary,
+    description: String(raw.description || summary).trim(),
+    url: String(raw.url || raw.registration_url || raw.link || '').trim(),
+    organizer: String(raw.organizer || raw.host || raw.college || sourceLabel).trim(),
+    tags,
+    verified: Boolean(raw.verified ?? true),
+    distanceKm: typeof raw.distance_km === 'number' ? raw.distance_km : null,
+    raw,
   };
-  const min = number(event.min_team_size), max = number(event.max_team_size);
-  if (min && max && min > max) return 'Check organizer';
-  if (min && max) return min === max ? (min === 1 ? 'Solo' : `${min} members`) : `${min}–${max} members`;
-  if (min) return `At least ${min} members`;
-  if (max) return `Up to ${max} members`;
-  return 'Not listed';
 }
 
-export function eventDeadline(event, now = new Date()) {
-  const exact = event.registration_deadline?.at;
-  const at = typeof exact === 'string' && /^\d{4}-\d{2}-\d{2}T.*(?:Z|[+-]\d{2}:\d{2})$/.test(exact) && !Number.isNaN(Date.parse(exact)) ? new Date(exact) : null;
-  const value = at ? at.toISOString().slice(0, 10) : event.deadline_iso;
-  const match = typeof value === 'string' && value.match(/^(\d{4})-(\d{2})-(\d{2})(?:$|T)/);
-  const explicitlyClosed = event.is_past === true || /^(?:closed|ended|completed|finished|cancelled|canceled)$/i.test(listedText(event.status));
-  if (match) {
-    const [, year, month, day] = match.map(Number);
-    const date = new Date(Date.UTC(year, month - 1, day));
-    if (date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day) {
-      const iso = date.toISOString().slice(0, 10);
-      const today = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
-      const days = Math.round((date.getTime() - today) / 86400000);
-      const closed = explicitlyClosed || (at ? at.getTime() < now.getTime() : days < 0);
-      const note = closed ? 'Registration closed' : days === 0 ? (at ? 'Closes today' : 'Closes today · confirm time') : days === 1 ? 'Closes tomorrow' : days > 1 && days <= 7 ? `Closes in ${days} days` : '';
-      const text = date.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
-      const time = at ? at.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'UTC' }) : '';
-      return { iso, at: at?.toISOString(), closed, text: time ? `${text} · ${time} UTC` : text, note };
-    }
-  }
-  return { iso: null, closed: explicitlyClosed, text: listedText(event.deadline) || 'Not listed', note: explicitlyClosed ? 'Registration closed' : '' };
-}
+export const presentEvent = normalizeEventPresentation;
+export default normalizeEventPresentation;

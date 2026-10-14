@@ -1,24 +1,26 @@
 import { useState, useEffect } from 'react';
 
-/**
- * useScrollProgress — Tracks page scroll position and progress percentage.
- *
- * @returns {{ isScrolled: boolean, scrollProgress: number }}
- */
-export default function useScrollProgress() {
-  const [isScrolled, setIsScrolled]       = useState(false);
-  const [scrollProgress, setScrollProgress] = useState(0);
+export function useScrollProgress() {
+  const [progress, setProgress] = useState(0);
 
   useEffect(() => {
-    const handleScroll = () => {
-      const totalHeight = document.documentElement.scrollHeight - window.innerHeight;
-      const progress = totalHeight > 0 ? (window.scrollY / totalHeight) * 100 : 0;
-      setScrollProgress(progress);
-      setIsScrolled(window.scrollY > 15);
+    const updateScroll = () => {
+      const scrollTop = window.scrollY || document.documentElement.scrollTop;
+      const docHeight =
+        document.documentElement.scrollHeight - document.documentElement.clientHeight;
+      if (docHeight <= 0) {
+        setProgress(0);
+        return;
+      }
+      setProgress(Math.min(100, Math.max(0, (scrollTop / docHeight) * 100)));
     };
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    return () => window.removeEventListener('scroll', handleScroll);
+
+    window.addEventListener('scroll', updateScroll, { passive: true });
+    updateScroll();
+    return () => window.removeEventListener('scroll', updateScroll);
   }, []);
 
-  return { isScrolled, scrollProgress };
+  return progress;
 }
+
+export default useScrollProgress;
