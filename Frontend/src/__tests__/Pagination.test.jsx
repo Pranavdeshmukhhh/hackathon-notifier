@@ -11,16 +11,14 @@ describe('Pagination Component', () => {
     expect(container.firstChild).toBeNull();
   });
 
-  it('renders page numbers and active state correctly', () => {
+  it('renders current page status and action buttons', () => {
     render(
       <Pagination currentPage={2} totalPages={5} onPageChange={() => {}} />
     );
 
-    const activePageBtn = screen.getByRole('button', { name: /go to page 2/i });
-    expect(activePageBtn).toBeInTheDocument();
-    expect(activePageBtn).toHaveAttribute('aria-current', 'page');
-    expect(screen.getByRole('button', { name: /previous page/i })).not.toBeDisabled();
-    expect(screen.getByRole('button', { name: /next page/i })).not.toBeDisabled();
+    expect(screen.getByText('Page 2 of 5')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Previous/i })).not.toBeDisabled();
+    expect(screen.getByRole('button', { name: /Next/i })).not.toBeDisabled();
   });
 
   it('disables previous button on first page', () => {
@@ -28,7 +26,7 @@ describe('Pagination Component', () => {
       <Pagination currentPage={1} totalPages={4} onPageChange={() => {}} />
     );
 
-    const prevBtn = screen.getByRole('button', { name: /previous page/i });
+    const prevBtn = screen.getByRole('button', { name: /Previous/i });
     expect(prevBtn).toBeDisabled();
   });
 
@@ -37,7 +35,7 @@ describe('Pagination Component', () => {
       <Pagination currentPage={4} totalPages={4} onPageChange={() => {}} />
     );
 
-    const nextBtn = screen.getByRole('button', { name: /next page/i });
+    const nextBtn = screen.getByRole('button', { name: /Next/i });
     expect(nextBtn).toBeDisabled();
   });
 
@@ -47,7 +45,7 @@ describe('Pagination Component', () => {
       <Pagination currentPage={3} totalPages={5} onPageChange={onPageChange} />
     );
 
-    fireEvent.click(screen.getByRole('button', { name: /previous page/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Previous/i }));
     expect(onPageChange).toHaveBeenCalledWith(2);
   });
 
@@ -57,7 +55,7 @@ describe('Pagination Component', () => {
       <Pagination currentPage={3} totalPages={5} onPageChange={onPageChange} />
     );
 
-    fireEvent.click(screen.getByRole('button', { name: /next page/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Next/i }));
     expect(onPageChange).toHaveBeenCalledWith(4);
   });
 });

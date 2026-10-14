@@ -16,7 +16,7 @@ export class ErrorBoundary extends React.Component {
         <div
           role="alert"
           style={{
-            maxWidth: '560px',
+            maxWidth: '520px',
             margin: '64px auto',
             padding: '24px',
             backgroundColor: 'var(--bg-surface)',
@@ -24,21 +24,18 @@ export class ErrorBoundary extends React.Component {
             borderRadius: 'var(--radius-md)',
           }}
         >
-          <div className="hn-spec-label" style={{ color: 'var(--accent-signal)' }}>
-            RUNTIME EXCEPTION
-          </div>
-          <h2 style={{ fontSize: '1.1rem', fontWeight: 600, margin: '6px 0 8px' }}>
-            Interface failed to render
+          <h2 style={{ fontSize: '1.05rem', fontWeight: 600, marginBottom: '8px' }}>
+            Something went wrong
           </h2>
-          <p style={{ fontSize: '0.84rem', color: 'var(--text-secondary)', marginBottom: '16px' }}>
-            {this.state.error?.message || 'An unexpected client error occurred.'}
+          <p style={{ fontSize: '0.84375rem', color: 'var(--text-secondary)', marginBottom: '16px' }}>
+            {this.state.error?.message || 'An unexpected error occurred while rendering the page.'}
           </p>
           <button
             type="button"
             className="hn-btn hn-btn-primary"
             onClick={() => window.location.reload()}
           >
-            Reload Application
+            Reload page
           </button>
         </div>
       );

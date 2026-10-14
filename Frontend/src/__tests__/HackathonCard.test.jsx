@@ -1,149 +1,92 @@
 import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import HackathonCard from '../components/HackathonCard';
 
 describe('HackathonCard Component', () => {
-  const mockHackathon = {
-    _id: '65f0123456789abcdef01234',
+  const sampleEvent = {
+    id: 'h-101',
     title: 'HackNITR 6.0',
-    link: 'https://hacknitr.devfolio.co',
-    source: 'Devfolio',
-    deadline: '25 Mar 2026',
-    mode: 'Hybrid',
-    location: 'NIT Rourkela, Odisha',
-    prize: '₹5,00,000',
-    is_top_college: true,
-    college_name: 'NIT Rourkela',
-    college_type: 'NIT',
-    is_internship: false,
-    status: 'Live',
-    tags: ['Web3', 'AI/ML', 'Open Innovation'],
-    total_registrations: 3450,
-    min_team_size: 2,
-    max_team_size: 4,
+    organizer: 'NIT Rourkela',
+    sourceLabel: 'Devfolio',
+    formatLabel: 'In-person',
+    locationLabel: 'NIT Rourkela, Odisha',
+    deadlineLabel: 'Closes in 3 days',
+    prizeLabel: '₹5,00,000',
+    lifecycleKey: 'open',
+    lifecycleLabel: 'Open',
+    url: 'https://hacknitr.devfolio.co',
+    summary: 'Eastern India largest annual student hackathon.',
   };
 
-  it('renders hackathon title, platform badge, and prize correctly', () => {
-    render(<HackathonCard hackathon={mockHackathon} />);
+  it('renders hackathon title, platform badge, and verified metadata', () => {
+    render(<HackathonCard event={sampleEvent} />);
 
     expect(screen.getByText('HackNITR 6.0')).toBeInTheDocument();
     expect(screen.getByText('Devfolio')).toBeInTheDocument();
+    expect(screen.getByText('NIT Rourkela')).toBeInTheDocument();
     expect(screen.getByText('₹5,00,000')).toBeInTheDocument();
+    expect(screen.getByText('In-person')).toBeInTheDocument();
   });
 
-  it('renders premier college badge when is_top_college is true', () => {
-    render(<HackathonCard hackathon={mockHackathon} />);
-
-    expect(screen.getByTitle('NIT Rourkela')).toBeInTheDocument();
-  });
-
-  it('renders internship badge when is_internship is true', () => {
-    const internshipHackathon = {
-      ...mockHackathon,
-      title: 'Google Summer Challenge',
-      is_top_college: false,
-      is_internship: true,
+  it('does not render missing metadata fields (strict non-fabrication)', () => {
+    const minimalEvent = {
+      id: 'h-102',
+      title: 'Minimal Hackathon',
+      sourceLabel: 'Unstop',
+      lifecycleKey: 'open',
+      lifecycleLabel: 'Open',
+      // No prizeLabel, no locationLabel, no formatLabel
     };
-    render(<HackathonCard hackathon={internshipHackathon} />);
+    render(<HackathonCard event={minimalEvent} />);
 
-    expect(screen.getByText(/Internship/)).toBeInTheDocument();
+    expect(screen.getByText('Minimal Hackathon')).toBeInTheDocument();
+    expect(screen.queryByText(/Prizes/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Location/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Open Bounty/i)).not.toBeInTheDocument();
   });
 
-  it('renders safe register link', () => {
-    render(<HackathonCard hackathon={mockHackathon} />);
+  it('triggers onSelect when Details button or card is clicked', () => {
+    const handleSelect = vi.fn();
+    render(<HackathonCard event={sampleEvent} onSelect={handleSelect} />);
 
-    const registerBtn = screen.getByRole('link', { name: /register/i });
-    expect(registerBtn).toHaveAttribute('href', 'https://hacknitr.devfolio.co/');
-    expect(registerBtn).toHaveAttribute('target', '_blank');
-    expect(registerBtn).toHaveAttribute('rel', 'noopener noreferrer');
+    fireEvent.click(screen.getByRole('button', { name: /Details/i }));
+    expect(handleSelect).toHaveBeenCalledWith(expect.objectContaining({ id: 'h-101' }));
   });
 
-  it('makes unsafe links unavailable without a clickable placeholder', () => {
-    const maliciousHackathon = {
-      ...mockHackathon,
-      link: 'javascript:alert(1)',
-    };
-    render(<HackathonCard hackathon={maliciousHackathon} />);
+  it('triggers onToggleSave when Save button is clicked', () => {
+    const handleSave = vi.fn();
+    render(<HackathonCard event={sampleEvent} isSaved={false} onToggleSave={handleSave} />);
 
-    expect(screen.getByText('Registration link unavailable')).toBeInTheDocument();
-    expect(screen.queryByRole('link', { name: /register/i })).not.toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /view details/i })).toHaveAttribute('href', '#event/65f0123456789abcdef01234');
-    expect(screen.getByRole('button', { name: /copy link/i })).toBeDisabled();
+    const saveBtn = screen.getByRole('button', { name: /Save for later/i });
+    fireEvent.click(saveBtn);
+    expect(handleSave).toHaveBeenCalledWith('h-101');
   });
 
-  it('reports copying only after the clipboard write succeeds', async () => {
-    const onShare = vi.fn();
-    // Mock navigator.clipboard
-    Object.assign(navigator, {
-      clipboard: {
-        writeText: vi.fn().mockResolvedValue(),
-      },
-    });
-
-    render(<HackathonCard hackathon={mockHackathon} onShare={onShare} />);
-
-    const copyBtn = screen.getByRole('button', { name: /copy link/i });
-    fireEvent.click(copyBtn);
-
-    await waitFor(() => expect(onShare).toHaveBeenCalledWith('HackNITR 6.0'));
-    expect(navigator.clipboard.writeText).toHaveBeenCalledWith('https://hacknitr.devfolio.co/');
+  it('displays Saved state when isSaved is true', () => {
+    render(<HackathonCard event={sampleEvent} isSaved={true} onToggleSave={() => {}} />);
+    expect(screen.getByRole('button', { name: /Remove from saved/i })).toBeInTheDocument();
   });
 
-  it('renders correctly in compact list view mode', () => {
-    render(<HackathonCard hackathon={mockHackathon} viewMode="compact" />);
+  it('triggers onCopyLink when copy button is clicked', () => {
+    const handleCopy = vi.fn();
+    render(<HackathonCard event={sampleEvent} onCopyLink={handleCopy} />);
 
-    expect(screen.getByText('HackNITR 6.0')).toBeInTheDocument();
-    expect(screen.getByText('Devfolio')).toBeInTheDocument();
-    expect(screen.getByText('₹5,00,000')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /register/i })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /Copy link to hackathon/i }));
+    expect(handleCopy).toHaveBeenCalledWith(expect.objectContaining({ id: 'h-101' }));
   });
 
-  it('clearly identifies closed registration and preserves its organizer link', () => {
-    const pastHackathon = {
-      ...mockHackathon,
-      title: 'Old Concluded Hack',
-      is_past: true,
-      status: 'Ended',
-    };
-    render(<HackathonCard hackathon={pastHackathon} />);
+  it('renders register link with safe attributes', () => {
+    render(<HackathonCard event={sampleEvent} />);
 
-    expect(screen.getAllByText('Registration closed').length).toBeGreaterThan(0);
-    expect(screen.getByRole('link', { name: /view event page/i })).toBeInTheDocument();
+    const registerLink = screen.getByRole('link', { name: /Register/i });
+    expect(registerLink).toHaveAttribute('href', 'https://hacknitr.devfolio.co');
+    expect(registerLink).toHaveAttribute('target', '_blank');
+    expect(registerLink).toHaveAttribute('rel', 'noopener noreferrer');
   });
 
-  it('renders venue and campus correctly when venue is provided', () => {
-    const venueHackathon = {
-      ...mockHackathon,
-      title: 'Megathon 2026',
-      venue: 'IIIT Hyderabad',
-      location: 'Hyderabad, Telangana',
-    };
-    render(<HackathonCard hackathon={venueHackathon} />);
-
-    expect(screen.getByText(/IIIT Hyderabad/i)).toBeInTheDocument();
-  });
-
-  it('reports clipboard failure without announcing success', async () => {
-    const onShare = vi.fn();
-    navigator.clipboard.writeText = vi.fn().mockRejectedValue(new Error('Denied'));
-    render(<HackathonCard hackathon={mockHackathon} onShare={onShare} />);
-    fireEvent.click(screen.getByRole('button', { name: /copy link/i }));
-    await screen.findByText('Could not copy. Use the registration link.');
-    expect(onShare).not.toHaveBeenCalled();
-  });
-
-  it('opening registration does not claim a link was copied', () => {
-    const onShare = vi.fn();
-    render(<HackathonCard hackathon={mockHackathon} onShare={onShare} />);
-    fireEvent.click(screen.getByRole('link', { name: /register/i }));
-    expect(onShare).not.toHaveBeenCalled();
-  });
-
-  it.each(['grid', 'compact'])('does not invent missing requirements in %s view', (viewMode) => {
-    render(<HackathonCard hackathon={{ title: 'Unspecified event', link: 'https://example.com', prize: 'Not specified' }} viewMode={viewMode} />);
-    expect(screen.getAllByText('Not listed')).toHaveLength(5);
-    expect(screen.getByText('Check organizer')).toBeInTheDocument();
-    expect(screen.queryByText(/free entry|open participation|swags|global access/i)).not.toBeInTheDocument();
+  it('applies row layout class when layoutMode is rows', () => {
+    const { container } = render(<HackathonCard event={sampleEvent} layoutMode="rows" />);
+    expect(container.querySelector('.hn-card-row-mode')).toBeInTheDocument();
   });
 });

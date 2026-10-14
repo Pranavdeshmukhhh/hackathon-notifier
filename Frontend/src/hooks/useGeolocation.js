@@ -11,7 +11,7 @@ export function useGeolocation() {
       return;
     }
     if (typeof navigator === 'undefined' || !navigator.geolocation) {
-      setGeoError('Geolocation is not supported by your browser.');
+      setGeoError('Location access is not supported by this browser.');
       return;
     }
     setLocating(true);
@@ -25,7 +25,7 @@ export function useGeolocation() {
         setLocating(false);
       },
       (err) => {
-        setGeoError(err?.message || 'Unable to retrieve location.');
+        setGeoError(err?.message || 'Could not determine your location.');
         setLocating(false);
       },
       { enableHighAccuracy: false, timeout: 8000 }

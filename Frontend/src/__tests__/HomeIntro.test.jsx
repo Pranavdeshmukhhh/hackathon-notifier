@@ -3,32 +3,52 @@ import { describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 import HomeIntro from '../components/HomeIntro';
 
-describe('Homepage discovery entry points', () => {
-  it('opens discovery and selects the requested format or college shortcut', () => {
-    const browse = vi.fn();
-    const shortcut = vi.fn();
-    render(<HomeIntro onBrowse={browse} onShortcut={shortcut} />);
-    fireEvent.click(screen.getByRole('button', { name: /browse hackathons/i }));
-    expect(browse).toHaveBeenCalledOnce();
-    for (const [label, value] of [['Online events', 'online'], ['In-person events', 'inperson'], ['Top college events', 'college']]) {
-      fireEvent.click(screen.getByRole('button', { name: label }));
-      expect(shortcut).toHaveBeenLastCalledWith(value);
-    }
+describe('HomeIntro Component', () => {
+  it('renders editorial title and summary counts', () => {
+    render(
+      <HomeIntro
+        totalCount={42}
+        openCount={12}
+        closingCount={3}
+      />
+    );
+
+    expect(screen.getByText('Find your next hackathon.')).toBeInTheDocument();
+    expect(screen.getByText('12 open')).toBeInTheDocument();
+    expect(screen.getByText('3 closing soon')).toBeInTheDocument();
+    expect(screen.getByText('42 listed')).toBeInTheDocument();
   });
 
-  it('shows missing collection information honestly, including invalid dates', () => {
-    const { rerender } = render(<HomeIntro onBrowse={() => {}} onShortcut={() => {}} />);
-    expect(screen.getByText('Not reported')).toBeInTheDocument();
-    rerender(<HomeIntro onBrowse={() => {}} onShortcut={() => {}} lastCollected="invalid" />);
-    expect(screen.getByText('Not reported')).toBeInTheDocument();
-    expect(screen.queryByText(/next sweep|32ms|HOD approved/i)).not.toBeInTheDocument();
+  it('triggers onFilterStatus when open or closing chips are clicked', () => {
+    const handleFilterStatus = vi.fn();
+    render(
+      <HomeIntro
+        totalCount={20}
+        openCount={10}
+        closingCount={2}
+        onFilterStatus={handleFilterStatus}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /10 open/i }));
+    expect(handleFilterStatus).toHaveBeenCalledWith('open');
+
+    fireEvent.click(screen.getByRole('button', { name: /2 closing soon/i }));
+    expect(handleFilterStatus).toHaveBeenCalledWith('closing');
   });
 
-  it('distinguishes loading from an unavailable listing source', () => {
-    const { rerender } = render(<HomeIntro onBrowse={() => {}} onShortcut={() => {}} loading />);
-    expect(screen.getByText('Loading…')).toBeInTheDocument();
-    rerender(<HomeIntro onBrowse={() => {}} onShortcut={() => {}} error="offline" />);
-    expect(screen.getByText('Unavailable')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /telegram alerts/i })).toHaveAttribute('rel', 'noopener noreferrer');
+  it('renders submit button and triggers onOpenAutoList', () => {
+    const handleOpenSubmit = vi.fn();
+    render(
+      <HomeIntro
+        totalCount={5}
+        onOpenAutoList={handleOpenSubmit}
+      />
+    );
+
+    const submitBtn = screen.getByRole('button', { name: /Submit a hackathon/i });
+    expect(submitBtn).toBeInTheDocument();
+    fireEvent.click(submitBtn);
+    expect(handleOpenSubmit).toHaveBeenCalledTimes(1);
   });
 });

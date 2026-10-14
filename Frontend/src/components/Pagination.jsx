@@ -14,15 +14,14 @@ export function Pagination({
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        padding: '18px 0 12px',
+        padding: '16px 0 8px',
         marginTop: '20px',
-        borderTop: '1px solid var(--border-default)',
-        fontFamily: 'var(--font-mono)',
-        fontSize: '0.74rem',
+        borderTop: '1px solid var(--border-subtle)',
+        fontSize: '0.8125rem',
       }}
     >
-      <span style={{ color: 'var(--text-secondary)', fontVariantNumeric: 'tabular-nums' }}>
-        PAGE {currentPage} OF {totalPages}
+      <span className="tabular-nums" style={{ color: 'var(--text-secondary)' }}>
+        Page {currentPage} of {totalPages}
       </span>
 
       <div style={{ display: 'flex', gap: '8px' }}>
@@ -32,7 +31,7 @@ export function Pagination({
           disabled={currentPage <= 1}
           onClick={() => onPageChange?.(currentPage - 1)}
         >
-          ← Previous
+          Previous
         </button>
         <button
           type="button"
@@ -40,7 +39,7 @@ export function Pagination({
           disabled={currentPage >= totalPages}
           onClick={() => onPageChange?.(currentPage + 1)}
         >
-          Next →
+          Next
         </button>
       </div>
     </nav>

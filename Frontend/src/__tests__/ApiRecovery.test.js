@@ -1,46 +1,111 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { listingsApiUrl, listingsPayload, requestApi } from '../utils/api';
+import { fetchPublicEvents, fetchEventById, submitAutoListUrl } from '../utils/api';
 
-afterEach(() => { vi.unstubAllGlobals(); vi.useRealTimers(); });
+afterEach(() => {
+  vi.unstubAllGlobals();
+  vi.useRealTimers();
+});
 
 describe('API recovery', () => {
-  it.each(['', '/api', '/api/v1', '/api/hackathons', '/api/v1/hackathons/'])('accepts the documented API form %s', path => {
-    expect(listingsApiUrl(`https://example.com${path}`)).toBe(`https://example.com${path.includes('/v1') ? '/api/v1' : '/api'}/hackathons`);
+  it('loads events from primary endpoint when response is an array', async () => {
+    const sampleEvents = [{ id: 'ev-1', title: 'Test Hackathon' }];
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => sampleEvents,
+      })
+    );
+
+    const result = await fetchPublicEvents();
+    expect(result.events).toHaveLength(1);
+    expect(result.events[0].title).toBe('Test Hackathon');
+    expect(result.recovered).toBe(false);
   });
-  it('keeps local previews local without configuration', () => {
-    expect(listingsApiUrl(undefined, false)).toBe('http://localhost:8000/api/hackathons');
+
+  it('loads events when wrapped in { events: [...] }', async () => {
+    const sampleEvents = [{ id: 'ev-2', title: 'Wrapped Event' }];
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({ events: sampleEvents, total: 1 }),
+      })
+    );
+
+    const result = await fetchPublicEvents();
+    expect(result.events).toHaveLength(1);
+    expect(result.total).toBe(1);
   });
-  it('bounds a stalled response body as well as the connection', async () => {
-    vi.useFakeTimers();
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, status: 200, json: () => new Promise(() => {}) }));
-    const result = requestApi('https://example.com/api', { timeout: 100 });
-    const assertion = expect(result).rejects.toMatchObject({ name: 'TimeoutError' });
-    await vi.advanceTimersByTimeAsync(100);
-    await assertion;
-    expect(fetch.mock.calls[0][1].signal.aborted).toBe(true);
+
+  it('recovers using fallback endpoint when primary endpoint fails', async () => {
+    const sampleEvents = [{ id: 'ev-3', title: 'Fallback Event' }];
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({ ok: false, status: 404, json: async () => ({}) })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({ items: sampleEvents }),
+      });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const result = await fetchPublicEvents();
+    expect(result.events).toHaveLength(1);
+    expect(result.recovered).toBe(true);
   });
-  it('allows a sleeping service to wake up before the default timeout', async () => {
-    vi.useFakeTimers();
-    vi.stubGlobal('fetch', vi.fn(() => new Promise(resolve => setTimeout(() => resolve({
-      ok: true, status: 200, json: async () => ({ success: true, data: [] }),
-    }), 55_000))));
-    const assertion = expect(requestApi('https://example.com/api')).resolves.toMatchObject({
-      payload: { success: true, data: [] },
+
+  it('throws an error when all fallback endpoints fail', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: false,
+        status: 500,
+        json: async () => ({ message: 'Server unavailable' }),
+      })
+    );
+
+    await expect(fetchPublicEvents()).rejects.toThrow(/Server unavailable|Request failed/);
+  });
+
+  it('fetchEventById validates that an ID is provided', async () => {
+    await expect(fetchEventById('')).rejects.toThrow('Event ID is required.');
+  });
+
+  it('fetchEventById retrieves event details by ID', async () => {
+    const sampleEvent = { id: '123', title: 'Specific Event' };
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => sampleEvent,
+      })
+    );
+
+    const result = await fetchEventById('123');
+    expect(result.title).toBe('Specific Event');
+  });
+
+  it('submitAutoListUrl posts valid JSON payload to auto-list endpoint', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ success: true, message: 'Queued' }),
     });
-    await vi.advanceTimersByTimeAsync(55_000);
-    await assertion;
-  });
-  it('cancels obsolete work without reporting a timeout', async () => {
-    const controller = new AbortController();
-    vi.stubGlobal('fetch', vi.fn(() => new Promise(() => {})));
-    const result = requestApi('https://example.com/api', { signal: controller.signal });
-    controller.abort();
-    await expect(result).rejects.toMatchObject({ name: 'AbortError' });
-  });
-  it.each([{ success: false, data: [] }, { success: true, data: null }, { success: true, data: [null] }, { success: true, data: [], upcoming_total: 'many' }])('rejects a broken payload %s', value => {
-    expect(() => listingsPayload(value)).toThrow();
-  });
-  it('handles malformed optional sources without crashing the page', () => {
-    expect(listingsPayload({ success: true, data: [], stats: { sources: {} } }).stats.sources).toEqual([]);
+    vi.stubGlobal('fetch', fetchMock);
+
+    const res = await submitAutoListUrl('https://example.com/hackathon');
+    expect(res.success).toBe(true);
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining('/auto-list'),
+      expect.objectContaining({
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: 'https://example.com/hackathon' }),
+      })
+    );
   });
 });

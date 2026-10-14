@@ -1,31 +1,112 @@
 import { describe, it, expect } from 'vitest';
-import { readDiscoveryQuery, writeDiscoveryQuery, buildDiscoveryParams } from '../utils/discoveryQuery';
+import {
+  calculateDistanceKm,
+  parseDiscoveryStateFromUrl,
+  syncDiscoveryStateToUrl,
+  buildDiscoveryQueryParams,
+  filterAndSortEvents,
+} from '../utils/discoveryQuery';
 
-describe('Shareable discovery queries', () => {
-  it('round trips independently combined filters and pagination', () => {
-    const state = { ...readDiscoveryQuery(''), search: 'web Pune', category: 'Top College', source: 'Devpost', format: 'Online', closingSoon: true, tab: 'all', sort: 'name', limit: 24, page: 2 };
-    expect(readDiscoveryQuery(writeDiscoveryQuery(state))).toEqual(state);
+describe('DiscoveryQuery Utilities', () => {
+  it('calculateDistanceKm computes distance between valid coordinates', () => {
+    // Distance between New York (40.7128, -74.0060) and London (51.5074, -0.1278) ~ 5570 km
+    const dist = calculateDistanceKm(40.7128, -74.006, 51.5074, -0.1278);
+    expect(dist).toBeGreaterThan(5500);
+    expect(dist).toBeLessThan(5600);
   });
-  it('validates unsupported values instead of sending arbitrary pagination', () => {
-    expect(readDiscoveryQuery('?format=broken&type=broken&sort=broken&status=broken&size=999&page=1.5')).toEqual(readDiscoveryQuery(''));
-    expect(readDiscoveryQuery('?page=1001').page).toBe(1);
-    expect(readDiscoveryQuery('?q=' + 'a'.repeat(200)).search).toHaveLength(100);
+
+  it('calculateDistanceKm returns null for missing or invalid coordinates', () => {
+    expect(calculateDistanceKm(null, 10, 20, 30)).toBeNull();
+    expect(calculateDistanceKm(10, NaN, 20, 30)).toBeNull();
   });
-  it('never exposes location or a location-dependent sort in shared URLs', () => {
-    expect(writeDiscoveryQuery({ ...readDiscoveryQuery(''), sort: 'distance', lat: 12.345, lng: 67.89 })).toBe('');
+
+  it('parseDiscoveryStateFromUrl extracts search, filters, and page', () => {
+    const loc = {
+      search: '?q=AI&format=online&status=open&source=devfolio&sort=newest&saved=1&page=3',
+    };
+    const state = parseDiscoveryStateFromUrl(loc);
+    expect(state).toEqual({
+      search: 'AI',
+      format: 'online',
+      status: 'open',
+      source: 'devfolio',
+      sort: 'newest',
+      savedOnly: true,
+      page: 3,
+    });
   });
-  it('encodes search and platform independently and includes zero coordinates', () => {
-    const query = new URLSearchParams(buildDiscoveryParams({ ...readDiscoveryQuery(''), search: 'web & hardware', source: 'A|B', category: 'Top College', format: 'Hybrid', closingSoon: true, lat: 0, lng: 0 }));
-    expect(query.get('search')).toBe('web & hardware');
-    expect(query.get('source')).toBe('A|B');
-    expect(query.get('format')).toBe('Hybrid');
-    expect(query.get('category')).toBe('Top College');
-    expect(query.get('deadline_days')).toBe('7');
-    expect(query.get('lat')).toBe('0');
-    expect(query.get('lng')).toBe('0');
+
+  it('parseDiscoveryStateFromUrl provides safe defaults for empty search', () => {
+    const state = parseDiscoveryStateFromUrl({ search: '' });
+    expect(state).toEqual({
+      search: '',
+      format: 'all',
+      status: 'all',
+      source: 'all',
+      sort: 'deadline_asc',
+      savedOnly: false,
+      page: 1,
+    });
   });
-  it('omits incomplete coordinates and unused filters', () => {
-    const query = new URLSearchParams(buildDiscoveryParams({ ...readDiscoveryQuery(''), lat: 12, lng: NaN }));
-    for (const key of ['search', 'source', 'format', 'deadline_days', 'lat', 'lng']) expect(query.has(key)).toBe(false);
+
+  it('buildDiscoveryQueryParams generates expected query strings', () => {
+    const qs = buildDiscoveryQueryParams({
+      search: 'web3',
+      format: 'offline',
+      status: 'closing',
+      source: 'devfolio',
+      page: 2,
+      coords: { lat: 18.5204, lng: 73.8567 },
+    });
+    const params = new URLSearchParams(qs);
+    expect(params.get('q')).toBe('web3');
+    expect(params.get('format')).toBe('offline');
+    expect(params.get('status')).toBe('closing');
+    expect(params.get('source')).toBe('devfolio');
+    expect(params.get('page')).toBe('2');
+    expect(params.get('lat')).toBe('18.5204');
+    expect(params.get('lng')).toBe('73.8567');
+  });
+
+  it('filterAndSortEvents correctly filters by search, format, status, and saved', () => {
+    const events = [
+      {
+        id: '1',
+        title: 'Open Online Hack',
+        formatKey: 'online',
+        formatLabel: 'Online',
+        sourceLabel: 'Devfolio',
+        sourceKey: 'devfolio',
+        lifecycleKey: 'open',
+        lifecycleLabel: 'Open',
+        raw: { deadline: '2099-01-01', format: 'online' },
+      },
+      {
+        id: '2',
+        title: 'Closed In-person Hack',
+        formatKey: 'offline',
+        formatLabel: 'In-person',
+        sourceLabel: 'Unstop',
+        sourceKey: 'unstop',
+        lifecycleKey: 'closed',
+        lifecycleLabel: 'Closed',
+        raw: { deadline: '2020-01-01', format: 'offline' },
+      },
+    ];
+
+    // Filter by online
+    const online = filterAndSortEvents(events, { format: 'online' });
+    expect(online).toHaveLength(1);
+    expect(online[0].id).toBe('1');
+
+    // Filter by query
+    const queried = filterAndSortEvents(events, { search: 'In-person' });
+    expect(queried).toHaveLength(1);
+    expect(queried[0].id).toBe('2');
+
+    // Filter savedOnly
+    const saved = filterAndSortEvents(events, { savedOnly: true, savedIds: ['2'] });
+    expect(saved).toHaveLength(1);
+    expect(saved[0].id).toBe('2');
   });
 });

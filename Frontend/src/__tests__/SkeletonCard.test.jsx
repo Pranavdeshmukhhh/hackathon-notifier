@@ -4,9 +4,11 @@ import { render } from '@testing-library/react';
 import SkeletonCard from '../components/SkeletonCard';
 
 describe('SkeletonCard Component', () => {
-  it('keeps loading placeholders out of the accessibility tree', () => {
+  it('renders loading placeholder card with accessible busy indicator', () => {
     const { container } = render(<SkeletonCard />);
-    expect(container.firstChild).toHaveAttribute('aria-hidden', 'true');
-    expect(container).toHaveTextContent('');
+    const card = container.querySelector('.hn-card');
+    expect(card).toBeInTheDocument();
+    expect(card).toHaveAttribute('aria-busy', 'true');
+    expect(card).toHaveAttribute('aria-label', 'Loading hackathon');
   });
 });

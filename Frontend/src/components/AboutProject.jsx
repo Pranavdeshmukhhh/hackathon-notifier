@@ -6,16 +6,16 @@ export function AboutProject({ isOpen, onClose }) {
     <Dialog
       isOpen={isOpen}
       onClose={onClose}
-      subtitle="PROJECT DOCUMENTATION"
+      subtitle="About"
       title="About Hackathon Notifier"
-      maxWidth="560px"
+      maxWidth="540px"
     >
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', fontSize: '0.84375rem', color: 'var(--text-secondary)', lineHeight: 1.6 }}>
         <p>
-          Hackathon Notifier is an automated discovery console built for engineering students and developers to track verified hackathons without manually checking multiple platforms.
+          Finding student and developer hackathons usually means checking half a dozen separate websites and social feeds. Hackathon Notifier brings those listings into a single, searchable directory.
         </p>
         <p>
-          Our backend scrapers index competitions from Devfolio, Unstop, Devpost, HackerEarth, and Devnovate, normalizing registration deadlines, formats (In-Person, Remote, Hybrid), and venue locations into a single keyboard-driven workspace.
+          You can filter opportunities by online or in-person format, check which registration deadlines are closing soon, bookmark events to review later, or submit an event URL to add it to the public index.
         </p>
       </div>
     </Dialog>

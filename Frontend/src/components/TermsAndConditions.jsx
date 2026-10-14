@@ -6,19 +6,19 @@ export function TermsAndConditions({ isOpen = true, onClose }) {
     <Dialog
       isOpen={isOpen}
       onClose={onClose}
-      subtitle="LEGAL & USAGE POLICY"
+      subtitle="Legal"
       title="Terms and Conditions"
-      maxWidth="600px"
+      maxWidth="580px"
     >
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', fontSize: '0.83rem', color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', fontSize: '0.84375rem', color: 'var(--text-secondary)', lineHeight: 1.6 }}>
         <p>
-          <strong>1. Informational Index Only:</strong> Hackathon Notifier aggregates publicly listed hackathon metadata from third-party platforms (Devfolio, Unstop, Devpost, HackerEarth). All registrations occur on the respective official organizer portals.
+          <strong>1. Directory Information:</strong> Hackathon Notifier indexes publicly available hackathon information from third-party platforms. All applications and team registrations take place on the official organizer websites.
         </p>
         <p>
-          <strong>2. Verification & Accuracy:</strong> While automated scrapers verify dates and venues regularly, schedules and prize pools are subject to change by event organizers. Always confirm final deadlines on the official registration page.
+          <strong>2. Schedule & Deadline Accuracy:</strong> While listings are updated regularly, organizers may change deadlines or eligibility rules at any time. Always verify final details on the official registration page.
         </p>
         <p>
-          <strong>3. Acceptable Submissions:</strong> User-submitted event URLs must point to legitimate, publicly accessible hackathon pages. Malicious, private-network, or spam URLs are automatically rejected by our security layer.
+          <strong>3. Community Submissions:</strong> Submitted event URLs must point to legitimate, publicly accessible hackathon pages. Spam or unsafe links are automatically rejected.
         </p>
       </div>
     </Dialog>

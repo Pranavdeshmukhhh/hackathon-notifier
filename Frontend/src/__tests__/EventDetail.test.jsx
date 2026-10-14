@@ -1,121 +1,94 @@
 import React from 'react';
-import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
-import { act, render, screen, fireEvent } from '@testing-library/react';
+import { describe, expect, it, vi } from 'vitest';
+import { render, screen, fireEvent } from '@testing-library/react';
 import EventDetail from '../components/EventDetail';
 
-const id = '0123456789abcdef01234567';
-const otherId = 'abcdef0123456789abcdef01';
-const sample = { _id: id, title: 'Sample campus challenge', source: 'Sample platform', link: 'https://example.com/register', desc: 'Build practical tools for student life.', mode: 'In-person', location: 'Pune', deadline_iso: '2099-10-20', min_team_size: 2, max_team_size: 4, eligibility: 'University students', organizer: 'Sample organizers', prize: 'Source-listed equipment', tags: ['Web', 'Open source'] };
-const response = (data = sample) => ({ ok: true, status: 200, json: async () => ({ success: true, data }) });
-const props = { eventId: id, apiBase: 'http://127.0.0.1:8001/api/hackathons' };
+const sampleEvent = {
+  id: 'ev-detailed',
+  title: 'MIT Global Hackathon',
+  sourceLabel: 'Devfolio',
+  organizer: 'MIT Hack Club',
+  formatLabel: 'Online',
+  locationLabel: 'Worldwide',
+  deadlineDateFormatted: 'Dec 15, 2026',
+  dateRangeLabel: 'Dec 18 – Dec 20, 2026',
+  prizeLabel: '$50,000 in Prizes',
+  eligibilityLabel: 'Undergraduates & High Schoolers',
+  description: 'A 48-hour global sprint building next-gen developer tools.',
+  tags: ['AI', 'Systems', 'Open Source'],
+  url: 'https://devfolio.co/hackathons/mit-global',
+  lifecycleLabel: 'Open',
+};
 
-beforeEach(() => {
-  window.history.replaceState({}, '', `/?q=private-preference&lat=12&lng=34#event/${id}`);
-  vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
-  vi.stubGlobal('fetch', vi.fn().mockResolvedValue(response()));
-});
-afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks(); });
+describe('EventDetail Modal Component', () => {
+  it('renders complete event specifications when open', () => {
+    render(<EventDetail event={sampleEvent} isOpen={true} onClose={() => {}} />);
 
-describe('Event detail experience', () => {
-  it('presents the source facts with a safe registration destination', async () => {
-    render(<EventDetail {...props} />);
-    await screen.findByRole('heading', { name: sample.title, level: 1 });
-    expect(screen.getByText(sample.desc)).toBeInTheDocument();
-    expect(screen.getByText('University students')).toBeInTheDocument();
-    expect(screen.getByText('Sample organizers')).toBeInTheDocument();
-    expect(screen.getByText('2–4 members')).toBeInTheDocument();
-    const registration = screen.getByRole('link', { name: /register on source page/i });
-    expect(registration).toHaveAttribute('href', sample.link);
-    expect(registration).toHaveAttribute('target', '_blank');
-    expect(registration).toHaveAttribute('rel', 'noopener noreferrer');
-    expect(document.title).toBe(`${sample.title} — Hackathon Notifier`);
-    expect(screen.queryByRole('img')).not.toBeInTheDocument();
+    expect(screen.getByRole('dialog', { name: 'MIT Global Hackathon' })).toBeInTheDocument();
+    expect(screen.getByText('Devfolio · MIT Hack Club')).toBeInTheDocument();
+    expect(screen.getByText('$50,000 in Prizes')).toBeInTheDocument();
+    expect(screen.getByText('Undergraduates & High Schoolers')).toBeInTheDocument();
+    expect(screen.getByText('Dec 15, 2026')).toBeInTheDocument();
+    expect(screen.getByText(/A 48-hour global sprint/i)).toBeInTheDocument();
+    expect(screen.getByText('AI')).toBeInTheDocument();
+    expect(screen.getByText('Systems')).toBeInTheDocument();
   });
 
-  it('copies a shareable event link without filters or coordinates', async () => {
-    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: vi.fn().mockResolvedValue(undefined) } });
-    render(<EventDetail {...props} />);
-    fireEvent.click(await screen.findByRole('button', { name: 'Copy event link' }));
-    await screen.findByText('Link copied');
-    expect(navigator.clipboard.writeText).toHaveBeenCalledWith(`${window.location.origin}/#event/${id}`);
+  it('does not render when isOpen is false', () => {
+    render(<EventDetail event={sampleEvent} isOpen={false} onClose={() => {}} />);
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
-  it('handles blocked clipboard access without reporting success', async () => {
-    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: vi.fn().mockRejectedValue(new Error('Denied')) } });
-    render(<EventDetail {...props} />);
-    fireEvent.click(await screen.findByRole('button', { name: 'Copy event link' }));
-    await screen.findByText('Could not copy. Copy the address from your browser.');
-    expect(screen.queryByText('Link copied')).not.toBeInTheDocument();
+  it('triggers onToggleSave when Save button is clicked', () => {
+    const handleSave = vi.fn();
+    render(
+      <EventDetail
+        event={sampleEvent}
+        isOpen={true}
+        isSaved={false}
+        onToggleSave={handleSave}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /Save for later/i }));
+    expect(handleSave).toHaveBeenCalledWith('ev-detailed');
   });
 
-  it('shows missing eligibility, prize, and organizer without guessing from a campus name', async () => {
-    fetch.mockResolvedValue(response({ _id: id, title: 'Campus event', college_name: 'Sample campus', prize: 'Not specified' }));
-    render(<EventDetail {...props} />);
-    await screen.findByRole('heading', { name: 'Campus event', level: 1 });
-    expect(screen.getByText(/Not listed. Confirm eligible ages/)).toBeInTheDocument();
-    expect(screen.getAllByText('Not listed').length).toBeGreaterThanOrEqual(5);
-    expect(screen.getByText('Registration link unavailable.')).toBeInTheDocument();
-    expect(screen.queryByRole('link', { name: /register on source page/i })).not.toBeInTheDocument();
+  it('triggers onCopyLink when Share link button is clicked', () => {
+    const handleCopy = vi.fn();
+    render(
+      <EventDetail
+        event={sampleEvent}
+        isOpen={true}
+        onCopyLink={handleCopy}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /Share link/i }));
+    expect(handleCopy).toHaveBeenCalledWith(expect.objectContaining({ id: 'ev-detailed' }));
   });
 
-  it('keeps closed events available for reference without an active registration claim', async () => {
-    fetch.mockResolvedValue(response({ ...sample, is_past: true }));
-    render(<EventDetail {...props} />);
-    await screen.findByRole('heading', { name: sample.title, level: 1 });
-    expect(screen.getByRole('link', { name: /view source page/i })).toHaveAttribute('href', sample.link);
-    expect(screen.queryByRole('link', { name: /register on source page/i })).not.toBeInTheDocument();
+  it('renders registration link pointing to official external URL', () => {
+    render(<EventDetail event={sampleEvent} isOpen={true} />);
+
+    const regLink = screen.getByRole('link', { name: /Register on Devfolio/i });
+    expect(regLink).toHaveAttribute('href', 'https://devfolio.co/hackathons/mit-global');
+    expect(regLink).toHaveAttribute('target', '_blank');
+    expect(regLink).toHaveAttribute('rel', 'noopener noreferrer');
   });
 
-  it('distinguishes removed listings from network failures', async () => {
-    fetch.mockResolvedValue({ ok: false, status: 404 });
-    render(<EventDetail {...props} />);
-    await screen.findByRole('heading', { name: 'This event is no longer listed.' });
-    expect(screen.queryByRole('button', { name: 'Retry details' })).not.toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Back to discovery' })).toHaveAttribute('href', '#events');
-  });
+  it('omits optional metadata fields when they are null (strict non-fabrication)', () => {
+    const sparseEvent = {
+      id: 'ev-sparse',
+      title: 'Minimal Event',
+      sourceLabel: 'Web',
+      lifecycleLabel: 'Open',
+      // No prizeLabel, no eligibilityLabel, no locationLabel
+    };
 
-  it('rejects malformed identifiers without requesting arbitrary URLs', () => {
-    render(<EventDetail {...props} eventId="../../admin" />);
-    expect(screen.getByRole('heading', { name: 'This event is no longer listed.' })).toBeInTheDocument();
-    expect(fetch).not.toHaveBeenCalled();
-  });
-
-  it('retries an unavailable API and never uses a production fallback unless authorized by configuration', async () => {
-    fetch.mockRejectedValueOnce(new TypeError('Network down')).mockResolvedValue(response());
-    render(<EventDetail {...props} />);
-    expect(await screen.findByRole('alert')).toHaveTextContent('We couldn’t retrieve this listing.');
-    expect(fetch).toHaveBeenCalledOnce();
-    fireEvent.click(screen.getByRole('button', { name: 'Retry details' }));
-    await screen.findByRole('heading', { name: sample.title, level: 1 });
-    expect(fetch).toHaveBeenCalledTimes(2);
-    expect(screen.getByRole('heading', { name: sample.title, level: 1 })).toHaveFocus();
-  });
-
-  it('does not let a late response replace the newly opened event', async () => {
-    let resolveOld;
-    fetch.mockImplementationOnce(() => new Promise(resolve => { resolveOld = resolve; })).mockResolvedValue(response({ ...sample, _id: otherId, title: 'Newly opened event' }));
-    const { rerender } = render(<EventDetail {...props} />);
-    expect(screen.getByText('Loading event details…')).toBeInTheDocument();
-    rerender(<EventDetail {...props} eventId={otherId} />);
-    await screen.findByRole('heading', { name: 'Newly opened event' });
-    await act(async () => resolveOld(response()));
-    expect(screen.getByRole('heading', { name: 'Newly opened event' })).toBeInTheDocument();
-    expect(screen.queryByRole('heading', { name: sample.title })).not.toBeInTheDocument();
-  });
-
-  it('renders untrusted description markup as inert text', async () => {
-    fetch.mockResolvedValue(response({ ...sample, desc: '<script>alert(1)</script><img onerror="alert(1)">' }));
-    const { container } = render(<EventDetail {...props} />);
-    await screen.findByRole('heading', { name: sample.title, level: 1 });
-    expect(container.querySelector('script')).toBeNull();
-    expect(container.querySelector('img')).toBeNull();
-    expect(screen.getByText(/<script>alert/)).toBeInTheDocument();
-  });
-
-  it('rejects a mismatched record instead of showing the wrong event', async () => {
-    fetch.mockResolvedValue(response({ ...sample, _id: otherId }));
-    render(<EventDetail {...props} />);
-    await screen.findByRole('alert');
-    expect(screen.queryByRole('heading', { name: sample.title })).not.toBeInTheDocument();
+    render(<EventDetail event={sparseEvent} isOpen={true} />);
+    expect(screen.getByRole('dialog', { name: 'Minimal Event' })).toBeInTheDocument();
+    expect(screen.queryByText(/Prize pool/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Eligibility/i)).not.toBeInTheDocument();
   });
 });

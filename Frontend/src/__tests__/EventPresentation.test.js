@@ -1,42 +1,99 @@
 import { describe, it, expect } from 'vitest';
-import { listedText, safeRegistrationUrl, eventFormat, eventLocation, eventTeam, eventDeadline } from '../utils/eventPresentation';
+import {
+  parseValidDate,
+  formatEventDate,
+  computeDaysUntil,
+  deriveEventStatus,
+  normalizeEventPresentation,
+} from '../utils/eventPresentation';
 
-describe('Truthful event presentation', () => {
-  it.each([null, undefined, 'TBA', 'Not specified', 'N/A', {}, NaN])('treats %s as unknown', value => expect(listedText(value)).toBe(''));
-  it.each(['javascript:alert(1)', 'data:text/html,test', 'https://user:secret@example.com', '/relative'])('rejects unsafe registration URL %s', value => expect(safeRegistrationUrl(value)).toBeNull());
-  it.each([['Virtual', 'Online'], ['Online + Hybrid', 'Hybrid'], ['Onsite', 'In person'], ['In-person', 'In person'], [null, 'Not listed']])('normalizes format %s', (value, expected) => expect(eventFormat(value)).toBe(expected));
-  it('does not guess missing location and removes duplicate mode/venue text', () => {
-    expect(eventLocation({})).toBe('Not listed');
-    expect(eventLocation({ mode: 'Virtual' })).toBe('Online');
-    expect(eventLocation({ mode: 'Hybrid', location: 'Hybrid' })).toBe('Not listed');
-    expect(eventLocation({ venue: 'Campus', location: 'Campus, Pune, Offline' })).toBe('Campus, Pune');
+describe('Truthful event presentation & non-fabrication', () => {
+  it('parseValidDate parses valid date strings and returns null for invalid dates', () => {
+    expect(parseValidDate('2026-10-24')).toBeInstanceOf(Date);
+    expect(parseValidDate('invalid-date')).toBeNull();
+    expect(parseValidDate(null)).toBeNull();
+    expect(parseValidDate(undefined)).toBeNull();
   });
-  it('preserves partial team rules and rejects contradictory ranges', () => {
-    expect(eventTeam({})).toBe('Not listed');
-    expect(eventTeam({ max_team_size: '4' })).toBe('Up to 4 members');
-    expect(eventTeam({ min_team_size: 2 })).toBe('At least 2 members');
-    expect(eventTeam({ min_team_size: 5, max_team_size: 2 })).toBe('Check organizer');
-    expect(eventTeam({ min_team_size: 1, max_team_size: 1 })).toBe('Solo');
-    expect(eventTeam({ min_team_size: false, max_team_size: -2 })).toBe('Not listed');
+
+  it('formatEventDate formats dates reliably and handles fallback strings', () => {
+    expect(formatEventDate('2026-05-15T00:00:00Z', false)).toMatch(/May 15/);
+    expect(formatEventDate(null)).toBeNull();
+    expect(formatEventDate('TBA')).toBeNull(); // cleanString treats 'TBA' as null
   });
-  it('keeps calendar deadlines on their UTC date across time zones', () => {
-    const result = eventDeadline({ deadline_iso: '2026-10-09' }, new Date('2026-10-09T23:30:00-07:00'));
-    expect(result.iso).toBe('2026-10-09');
-    expect(result.text).toBe('9 Oct 2026');
-    expect(result.note).toBe('Registration closed');
-    expect(eventDeadline({ deadline_iso: '2026-10-10' }, new Date('2026-10-09T12:00:00Z')).note).toBe('Closes tomorrow');
+
+  it('deriveEventStatus deterministically derives open, closing, upcoming, and closed', () => {
+    // Past deadline
+    expect(
+      deriveEventStatus({ registration_deadline: '2020-01-01' }).key
+    ).toBe('closed');
+
+    // Closed lifecycle state
+    expect(
+      deriveEventStatus({ lifecycle_state: 'ended' }).key
+    ).toBe('closed');
+
+    // Closing soon (5 days or less)
+    const closingDate = new Date();
+    closingDate.setDate(closingDate.getDate() + 2);
+    expect(
+      deriveEventStatus({ registration_deadline: closingDate.toISOString() }).key
+    ).toBe('closing');
+
+    // Far future deadline -> open
+    const openDate = new Date();
+    openDate.setDate(openDate.getDate() + 30);
+    expect(
+      deriveEventStatus({ registration_deadline: openDate.toISOString() }).key
+    ).toBe('open');
   });
-  it('rejects invalid calendar dates and preserves a supplied human-readable deadline', () => {
-    expect(eventDeadline({ deadline_iso: '2026-02-31' }).text).toBe('Not listed');
-    expect(eventDeadline({ deadline: 'See organizer schedule' }).text).toBe('See organizer schedule');
+
+  it('normalizeEventPresentation never fabricates missing fields', () => {
+    const raw = {
+      id: 'h-1',
+      title: 'Real Hackathon',
+      // no prize_pool, no team_size, no venue
+    };
+
+    const normalized = normalizeEventPresentation(raw);
+    expect(normalized.title).toBe('Real Hackathon');
+    expect(normalized.prizeLabel).toBeNull();
+    expect(normalized.eligibilityLabel).toBeNull();
+    expect(normalized.locationLabel).toBeNull();
+    expect(normalized.description).toBeNull();
   });
-  it('honors an exact closing time even when a cached listing says it is open', () => {
-    const result = eventDeadline({ is_past: false, deadline_iso: '2026-10-09', registration_deadline: { at: '2026-10-09T14:00:00+05:30' } }, new Date('2026-10-09T09:00:00Z'));
-    expect(result.closed).toBe(true);
-    expect(result.text).toBe('9 Oct 2026 · 08:30 UTC');
-    expect(result.note).toBe('Registration closed');
+
+  it('normalizeEventPresentation maps platform and format labels accurately', () => {
+    const raw = {
+      id: 'h-2',
+      title: 'Devfolio Virtual Hack',
+      source: 'devfolio',
+      format: 'online',
+      prize_pool: '$10,000',
+      eligibility: 'Open to all students',
+    };
+
+    const normalized = normalizeEventPresentation(raw);
+    expect(normalized.sourceLabel).toBe('Devfolio');
+    expect(normalized.formatKey).toBe('online');
+    expect(normalized.formatLabel).toBe('Online');
+    expect(normalized.prizeLabel).toBe('$10,000');
+    expect(normalized.eligibilityLabel).toBe('Open to all students');
   });
-  it.each(['http://localhost/test', 'http://127.1/test', 'http://10.0.0.1', 'https://example.com:8443', 'http://[::1]'])('rejects local and restricted destinations %s', value => {
-    expect(safeRegistrationUrl(value)).toBeNull();
+
+  it('normalizeEventPresentation cleans dummy strings like n/a, unknown, none, tba', () => {
+    const raw = {
+      id: 'h-3',
+      title: 'Cleaned Hackathon',
+      organizer: 'N/A',
+      venue: 'unknown',
+      prize_pool: 'none',
+      eligibility: 'null',
+    };
+
+    const normalized = normalizeEventPresentation(raw);
+    expect(normalized.organizer).toBeNull();
+    expect(normalized.locationLabel).toBeNull();
+    expect(normalized.prizeLabel).toBeNull();
+    expect(normalized.eligibilityLabel).toBeNull();
   });
 });

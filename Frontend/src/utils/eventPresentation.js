@@ -1,81 +1,150 @@
-const SOURCE_META = {
-  devfolio: { label: 'DEVFOLIO', color: 'var(--src-devfolio)', code: 'DF' },
-  unstop: { label: 'UNSTOP', color: 'var(--src-unstop)', code: 'UN' },
-  devpost: { label: 'DEVPOST', color: 'var(--src-devpost)', code: 'DP' },
-  hackerearth: { label: 'HACKEREARTH', color: 'var(--src-hackerearth)', code: 'HE' },
-  devnovate: { label: 'DEVNOVATE', color: 'var(--src-devnovate)', code: 'DN' },
-  instagram: { label: 'INSTA FEED', color: 'var(--accent-signal)', code: 'IG' },
-  web_discovery: { label: 'WEB INDEX', color: 'var(--text-secondary)', code: 'WB' },
+const PLATFORM_NAMES = {
+  devfolio: 'Devfolio',
+  unstop: 'Unstop',
+  devpost: 'Devpost',
+  hackerearth: 'HackerEarth',
+  devnovate: 'Devnovate',
+  instagram: 'Instagram',
+  web_discovery: 'Web',
 };
 
-const FORMAT_LABELS = {
-  offline: 'IN-PERSON',
-  in_person: 'IN-PERSON',
-  'in-person': 'IN-PERSON',
-  online: 'REMOTE',
-  remote: 'REMOTE',
-  virtual: 'REMOTE',
-  hybrid: 'HYBRID',
+const FORMAT_NAMES = {
+  offline: 'In-person',
+  in_person: 'In-person',
+  'in-person': 'In-person',
+  online: 'Online',
+  remote: 'Online',
+  virtual: 'Online',
+  hybrid: 'Hybrid',
 };
 
-export function formatEventDate(dateInput) {
-  if (!dateInput) return 'TBA';
-  const str = String(dateInput).trim();
-  if (!str || str === 'null' || str === 'undefined') return 'TBA';
-  const parsed = new Date(str);
-  if (Number.isNaN(parsed.getTime())) return str;
-  return new Intl.DateTimeFormat('en-IN', {
-    day: '2-digit',
+function cleanString(val) {
+  if (val === null || val === undefined) return null;
+  const str = String(val).trim();
+  if (!str || ['null', 'undefined', 'none', 'n/a', 'tba', 'unknown'].includes(str.toLowerCase())) {
+    return null;
+  }
+  return str;
+}
+
+export function parseValidDate(input) {
+  if (!input) return null;
+  const d = new Date(input);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+export function formatEventDate(dateInput, includeYear = true) {
+  const parsed = parseValidDate(dateInput);
+  if (!parsed) {
+    return cleanString(dateInput);
+  }
+  return new Intl.DateTimeFormat('en-US', {
     month: 'short',
-    year: 'numeric',
+    day: 'numeric',
+    ...(includeYear ? { year: 'numeric' } : {}),
   }).format(parsed);
 }
 
-export function computeDaysRemaining(deadlineInput) {
-  if (!deadlineInput) return null;
-  const parsed = new Date(deadlineInput);
-  if (Number.isNaN(parsed.getTime())) return null;
-  const diffMs = parsed.getTime() - Date.now();
+export function computeDaysUntil(dateInput) {
+  const target = parseValidDate(dateInput);
+  if (!target) return null;
+  const now = new Date();
+  const diffMs = target.getTime() - now.getTime();
   return Math.ceil(diffMs / (1000 * 60 * 60 * 24));
 }
 
-export function buildGoogleCalendarUrl(spec) {
-  const title = encodeURIComponent(`[Hackathon] ${spec.title}`);
-  const details = encodeURIComponent(`${spec.summary}\n\nRegistration: ${spec.url || 'N/A'}`);
-  const location = encodeURIComponent(spec.locationLabel || 'Online');
-  const rawDate = spec.raw?.registration_deadline || spec.raw?.start_date;
-  const parsed = rawDate ? new Date(rawDate) : new Date(Date.now() + 7 * 86400000);
-  const validDate = Number.isNaN(parsed.getTime()) ? new Date(Date.now() + 7 * 86400000) : parsed;
-  const ymd = validDate.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
-  return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&details=${details}&location=${location}&dates=${ymd}/${ymd}`;
+/**
+ * Derives accurate registration status from verified timestamps and backend lifecycle state.
+ * Statuses: 'open' | 'closing' | 'upcoming' | 'closed'
+ */
+export function deriveEventStatus(raw = {}) {
+  const rawLifecycle = cleanString(raw.lifecycle_state || raw.status)?.toLowerCase() || '';
+  const deadlineDate = parseValidDate(raw.registration_deadline || raw.deadline || raw.end_date);
+  const startDate = parseValidDate(raw.start_date);
+  const daysUntilDeadline = computeDaysUntil(deadlineDate);
+  const daysUntilStart = computeDaysUntil(startDate);
+
+  if (
+    rawLifecycle.includes('close') ||
+    rawLifecycle.includes('end') ||
+    rawLifecycle.includes('past') ||
+    rawLifecycle.includes('expire') ||
+    (daysUntilDeadline !== null && daysUntilDeadline < 0)
+  ) {
+    return {
+      key: 'closed',
+      label: 'Closed',
+      deadlineSummary: deadlineDate ? `Closed ${formatEventDate(deadlineDate, false)}` : 'Registration closed',
+      daysRemaining: daysUntilDeadline,
+    };
+  }
+
+  if (
+    rawLifecycle.includes('soon') ||
+    (daysUntilDeadline !== null && daysUntilDeadline >= 0 && daysUntilDeadline <= 5)
+  ) {
+    const relative =
+      daysUntilDeadline === 0
+        ? 'Closes today'
+        : daysUntilDeadline === 1
+          ? 'Closes tomorrow'
+          : `Closes in ${daysUntilDeadline} days`;
+    return {
+      key: 'closing',
+      label: 'Closing soon',
+      deadlineSummary: deadlineDate
+        ? `${relative} (${formatEventDate(deadlineDate, false)})`
+        : relative,
+      daysRemaining: daysUntilDeadline,
+    };
+  }
+
+  if (rawLifecycle.includes('upcom') || (daysUntilDeadline === null && daysUntilStart !== null && daysUntilStart > 14)) {
+    return {
+      key: 'upcoming',
+      label: 'Upcoming',
+      deadlineSummary: startDate ? `Starts ${formatEventDate(startDate)}` : 'Upcoming',
+      daysRemaining: daysUntilStart,
+    };
+  }
+
+  return {
+    key: 'open',
+    label: 'Open',
+    deadlineSummary: deadlineDate
+      ? `Registration closes ${formatEventDate(deadlineDate, false)}`
+      : null,
+    daysRemaining: daysUntilDeadline,
+  };
 }
 
+/**
+ * Normalizes an event object without fabricating missing fields.
+ * Missing optional fields are set to null so UI components can omit them cleanly.
+ */
 export function normalizeEventPresentation(raw = {}) {
   if (!raw || typeof raw !== 'object') {
     return {
       id: 'unknown',
-      title: 'Untitled Hackathon',
+      title: 'Untitled hackathon',
+      organizer: null,
       sourceKey: 'web_discovery',
-      sourceLabel: 'INDEXED',
-      sourceCode: 'WB',
-      sourceColor: 'var(--text-secondary)',
-      formatKey: 'online',
-      formatLabel: 'REMOTE',
+      sourceLabel: 'Listed',
+      formatKey: null,
+      formatLabel: null,
       lifecycleKey: 'open',
-      lifecycleLabel: 'OPEN',
-      urgencyPct: 35,
-      daysLeft: null,
-      locationLabel: 'Remote / Global',
-      deadlineLabel: 'TBA',
-      dateRangeLabel: 'TBA',
-      prizeLabel: 'Open Track',
-      teamSizeLabel: '1–4 Members',
-      summary: 'Verified engineering competition indexed by Hackathon Notifier.',
-      description: 'Verified engineering competition indexed by Hackathon Notifier.',
-      url: '',
-      organizer: 'Verified Host',
+      lifecycleLabel: 'Open',
+      statusKey: 'open',
+      statusLabel: 'Open',
+      locationLabel: null,
+      deadlineLabel: null,
+      dateRangeLabel: null,
+      prizeLabel: null,
+      eligibilityLabel: null,
+      summary: null,
+      description: null,
+      url: null,
       tags: [],
-      verified: true,
       distanceKm: null,
       raw: {},
     };
@@ -84,111 +153,97 @@ export function normalizeEventPresentation(raw = {}) {
   const id = String(
     raw.id || raw._id || raw.slug || raw.event_id || raw.url || Math.random().toString(36).slice(2)
   );
-  const title = String(raw.title || raw.name || 'Untitled Hackathon').trim();
+  const title = cleanString(raw.title || raw.name) || 'Untitled hackathon';
 
-  const rawSource = String(raw.source || raw.platform || 'web_discovery').toLowerCase().trim();
-  const srcMeta = SOURCE_META[rawSource] || {
-    label: rawSource.toUpperCase() || 'INDEXED',
-    color: 'var(--text-secondary)',
-    code: (rawSource.slice(0, 2) || 'IX').toUpperCase(),
-  };
+  const rawSource = cleanString(raw.source || raw.platform)?.toLowerCase() || 'web_discovery';
+  const sourceLabel = PLATFORM_NAMES[rawSource] || cleanString(raw.source || raw.platform) || 'Directory';
 
-  const rawFormat = String(raw.format || raw.mode || raw.event_type || 'online').toLowerCase().trim();
-  const formatKey = ['offline', 'in_person', 'in-person'].includes(rawFormat)
-    ? 'offline'
-    : rawFormat === 'hybrid'
-      ? 'hybrid'
-      : 'online';
-  const formatLabel = FORMAT_LABELS[rawFormat] || 'REMOTE';
+  const organizer = cleanString(raw.organizer || raw.host || raw.college || raw.institution);
 
-  const daysLeft = computeDaysRemaining(raw.registration_deadline || raw.deadline || raw.end_date);
-  const rawLifecycle = String(raw.lifecycle_state || raw.status || '').toLowerCase();
+  const rawFormat = cleanString(raw.format || raw.mode || raw.event_type)?.toLowerCase() || null;
+  const formatKey = rawFormat
+    ? ['offline', 'in_person', 'in-person'].includes(rawFormat)
+      ? 'offline'
+      : rawFormat === 'hybrid'
+        ? 'hybrid'
+        : ['online', 'remote', 'virtual'].includes(rawFormat)
+          ? 'online'
+          : null
+    : null;
+  const formatLabel = rawFormat ? FORMAT_NAMES[rawFormat] || cleanString(raw.format || raw.mode) : null;
 
-  let lifecycleKey = 'open';
-  let lifecycleLabel = 'OPEN';
-  let urgencyPct = 40;
+  const statusInfo = deriveEventStatus(raw);
 
-  if (
-    rawLifecycle.includes('end') ||
-    rawLifecycle.includes('close') ||
-    rawLifecycle.includes('past') ||
-    (daysLeft !== null && daysLeft < 0)
-  ) {
-    lifecycleKey = 'closed';
-    lifecycleLabel = 'ENDED';
-    urgencyPct = 100;
-  } else if (rawLifecycle.includes('soon') || (daysLeft !== null && daysLeft >= 0 && daysLeft <= 5)) {
-    lifecycleKey = 'closing';
-    lifecycleLabel = daysLeft === 0 ? 'CLOSES TODAY' : `${daysLeft}D LEFT`;
-    urgencyPct = Math.max(75, 100 - daysLeft * 5);
-  } else if (daysLeft !== null && daysLeft > 5) {
-    lifecycleLabel = `${daysLeft}D LEFT`;
-    urgencyPct = Math.max(18, Math.min(72, Math.round(100 - (daysLeft / 30) * 80)));
+  // Location: only use real venue/city/location fields
+  const locationParts = [raw.venue, raw.city, raw.state, raw.location, raw.country]
+    .map(cleanString)
+    .filter(Boolean)
+    .filter((v, i, arr) => arr.indexOf(v) === i);
+
+  const locationLabel =
+    locationParts.length > 0
+      ? locationParts.join(', ')
+      : formatKey === 'online'
+        ? 'Online'
+        : null;
+
+  // Dates & Deadlines: only when real dates exist
+  const rawDeadline = raw.registration_deadline || raw.deadline;
+  const deadlineFormatted = formatEventDate(rawDeadline);
+  const deadlineLabel = statusInfo.deadlineSummary || (deadlineFormatted ? `Closes ${deadlineFormatted}` : null);
+
+  const startFormatted = formatEventDate(raw.start_date);
+  const endFormatted = formatEventDate(raw.end_date);
+  let dateRangeLabel = null;
+  if (startFormatted && endFormatted && startFormatted !== endFormatted) {
+    dateRangeLabel = `${startFormatted} – ${endFormatted}`;
+  } else if (startFormatted) {
+    dateRangeLabel = startFormatted;
+  } else if (endFormatted && !rawDeadline) {
+    dateRangeLabel = endFormatted;
   }
 
-  const cityOrVenue = [raw.venue, raw.city, raw.state, raw.location]
-    .filter((v) => typeof v === 'string' && v.trim() && !['none', 'null', 'tba'].includes(v.trim().toLowerCase()))
-    .filter((v, i, arr) => arr.indexOf(v) === i)
-    .join(', ');
+  // Prize & Eligibility: strictly null when absent
+  const prizeLabel = cleanString(raw.prize_pool || raw.prizes || raw.bounty || raw.prize);
+  const eligibilityLabel = cleanString(
+    raw.eligibility || raw.target_audience || raw.participant_type || raw.team_size
+  );
 
-  const locationLabel = cityOrVenue || (formatKey === 'online' ? 'Remote / Global' : 'Venue TBA');
-
-  const deadlineRaw = raw.registration_deadline || raw.deadline || raw.end_date || raw.start_date;
-  const deadlineLabel = formatEventDate(deadlineRaw);
-
-  const startStr = formatEventDate(raw.start_date);
-  const endStr = formatEventDate(raw.end_date);
-  const dateRangeLabel =
-    startStr !== 'TBA' && endStr !== 'TBA' && startStr !== endStr
-      ? `${startStr} — ${endStr}`
-      : startStr !== 'TBA'
-        ? startStr
-        : deadlineLabel;
-
-  const prizeLabel =
-    raw.prize_pool || raw.prizes || raw.bounty
-      ? String(raw.prize_pool || raw.prizes || raw.bounty).trim()
-      : 'Open Bounty';
-
-  const teamSizeLabel = String(raw.team_size || raw.team_limit || '1–4 Builders').trim();
-
-  const summary = String(
-    raw.short_description ||
-      raw.summary ||
-      raw.description ||
-      raw.tagline ||
-      `Verified ${formatLabel.toLowerCase()} engineering competition indexed via ${srcMeta.label}.`
-  ).trim();
+  const summary = cleanString(raw.short_description || raw.summary || raw.tagline || raw.description);
+  const description = cleanString(raw.description || raw.short_description || raw.summary);
+  const url = cleanString(raw.registration_url || raw.url || raw.link);
 
   const tags = Array.isArray(raw.tags || raw.themes || raw.keywords)
-    ? (raw.tags || raw.themes || raw.keywords).map((t) => String(t).trim()).filter(Boolean).slice(0, 6)
+    ? (raw.tags || raw.themes || raw.keywords)
+        .map(cleanString)
+        .filter(Boolean)
+        .slice(0, 6)
     : [];
 
   return {
     id,
     title,
+    organizer,
     sourceKey: rawSource,
-    sourceLabel: srcMeta.label,
-    sourceCode: srcMeta.code,
-    sourceColor: srcMeta.color,
+    sourceLabel,
     formatKey,
     formatLabel,
-    lifecycleKey,
-    lifecycleLabel,
-    urgencyPct,
-    daysLeft,
+    lifecycleKey: statusInfo.key,
+    lifecycleLabel: statusInfo.label,
+    statusKey: statusInfo.key,
+    statusLabel: statusInfo.label,
+    daysRemaining: statusInfo.daysRemaining,
     locationLabel,
     deadlineLabel,
+    deadlineDateFormatted: deadlineFormatted,
     dateRangeLabel,
     prizeLabel,
-    teamSizeLabel,
+    eligibilityLabel,
     summary,
-    description: String(raw.description || summary).trim(),
-    url: String(raw.url || raw.registration_url || raw.link || '').trim(),
-    organizer: String(raw.organizer || raw.host || raw.college || srcMeta.label).trim(),
+    description,
+    url,
     tags,
-    verified: Boolean(raw.verified ?? true),
-    distanceKm: typeof raw.distance_km === 'number' ? raw.distance_km : null,
+    distanceKm: typeof raw.distance_km === 'number' ? Math.round(raw.distance_km) : null,
     raw,
   };
 }

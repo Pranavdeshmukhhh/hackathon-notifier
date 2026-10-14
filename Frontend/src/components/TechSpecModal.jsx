@@ -6,43 +6,51 @@ export function TechSpecModal({ isOpen, onClose }) {
     <Dialog
       isOpen={isOpen}
       onClose={onClose}
-      subtitle="SYSTEM ARCHITECTURE & PIPELINE TELEMETRY"
-      title="Hackathon Notifier Technical Specification"
-      maxWidth="620px"
+      subtitle="Platform architecture"
+      title="How Hackathon Notifier works"
+      maxWidth="580px"
     >
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', fontSize: '0.84rem', color: 'var(--text-secondary)' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', fontSize: '0.84375rem', color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+        <p>
+          Hackathon Notifier aggregates public listings across major hackathon platforms, normalizes dates and locations, and removes duplicate entries so you can browse active opportunities in one place.
+        </p>
+
         <div
           style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(2, 1fr)',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
             gap: '12px',
             padding: '14px',
-            backgroundColor: 'var(--bg-inset)',
-            border: '1px solid var(--border-default)',
-            borderRadius: 'var(--radius-sm)',
+            backgroundColor: 'var(--bg-subtle)',
+            border: '1px solid var(--border-subtle)',
+            borderRadius: 'var(--radius-md)',
           }}
         >
-          <div className="hn-spec-cell">
-            <span className="hn-spec-label">INGESTION SCRAPERS</span>
-            <span className="hn-spec-value">Devfolio, Unstop, Devpost, HackerEarth, Devnovate</span>
+          <div className="hn-meta-item">
+            <span className="hn-meta-label">Supported platforms</span>
+            <span className="hn-meta-value" style={{ whiteSpace: 'normal' }}>
+              Devfolio, Unstop, Devpost, HackerEarth, Devnovate
+            </span>
           </div>
-          <div className="hn-spec-cell">
-            <span className="hn-spec-label">DEDUPLICATION & STORAGE</span>
-            <span className="hn-spec-value">MongoDB + Deterministic Slug & URL Hashing</span>
+          <div className="hn-meta-item">
+            <span className="hn-meta-label">Status verification</span>
+            <span className="hn-meta-value" style={{ whiteSpace: 'normal' }}>
+              Derived from verified registration and event timestamps
+            </span>
           </div>
-          <div className="hn-spec-cell">
-            <span className="hn-spec-label">GEOCODING & LIFECYCLE</span>
-            <span className="hn-spec-value">Automated Venue Resolution & Expiry Sweeps</span>
+          <div className="hn-meta-item">
+            <span className="hn-meta-label">Saved opportunities</span>
+            <span className="hn-meta-value" style={{ whiteSpace: 'normal' }}>
+              Stored locally in your browser for quick access
+            </span>
           </div>
-          <div className="hn-spec-cell">
-            <span className="hn-spec-label">REALTIME DISPATCH</span>
-            <span className="hn-spec-value">Telegram Bot Subscriber Broadcast</span>
+          <div className="hn-meta-item">
+            <span className="hn-meta-label">Telegram notifications</span>
+            <span className="hn-meta-value" style={{ whiteSpace: 'normal' }}>
+              Automated alerts dispatched via our Telegram bot
+            </span>
           </div>
         </div>
-
-        <p style={{ lineHeight: 1.6 }}>
-          Events are continuously polled across primary hackathon platforms, verified against SSRF and schema constraints, normalized into a unified lifecycle state machine, and exposed via a resilient public JSON feed.
-        </p>
       </div>
     </Dialog>
   );

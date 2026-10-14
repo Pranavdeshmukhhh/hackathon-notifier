@@ -12,86 +12,125 @@ import { TermsAndConditions } from './components/TermsAndConditions';
 import { Pagination } from './components/Pagination';
 import { Toast } from './components/Toast';
 import { ScrollToTop } from './components/ScrollToTop';
-import {
-  SunIcon,
-  MoonIcon,
-  TerminalIcon,
-  SearchIcon,
-  ExternalArrowIcon,
-  BookmarkIcon,
-  CommandIcon,
-} from './components/Icons';
+import { SunIcon, MoonIcon, BookmarkIcon } from './components/Icons';
 import { useDarkMode } from './hooks/useDarkMode';
 import { useCopyLink } from './hooks/useCopyLink';
 import { useGeolocation } from './hooks/useGeolocation';
 import { useScrollProgress } from './hooks/useScrollProgress';
 import { fetchPublicEvents } from './utils/api';
-import { filterAndSortEvents } from './utils/discoveryQuery';
+import {
+  filterAndSortEvents,
+  parseDiscoveryStateFromUrl,
+  syncDiscoveryStateToUrl,
+} from './utils/discoveryQuery';
 import { normalizeEventPresentation } from './utils/eventPresentation';
 import { getEventIdFromUrl, pushEventRoute } from './utils/eventRoute';
 
 const PAGE_SIZE = 12;
 
 export function App() {
-  const [darkMode, toggleDarkMode] = useDarkMode(true);
+  const [darkMode, toggleDarkMode] = useDarkMode(false);
   const { copiedId, copyLink } = useCopyLink(2000);
-  const { coords: userCoords, requestLocation, clearLocation, isActive: locationActive } = useGeolocation();
+  const {
+    coords: userCoords,
+    geoError,
+    requestLocation,
+    clearLocation,
+    isActive: locationActive,
+  } = useGeolocation();
   const scrollProgress = useScrollProgress();
+
+  // Initialize discovery state from URL parameters
+  const initialUrlState = useMemo(() => parseDiscoveryStateFromUrl(), []);
 
   const [rawEvents, setRawEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Workspace Controls
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedFormat, setSelectedFormat] = useState('all');
-  const [selectedSource, setSelectedSource] = useState('all');
-  const [sortBy, setSortBy] = useState('deadline_asc');
-  const [scope, setScope] = useState('all'); // 'all' | 'closing' | 'saved'
-  const [viewMode, setViewMode] = useState('grid'); // 'grid' | 'table'
-  const [currentPage, setCurrentPage] = useState(1);
+  const [searchQuery, setSearchQuery] = useState(initialUrlState.search);
+  const [debouncedSearch, setDebouncedSearch] = useState(initialUrlState.search);
+  const [selectedFormat, setSelectedFormat] = useState(initialUrlState.format);
+  const [selectedStatus, setSelectedStatus] = useState(initialUrlState.status);
+  const [selectedSource, setSelectedSource] = useState(initialUrlState.source);
+  const [sortBy, setSortBy] = useState(initialUrlState.sort);
+  const [savedOnly, setSavedOnly] = useState(initialUrlState.savedOnly);
+  const [currentPage, setCurrentPage] = useState(initialUrlState.page);
+  const [layoutMode, setLayoutMode] = useState('grid');
 
-  // Persisted Shortlist Bookmarks
+  // Persisted Saved Hackathons
   const [savedIds, setSavedIds] = useState(() => {
     try {
-      const raw = window.localStorage.getItem('hn-saved-ids');
-      return raw ? JSON.parse(raw) : [];
+      const stored = window.localStorage.getItem('hn-saved-hackathons');
+      return stored ? JSON.parse(stored) : [];
     } catch {
       return [];
     }
   });
 
-  // Modals & Command Palette
+  // Modals
   const [activeEvent, setActiveEvent] = useState(null);
-  const [cmdOpen, setCmdOpen] = useState(false);
-  const [cmdQuery, setCmdQuery] = useState('');
   const [autoListOpen, setAutoListOpen] = useState(false);
   const [techSpecOpen, setTechSpecOpen] = useState(false);
   const [aboutOpen, setAboutOpen] = useState(false);
   const [termsOpen, setTermsOpen] = useState(false);
 
+  // Debounce search input slightly for smooth typing while keeping tests responsive
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchQuery);
+    }, 120);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  // Synchronize filter state to URL query parameters
+  useEffect(() => {
+    syncDiscoveryStateToUrl({
+      search: debouncedSearch,
+      format: selectedFormat,
+      status: selectedStatus,
+      source: selectedSource,
+      sort: sortBy,
+      savedOnly,
+      page: currentPage,
+    });
+  }, [debouncedSearch, selectedFormat, selectedStatus, selectedSource, sortBy, savedOnly, currentPage]);
+
+  // Handle Browser Back / Forward navigation
+  useEffect(() => {
+    const handlePopState = () => {
+      const nextState = parseDiscoveryStateFromUrl();
+      setSearchQuery(nextState.search);
+      setDebouncedSearch(nextState.search);
+      setSelectedFormat(nextState.format);
+      setSelectedStatus(nextState.status);
+      setSelectedSource(nextState.source);
+      setSortBy(nextState.sort);
+      setSavedOnly(nextState.savedOnly);
+      setCurrentPage(nextState.page);
+
+      const eventId = getEventIdFromUrl();
+      if (eventId && rawEvents.length > 0) {
+        const found = rawEvents.find((e) => String(e.id) === String(eventId));
+        setActiveEvent(found || null);
+      } else {
+        setActiveEvent(null);
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [rawEvents]);
+
   const toggleSaveEvent = useCallback((id) => {
     setSavedIds((prev) => {
-      const next = prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id];
+      const next = prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id];
       try {
-        window.localStorage.setItem('hn-saved-ids', JSON.stringify(next));
+        window.localStorage.setItem('hn-saved-hackathons', JSON.stringify(next));
       } catch {
-        // ignore
+        // ignore storage errors
       }
       return next;
     });
-  }, []);
-
-  // Global Cmd+K / Ctrl+K Listener
-  useEffect(() => {
-    const onKeyDown = (e) => {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
-        e.preventDefault();
-        setCmdOpen((prev) => !prev);
-      }
-    };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
   }, []);
 
   const loadEvents = useCallback(async () => {
@@ -102,13 +141,13 @@ export function App() {
       const normalized = events.map(normalizeEventPresentation);
       setRawEvents(normalized);
 
-      const initialId = getEventIdFromUrl();
-      if (initialId) {
-        const match = normalized.find((e) => String(e.id) === String(initialId));
-        if (match) setActiveEvent(match);
+      const deepLinkedId = getEventIdFromUrl();
+      if (deepLinkedId) {
+        const found = normalized.find((e) => String(e.id) === String(deepLinkedId));
+        if (found) setActiveEvent(found);
       }
     } catch (err) {
-      setError(err?.message || 'Unable to synchronize hackathon index.');
+      setError(err?.message || 'Unable to load hackathons right now.');
     } finally {
       setLoading(false);
     }
@@ -118,30 +157,45 @@ export function App() {
     loadEvents();
   }, [loadEvents]);
 
+  // Dynamically derive available sources from actual data when present
+  const availableSources = useMemo(() => {
+    const base = ['devfolio', 'unstop', 'devpost', 'hackerearth', 'devnovate'];
+    const fromData = rawEvents
+      .map((e) => e.sourceKey)
+      .filter((s) => s && s !== 'web_discovery');
+    return Array.from(new Set([...base, ...fromData]));
+  }, [rawEvents]);
+
   const filteredEvents = useMemo(
     () =>
       filterAndSortEvents(rawEvents, {
         search: searchQuery,
         format: selectedFormat,
+        status: selectedStatus,
         source: selectedSource,
         sort: sortBy,
-        scope,
+        savedOnly,
         savedIds,
         userCoords,
       }),
-    [rawEvents, searchQuery, selectedFormat, selectedSource, sortBy, scope, savedIds, userCoords]
+    [rawEvents, searchQuery, selectedFormat, selectedStatus, selectedSource, sortBy, savedOnly, savedIds, userCoords]
   );
 
   const totalPages = Math.max(1, Math.ceil(filteredEvents.length / PAGE_SIZE));
   const paginatedEvents = useMemo(() => {
-    const start = (currentPage - 1) * PAGE_SIZE;
+    const safePage = Math.min(currentPage, totalPages);
+    const start = (safePage - 1) * PAGE_SIZE;
     return filteredEvents.slice(start, start + PAGE_SIZE);
-  }, [filteredEvents, currentPage]);
+  }, [filteredEvents, currentPage, totalPages]);
 
-  // Telemetry Counters
-  const openCount = useMemo(() => rawEvents.filter((e) => e.lifecycleKey !== 'closed').length, [rawEvents]);
-  const closingCount = useMemo(() => rawEvents.filter((e) => e.lifecycleKey === 'closing').length, [rawEvents]);
-  const offlineCount = useMemo(() => rawEvents.filter((e) => e.formatKey === 'offline').length, [rawEvents]);
+  const openCount = useMemo(
+    () => rawEvents.filter((e) => e.lifecycleKey === 'open' || e.lifecycleKey === 'closing').length,
+    [rawEvents]
+  );
+  const closingCount = useMemo(
+    () => rawEvents.filter((e) => e.lifecycleKey === 'closing').length,
+    [rawEvents]
+  );
 
   const handleSelectEvent = (ev) => {
     setActiveEvent(ev);
@@ -153,18 +207,6 @@ export function App() {
     pushEventRoute(null);
   };
 
-  // J / K Stepping inside Inspector Drawer
-  const activeIndex = useMemo(
-    () => (activeEvent ? filteredEvents.findIndex((e) => e.id === activeEvent.id) : -1),
-    [activeEvent, filteredEvents]
-  );
-
-  const handlePrevEvent = activeIndex > 0 ? () => handleSelectEvent(filteredEvents[activeIndex - 1]) : null;
-  const handleNextEvent =
-    activeIndex >= 0 && activeIndex < filteredEvents.length - 1
-      ? () => handleSelectEvent(filteredEvents[activeIndex + 1])
-      : null;
-
   const handleToggleLocation = () => {
     requestLocation();
     if (!locationActive) setSortBy('distance_asc');
@@ -172,92 +214,109 @@ export function App() {
 
   const handleResetFilters = () => {
     setSearchQuery('');
+    setDebouncedSearch('');
     setSelectedFormat('all');
+    setSelectedStatus('all');
     setSelectedSource('all');
     setSortBy('deadline_asc');
-    setScope('all');
+    setSavedOnly(false);
     clearLocation();
     setCurrentPage(1);
   };
 
-  // Command Palette Matches
-  const cmdMatches = useMemo(() => {
-    const q = cmdQuery.trim().toLowerCase();
-    if (!q) return rawEvents.slice(0, 5);
-    return rawEvents
-      .filter((e) => [e.title, e.sourceLabel, e.locationLabel, e.organizer].join(' ').toLowerCase().includes(q))
-      .slice(0, 6);
-  }, [rawEvents, cmdQuery]);
-
   return (
-    <div className="hn-shell">
-      <div className="hn-progress-bar" style={{ width: `${scrollProgress}%` }} />
+    <div className="hn-app-shell">
+      <div className="hn-scroll-progress" style={{ width: `${scrollProgress}%` }} />
 
-      {/* Sticky Industrial Top Bar */}
-      <header className="hn-navbar">
-        <div className="hn-brand-group">
-          <a href="/" className="hn-brand">
-            <span className="hn-brand-mark">HN</span>
+      {/* Header */}
+      <header className="hn-header">
+        <div className="hn-container hn-header-inner">
+          <a
+            href="/"
+            className="hn-brand-link"
+            onClick={(e) => {
+              if (!e.metaKey && !e.ctrlKey) {
+                e.preventDefault();
+                handleResetFilters();
+              }
+            }}
+          >
+            <span className="hn-wordmark-badge">HN</span>
             <span>Hackathon Notifier</span>
           </a>
-          <span className="hn-nav-divider" />
-          <span className="hn-system-pill">
-            <span className="hn-live-dot" />
-            <span>v2.4 INDEX</span>
-          </span>
-        </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <button
-            type="button"
-            className="hn-btn"
-            onClick={() => setCmdOpen(true)}
-            title="Open Command Palette (Cmd+K)"
-          >
-            <CommandIcon size={13} />
-            <span>Command</span>
-            <kbd className="hn-kbd" style={{ marginLeft: '4px' }}>⌘K</kbd>
-          </button>
+          <nav className="hn-nav" aria-label="Primary navigation">
+            <button
+              type="button"
+              className={`hn-nav-btn ${!savedOnly && selectedStatus === 'all' ? 'active' : ''}`}
+              onClick={() => {
+                setSavedOnly(false);
+                setSelectedStatus('all');
+                setCurrentPage(1);
+              }}
+            >
+              Browse
+            </button>
 
-          <button type="button" className="hn-btn" onClick={() => setAboutOpen(true)}>
-            About
-          </button>
+            <button
+              type="button"
+              className={`hn-nav-btn ${selectedStatus === 'closing' ? 'active' : ''}`}
+              onClick={() => {
+                setSavedOnly(false);
+                setSelectedStatus((prev) => (prev === 'closing' ? 'all' : 'closing'));
+                setCurrentPage(1);
+              }}
+            >
+              <span>Closing soon</span>
+              {closingCount > 0 && <span className="hn-count-pill">{closingCount}</span>}
+            </button>
 
-          <a
-            href="https://t.me/"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="hn-btn"
-            title="Telegram Dispatch Bot"
-          >
-            <TerminalIcon size={14} />
-            <span>Telegram</span>
-          </a>
+            <button
+              type="button"
+              className={`hn-nav-btn ${savedOnly ? 'active' : ''}`}
+              onClick={() => {
+                setSavedOnly((prev) => !prev);
+                setCurrentPage(1);
+              }}
+            >
+              <BookmarkIcon size={13} filled={savedOnly} />
+              <span>Saved</span>
+              {savedIds.length > 0 && <span className="hn-count-pill">{savedIds.length}</span>}
+            </button>
 
-          <button
-            type="button"
-            className="hn-btn hn-icon-btn"
-            onClick={toggleDarkMode}
-            aria-label="Toggle color theme"
-          >
-            {darkMode ? <SunIcon /> : <MoonIcon />}
-          </button>
+            <button
+              type="button"
+              className="hn-nav-btn hn-nav-label-hide-sm"
+              onClick={() => setAboutOpen(true)}
+            >
+              About
+            </button>
+
+            <button
+              type="button"
+              className="hn-btn hn-icon-btn"
+              onClick={toggleDarkMode}
+              aria-label={darkMode ? 'Switch to light mode' : 'Switch to dark mode'}
+              title={darkMode ? 'Light mode' : 'Dark mode'}
+            >
+              {darkMode ? <SunIcon size={15} /> : <MoonIcon size={15} />}
+            </button>
+          </nav>
         </div>
       </header>
 
-      <main style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+      {/* Main Content */}
+      <main className="hn-container" style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
         <HomeIntro
-          events={rawEvents}
           totalCount={rawEvents.length}
           openCount={openCount}
           closingCount={closingCount}
-          offlineCount={offlineCount}
-          onSelectSource={(srcKey) => {
-            setSelectedSource((prev) => (prev === srcKey ? 'all' : srcKey));
+          onFilterStatus={(statusKey) => {
+            setSavedOnly(false);
+            setSelectedStatus((prev) => (prev === statusKey ? 'all' : statusKey));
             setCurrentPage(1);
           }}
           onOpenAutoList={() => setAutoListOpen(true)}
-          onOpenTechSpec={() => setTechSpecOpen(true)}
         />
 
         <DiscoveryControls
@@ -271,28 +330,52 @@ export function App() {
             setSelectedFormat(fmt);
             setCurrentPage(1);
           }}
+          selectedStatus={selectedStatus}
+          onStatusChange={(st) => {
+            setSelectedStatus(st);
+            setCurrentPage(1);
+          }}
           selectedSource={selectedSource}
           onSourceChange={(src) => {
             setSelectedSource(src);
             setCurrentPage(1);
           }}
+          availableSources={availableSources}
           sortBy={sortBy}
           onSortChange={setSortBy}
-          scope={scope}
-          onScopeChange={(sc) => {
-            setScope(sc);
+          savedOnly={savedOnly}
+          onToggleSavedOnly={(val) => {
+            setSavedOnly(val);
             setCurrentPage(1);
           }}
           savedCount={savedIds.length}
-          viewMode={viewMode}
-          onViewModeChange={setViewMode}
+          layoutMode={layoutMode}
+          onLayoutModeChange={setLayoutMode}
           onUseLocation={handleToggleLocation}
           locationActive={locationActive}
           resultCount={filteredEvents.length}
           onResetFilters={handleResetFilters}
         />
 
-        <div className="hn-workspace">
+        {geoError && (
+          <div
+            role="status"
+            style={{
+              marginTop: '12px',
+              padding: '10px 14px',
+              borderRadius: 'var(--radius-sm)',
+              backgroundColor: 'var(--status-closing-bg)',
+              color: 'var(--status-closing-text)',
+              border: '1px solid var(--status-closing-border)',
+              fontSize: '0.8125rem',
+            }}
+          >
+            {geoError}
+          </div>
+        )}
+
+        <section className="hn-directory-section" aria-label="Hackathon listings">
+          {/* Loading State */}
           {loading && (
             <div className="hn-card-grid" aria-live="polite">
               {Array.from({ length: 6 }).map((_, idx) => (
@@ -301,11 +384,11 @@ export function App() {
             </div>
           )}
 
+          {/* Error Recovery State */}
           {!loading && error && (
             <div
               role="alert"
               style={{
-                margin: '24px 0',
                 padding: '24px',
                 backgroundColor: 'var(--bg-surface)',
                 border: '1px solid var(--border-default)',
@@ -318,23 +401,23 @@ export function App() {
               }}
             >
               <div>
-                <div className="hn-spec-label" style={{ color: 'var(--accent-signal)' }}>
-                  INDEX SYNCHRONIZATION ERROR
-                </div>
-                <p style={{ fontSize: '0.88rem', marginTop: '4px', color: 'var(--text-primary)' }}>
+                <h2 style={{ fontSize: '0.95rem', fontWeight: 600, marginBottom: '4px' }}>
+                  Unable to load hackathons
+                </h2>
+                <p style={{ fontSize: '0.84375rem', color: 'var(--text-secondary)' }}>
                   {error}
                 </p>
               </div>
               <button type="button" className="hn-btn hn-btn-primary" onClick={loadEvents}>
-                Retry Connection
+                Try again
               </button>
             </div>
           )}
 
+          {/* Empty Filter Recovery State */}
           {!loading && !error && filteredEvents.length === 0 && (
             <div
               style={{
-                margin: '24px 0',
                 padding: '44px 24px',
                 textAlign: 'center',
                 backgroundColor: 'var(--bg-surface)',
@@ -342,243 +425,86 @@ export function App() {
                 borderRadius: 'var(--radius-md)',
               }}
             >
-              <div className="hn-spec-label">ZERO MATCHING EVENTS</div>
-              <p style={{ fontSize: '0.86rem', color: 'var(--text-secondary)', margin: '8px 0 16px' }}>
-                No indexed hackathons match your active filter parameters.
+              <h2 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '6px' }}>
+                {savedOnly ? 'No saved hackathons yet' : 'No matching hackathons'}
+              </h2>
+              <p
+                style={{
+                  fontSize: '0.84375rem',
+                  color: 'var(--text-secondary)',
+                  maxWidth: '42ch',
+                  margin: '0 auto 16px',
+                }}
+              >
+                {savedOnly
+                  ? 'Bookmark hackathons while browsing to keep track of upcoming registration deadlines here.'
+                  : 'Try adjusting your search terms or clearing active filters to see more opportunities.'}
               </p>
               <button type="button" className="hn-btn" onClick={handleResetFilters}>
-                Reset Active Filters
+                Reset filters
               </button>
             </div>
           )}
 
-          {/* MODE 1: Tactile Bento Card Grid */}
-          {!loading && !error && paginatedEvents.length > 0 && viewMode === 'grid' && (
-            <div className="hn-card-grid">
-              {paginatedEvents.map((ev) => (
-                <HackathonCard
-                  key={ev.id}
-                  event={ev}
-                  onSelect={handleSelectEvent}
-                  onCopyLink={copyLink}
-                  copied={copiedId === ev.id}
-                  isSaved={savedIds.includes(ev.id)}
-                  onToggleSave={toggleSaveEvent}
-                />
-              ))}
-            </div>
-          )}
-
-          {/* MODE 2: High-Density Linear-Style Terminal Table */}
-          {!loading && !error && paginatedEvents.length > 0 && viewMode === 'table' && (
-            <div className="hn-table-wrap">
-              <table className="hn-table">
-                <thead>
-                  <tr>
-                    <th>STATUS</th>
-                    <th>COMPETITION & HOST</th>
-                    <th>SOURCE</th>
-                    <th>FORMAT</th>
-                    <th>VENUE / REGION</th>
-                    <th>DEADLINE</th>
-                    <th>BOUNTY</th>
-                    <th style={{ textAlign: 'right' }}>ACTION</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {paginatedEvents.map((ev) => {
-                    const saved = savedIds.includes(ev.id);
-                    return (
-                      <tr key={ev.id} onClick={() => handleSelectEvent(ev)}>
-                        <td>
-                          <span className={`hn-status-badge ${ev.lifecycleKey}`}>
-                            {ev.lifecycleLabel}
-                          </span>
-                        </td>
-                        <td>
-                          <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{ev.title}</div>
-                          <div style={{ fontSize: '0.72rem', color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)' }}>
-                            {ev.organizer}
-                          </div>
-                        </td>
-                        <td>
-                          <span className="hn-platform-badge">
-                            <span className="hn-platform-dot" style={{ background: ev.sourceColor }} />
-                            <span>{ev.sourceLabel}</span>
-                          </span>
-                        </td>
-                        <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.74rem' }}>
-                          {ev.formatLabel}
-                        </td>
-                        <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.74rem', color: 'var(--text-secondary)' }}>
-                          {ev.locationLabel}
-                        </td>
-                        <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.74rem', fontVariantNumeric: 'tabular-nums' }}>
-                          {ev.deadlineLabel}
-                        </td>
-                        <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.74rem', color: 'var(--status-open-text)' }}>
-                          {ev.prizeLabel}
-                        </td>
-                        <td style={{ textAlign: 'right' }} onClick={(e) => e.stopPropagation()}>
-                          <div style={{ display: 'inline-flex', gap: '6px' }}>
-                            <button
-                              type="button"
-                              className="hn-btn hn-icon-btn"
-                              onClick={() => toggleSaveEvent(ev.id)}
-                              style={{ color: saved ? 'var(--accent-signal)' : undefined }}
-                            >
-                              <BookmarkIcon size={13} filled={saved} />
-                            </button>
-                            {ev.url && (
-                              <a
-                                href={ev.url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="hn-btn hn-btn-primary"
-                              >
-                                <span>Register</span>
-                                <ExternalArrowIcon />
-                              </a>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
-
+          {/* Listings (Grid or Structured Rows) */}
           {!loading && !error && paginatedEvents.length > 0 && (
-            <Pagination
-              currentPage={currentPage}
-              totalPages={totalPages}
-              onPageChange={(page) => {
-                setCurrentPage(page);
-                window.scrollTo({ top: 0, behavior: 'smooth' });
-              }}
-            />
-          )}
-        </div>
-      </main>
+            <>
+              <div className={layoutMode === 'rows' ? 'hn-row-list' : 'hn-card-grid'}>
+                {paginatedEvents.map((ev) => (
+                  <HackathonCard
+                    key={ev.id}
+                    event={ev}
+                    layoutMode={layoutMode}
+                    onSelect={handleSelectEvent}
+                    onCopyLink={copyLink}
+                    copied={copiedId === ev.id}
+                    isSaved={savedIds.includes(ev.id)}
+                    onToggleSave={toggleSaveEvent}
+                  />
+                ))}
+              </div>
 
-      {/* Raycast-Style Cmd+K Command Palette */}
-      {cmdOpen && (
-        <div
-          className="hn-cmd-backdrop"
-          onClick={(e) => {
-            if (e.target === e.currentTarget) setCmdOpen(false);
-          }}
-        >
-          <div className="hn-cmd-box" role="dialog" aria-label="Command Palette">
-            <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-              <span style={{ position: 'absolute', left: '14px', color: 'var(--text-tertiary)', display: 'inline-flex' }}>
-                <SearchIcon size={16} />
-              </span>
-              <input
-                type="text"
-                autoFocus
-                className="hn-cmd-input"
-                placeholder="Type a command or search hackathons..."
-                value={cmdQuery}
-                onChange={(e) => setCmdQuery(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Escape') setCmdOpen(false);
+              <Pagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                onPageChange={(page) => {
+                  setCurrentPage(page);
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
                 }}
               />
-            </div>
+            </>
+          )}
+        </section>
+      </main>
 
-            <div className="hn-cmd-list">
-              <div className="hn-spec-label" style={{ padding: '6px 10px' }}>QUICK ACTIONS</div>
-              <button
-                type="button"
-                className="hn-cmd-item"
-                onClick={() => {
-                  setCmdOpen(false);
-                  setAutoListOpen(true);
-                }}
-              >
-                <span>+ Submit Hackathon URL for Verification</span>
-                <kbd className="hn-kbd">INGEST</kbd>
-              </button>
-              <button
-                type="button"
-                className="hn-cmd-item"
-                onClick={() => {
-                  setViewMode((v) => (v === 'grid' ? 'table' : 'grid'));
-                  setCmdOpen(false);
-                }}
-              >
-                <span>Switch Layout ({viewMode === 'grid' ? 'Terminal Table' : 'Bento Grid'})</span>
-                <kbd className="hn-kbd">VIEW</kbd>
-              </button>
-              <button
-                type="button"
-                className="hn-cmd-item"
-                onClick={() => {
-                  toggleDarkMode();
-                  setCmdOpen(false);
-                }}
-              >
-                <span>Toggle Carbon Dark / Drafting Light Theme</span>
-                <kbd className="hn-kbd">THEME</kbd>
-              </button>
-
-              {cmdMatches.length > 0 && (
-                <>
-                  <div className="hn-spec-label" style={{ padding: '10px 10px 4px' }}>INDEXED HACKATHONS</div>
-                  {cmdMatches.map((ev) => (
-                    <button
-                      key={ev.id}
-                      type="button"
-                      className="hn-cmd-item"
-                      onClick={() => {
-                        setCmdOpen(false);
-                        handleSelectEvent(ev);
-                      }}
-                    >
-                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {ev.title}
-                      </span>
-                      <span className="hn-platform-badge">{ev.sourceLabel}</span>
-                    </button>
-                  ))}
-                </>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
+      {/* Footer */}
       <footer className="hn-footer">
-        <div>HACKATHON NOTIFIER · AUTONOMOUS ENGINEERING EVENT TELEMETRY</div>
-        <div style={{ display: 'flex', gap: '16px' }}>
-          <button
-            type="button"
-            onClick={() => setTechSpecOpen(true)}
-            style={{ background: 'none', border: 'none', color: 'inherit', font: 'inherit', cursor: 'pointer' }}
-          >
-            Architecture
-          </button>
-          <button
-            type="button"
-            onClick={() => setTermsOpen(true)}
-            style={{ background: 'none', border: 'none', color: 'inherit', font: 'inherit', cursor: 'pointer' }}
-          >
-            Terms & Conditions
-          </button>
+        <div className="hn-container hn-footer-inner">
+          <div>Hackathon Notifier — Verified student & developer opportunity directory</div>
+          <div className="hn-footer-links">
+            <button type="button" className="hn-footer-link" onClick={() => setAutoListOpen(true)}>
+              Submit a hackathon
+            </button>
+            <button type="button" className="hn-footer-link" onClick={() => setTechSpecOpen(true)}>
+              How it works
+            </button>
+            <button type="button" className="hn-footer-link" onClick={() => setAboutOpen(true)}>
+              About
+            </button>
+            <button type="button" className="hn-footer-link" onClick={() => setTermsOpen(true)}>
+              Terms & Conditions
+            </button>
+          </div>
         </div>
       </footer>
 
+      {/* Modals */}
       <EventDetail
         event={activeEvent}
         isOpen={Boolean(activeEvent)}
         onClose={handleCloseDetail}
         onCopyLink={copyLink}
         copied={Boolean(activeEvent && copiedId === activeEvent.id)}
-        onPrev={handlePrevEvent}
-        onNext={handleNextEvent}
         isSaved={Boolean(activeEvent && savedIds.includes(activeEvent.id))}
         onToggleSave={toggleSaveEvent}
       />
@@ -592,7 +518,7 @@ export function App() {
       <TechSpecModal isOpen={techSpecOpen} onClose={() => setTechSpecOpen(false)} />
       <AboutProject isOpen={aboutOpen} onClose={() => setAboutOpen(false)} />
       <TermsAndConditions isOpen={termsOpen} onClose={() => setTermsOpen(false)} />
-      <Toast visible={Boolean(copiedId)} message="Event permalink copied to clipboard" />
+      <Toast visible={Boolean(copiedId)} message="Link copied to clipboard" />
       <ScrollToTop />
     </div>
   );

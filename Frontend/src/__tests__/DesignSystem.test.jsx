@@ -5,68 +5,66 @@ import Dialog from '../components/Dialog';
 import Toast from '../components/Toast';
 import useDarkMode from '../hooks/useDarkMode';
 
-beforeEach(() => { localStorage.clear(); document.documentElement.classList.remove('dark'); });
-afterEach(() => { vi.restoreAllMocks(); localStorage.clear(); document.documentElement.classList.remove('dark'); });
+beforeEach(() => {
+  localStorage.clear();
+  document.documentElement.classList.remove('dark');
+  document.documentElement.removeAttribute('data-theme');
+});
+afterEach(() => {
+  vi.restoreAllMocks();
+  localStorage.clear();
+  document.documentElement.classList.remove('dark');
+  document.documentElement.removeAttribute('data-theme');
+});
 
-describe('Theme preference', () => {
-  it('restores an explicit choice instead of the OS default', () => {
-    localStorage.setItem('hackathon_theme', 'dark');
-    const { result } = renderHook(useDarkMode);
-    expect(result.current.isDarkMode).toBe(true);
+describe('Theme preference (useDarkMode)', () => {
+  it('restores saved theme preference from hn-theme', () => {
+    localStorage.setItem('hn-theme', 'dark');
+    const { result } = renderHook(() => useDarkMode(false));
+    expect(result.current[0]).toBe(true);
     expect(document.documentElement).toHaveClass('dark');
-    act(() => result.current.toggleDarkMode());
-    expect(localStorage.getItem('hackathon_theme')).toBe('light');
+    expect(document.documentElement.getAttribute('data-theme')).toBe('dark');
+
+    act(() => result.current[1]()); // toggleDarkMode
+    expect(result.current[0]).toBe(false);
+    expect(localStorage.getItem('hn-theme')).toBe('light');
     expect(document.documentElement).not.toHaveClass('dark');
   });
 
-  it('follows OS changes until an explicit override is chosen', () => {
-    let notify;
-    vi.spyOn(window, 'matchMedia').mockReturnValue({ matches: false,
-      addEventListener: (_, callback) => { notify = callback; }, removeEventListener: vi.fn() });
-    const { result } = renderHook(useDarkMode);
-    act(() => notify({ matches: true }));
-    expect(result.current.isDarkMode).toBe(true);
-    act(() => result.current.toggleDarkMode());
-    act(() => notify({ matches: true }));
-    expect(result.current.isDarkMode).toBe(false);
-  });
+  it('toggles dark mode state smoothly when called', () => {
+    const { result } = renderHook(() => useDarkMode(false));
+    expect(result.current[0]).toBe(false);
 
-  it('still toggles when browser storage is unavailable', () => {
-    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => { throw new Error('Unavailable'); });
-    const { result } = renderHook(useDarkMode);
-    act(() => result.current.toggleDarkMode());
-    expect(result.current.isDarkMode).toBe(true);
+    act(() => result.current[1]()); // toggleDarkMode
+    expect(result.current[0]).toBe(true);
+    expect(localStorage.getItem('hn-theme')).toBe('dark');
   });
 });
 
 describe('Shared feedback and dialog behavior', () => {
-  it('announces feedback without making it a blocking alert', () => {
-    render(<Toast message="Link copied" visible />);
-    expect(screen.getByRole('status')).toHaveTextContent('Link copied');
-    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  it('Toast renders accessible polite status message when visible', () => {
+    render(<Toast message="Link copied to clipboard" visible={true} />);
+    const status = screen.getByRole('status');
+    expect(status).toHaveTextContent('Link copied to clipboard');
   });
 
-  it('contains keyboard focus, closes on Escape, and restores the opener', () => {
-    // jsdom has no layout engine; expose visible controls as the browser would.
-    vi.spyOn(HTMLElement.prototype, 'getClientRects').mockReturnValue([{ width: 44, height: 44 }]);
-    function Example() {
-      const [open, setOpen] = useState(false);
-      return <><button onClick={() => setOpen(true)}>Open dialog</button>{open &&
-        <Dialog label="Example" onClose={() => setOpen(false)}><button>Last action</button></Dialog>}</>;
-    }
-    render(<Example />);
-    const opener = screen.getByText('Open dialog');
-    opener.focus(); fireEvent.click(opener);
-    const close = screen.getByLabelText('Close dialog');
-    const last = screen.getByText('Last action');
-    expect(close).toHaveFocus();
-    fireEvent.keyDown(document, { key: 'Tab', shiftKey: true });
-    expect(last).toHaveFocus();
-    fireEvent.keyDown(document, { key: 'Tab' });
-    expect(close).toHaveFocus();
-    fireEvent.keyDown(document, { key: 'Escape' });
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-    expect(opener).toHaveFocus();
-    expect(document.body.style.overflow).not.toBe('hidden');
+  it('Toast does not render when visible is false', () => {
+    render(<Toast message="Link copied" visible={false} />);
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+  });
+
+  it('Dialog renders with dialog role, closes on Escape, and calls onClose', () => {
+    const handleClose = vi.fn();
+    render(
+      <Dialog isOpen={true} onClose={handleClose} title="Test Modal" subtitle="Subtitle">
+        <div>Modal Content</div>
+      </Dialog>
+    );
+
+    expect(screen.getByRole('dialog', { name: 'Test Modal' })).toBeInTheDocument();
+    expect(screen.getByText('Modal Content')).toBeInTheDocument();
+
+    fireEvent.keyDown(window, { key: 'Escape' });
+    expect(handleClose).toHaveBeenCalledTimes(1);
   });
 });

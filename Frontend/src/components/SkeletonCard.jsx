@@ -5,25 +5,23 @@ export function SkeletonCard() {
     width,
     height,
     backgroundColor: 'var(--bg-subtle)',
-    borderRadius: '3px',
+    borderRadius: '4px',
   });
 
   return (
-    <div className="hn-card" aria-busy="true" aria-label="Loading event">
+    <div className="hn-card" aria-busy="true" aria-label="Loading hackathon">
       <div>
-        <div className="hn-card-top">
-          <div style={bar('78px', '18px')} />
+        <div className="hn-card-header">
+          <div style={bar('84px', '18px')} />
           <div style={bar('64px', '18px')} />
         </div>
-        <div style={{ ...bar('85%', '20px'), marginBottom: '10px' }} />
-        <div style={{ ...bar('100%', '13px'), marginBottom: '6px' }} />
-        <div style={{ ...bar('65%', '13px'), marginBottom: '18px' }} />
+        <div style={{ ...bar('82%', '18px'), marginBottom: '10px' }} />
+        <div style={{ ...bar('100%', '12px'), marginBottom: '6px' }} />
+        <div style={{ ...bar('60%', '12px'), marginBottom: '16px' }} />
       </div>
-      <div className="hn-spec-grid">
-        <div style={bar('80%', '26px')} />
-        <div style={bar('80%', '26px')} />
-        <div style={bar('80%', '26px')} />
-        <div style={bar('80%', '26px')} />
+      <div className="hn-meta-grid">
+        <div style={bar('75%', '24px')} />
+        <div style={bar('75%', '24px')} />
       </div>
     </div>
   );

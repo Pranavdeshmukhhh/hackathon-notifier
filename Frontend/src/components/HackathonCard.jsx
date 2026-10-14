@@ -9,6 +9,7 @@ export function HackathonCard({
   copied = false,
   isSaved = false,
   onToggleSave,
+  layoutMode = 'grid',
 }) {
   if (!event) return null;
 
@@ -19,17 +20,32 @@ export function HackathonCard({
     onSelect?.(spec);
   };
 
-  const gaugeColor =
-    spec.lifecycleKey === 'closed'
-      ? 'var(--status-closed-dot)'
-      : spec.lifecycleKey === 'closing'
-        ? 'var(--status-closing-dot)'
-        : 'var(--status-open-dot)';
+  // Build only verified metadata items present in the event data
+  const metadataItems = [];
+  if (spec.formatLabel) {
+    metadataItems.push({ label: 'Format', value: spec.formatLabel });
+  }
+  if (spec.locationLabel) {
+    const locValue =
+      spec.distanceKm !== null
+        ? `${spec.locationLabel} · ${spec.distanceKm} km`
+        : spec.locationLabel;
+    metadataItems.push({ label: 'Location', value: locValue });
+  }
+  if (spec.deadlineLabel) {
+    metadataItems.push({ label: 'Deadline', value: spec.deadlineLabel });
+  } else if (spec.dateRangeLabel) {
+    metadataItems.push({ label: 'Dates', value: spec.dateRangeLabel });
+  }
+  if (spec.prizeLabel) {
+    metadataItems.push({ label: 'Prizes', value: spec.prizeLabel });
+  } else if (spec.eligibilityLabel) {
+    metadataItems.push({ label: 'Eligibility', value: spec.eligibilityLabel });
+  }
 
   return (
     <article
-      className="hn-card"
-      style={{ '--card-accent': spec.sourceColor }}
+      className={`hn-card ${layoutMode === 'rows' ? 'hn-card-row-mode' : ''}`}
       onClick={handleCardClick}
       tabIndex={0}
       onKeyDown={(e) => {
@@ -40,140 +56,102 @@ export function HackathonCard({
       }}
       aria-label={spec.title}
     >
-      <div>
-        {/* Top Telemetry Bar */}
-        <div className="hn-card-top">
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-            <span className="hn-platform-badge">
-              <span className="hn-platform-dot" />
-              <span>{spec.sourceLabel}</span>
-            </span>
-            <span
-              style={{
-                fontFamily: 'var(--font-mono)',
-                fontSize: '0.66rem',
-                color: 'var(--text-tertiary)',
-                padding: '1px 5px',
-                border: '1px solid var(--border-hairline)',
-                borderRadius: '3px',
-              }}
-            >
-              {spec.formatLabel}
-            </span>
-          </div>
-
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-            <span className={`hn-status-badge ${spec.lifecycleKey}`}>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        {/* Header: Organizer/Platform + Derived Status */}
+        <div className="hn-card-header">
+          <div className="hn-organizer-meta">
+            <span className="hn-platform-tag">{spec.sourceLabel}</span>
+            {spec.organizer && spec.organizer.toLowerCase() !== spec.sourceLabel.toLowerCase() && (
               <span
                 style={{
-                  width: '5px',
-                  height: '5px',
-                  borderRadius: '50%',
-                  backgroundColor: 'currentColor',
-                }}
-              />
-              {spec.lifecycleLabel}
-            </span>
-
-            {onToggleSave && (
-              <button
-                type="button"
-                className="hn-btn hn-icon-btn"
-                onClick={() => onToggleSave(spec.id)}
-                aria-label={isSaved ? 'Remove from saved shortlist' : 'Save to shortlist'}
-                title={isSaved ? 'Saved in Shortlist' : 'Save to Shortlist'}
-                style={{
-                  width: '24px',
-                  height: '24px',
-                  color: isSaved ? 'var(--accent-signal)' : 'var(--text-tertiary)',
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
                 }}
               >
-                <BookmarkIcon size={13} filled={isSaved} />
-              </button>
+                {spec.organizer}
+              </span>
             )}
           </div>
+
+          <span className={`hn-status ${spec.lifecycleKey}`}>
+            <span className="hn-status-dot" />
+            <span>{spec.lifecycleLabel}</span>
+          </span>
         </div>
 
-        {/* Title & Summary */}
+        {/* Hackathon Name */}
         <h2 className="hn-card-title">{spec.title}</h2>
-        <p className="hn-card-summary">{spec.summary}</p>
 
-        {/* Tags Strip */}
-        {spec.tags?.length > 0 && (
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginBottom: '12px' }}>
-            {spec.tags.slice(0, 4).map((tag) => (
-              <span
-                key={tag}
-                style={{
-                  fontFamily: 'var(--font-mono)',
-                  fontSize: '0.64rem',
-                  color: 'var(--text-secondary)',
-                  background: 'var(--bg-subtle)',
-                  padding: '1px 6px',
-                  borderRadius: '2px',
-                }}
-              >
-                {tag}
-              </span>
-            ))}
-          </div>
+        {/* Concise Description (Only if available and in Grid mode) */}
+        {layoutMode !== 'rows' && spec.summary && (
+          <p className="hn-card-description">{spec.summary}</p>
         )}
       </div>
 
-      <div>
-        {/* Registration Window Urgency Bar */}
-        <div className="hn-urgency-track" title={`Registration urgency: ${spec.lifecycleLabel}`}>
+      <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+        {/* Verified Metadata Cells */}
+        {metadataItems.length > 0 && (
           <div
-            className="hn-urgency-fill"
-            style={{ width: `${spec.urgencyPct}%`, backgroundColor: gaugeColor }}
-          />
-        </div>
+            className="hn-meta-grid"
+            style={
+              layoutMode === 'rows'
+                ? { borderTop: 'none', paddingTop: 0, display: 'flex', gap: '20px', flexWrap: 'wrap' }
+                : undefined
+            }
+          >
+            {metadataItems.slice(0, 4).map((item) => (
+              <div key={item.label} className="hn-meta-item">
+                <span className="hn-meta-label">{item.label}</span>
+                <span className="hn-meta-value" title={item.value}>
+                  {item.value}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
 
-        {/* 2x2 Spec Matrix */}
-        <div className="hn-spec-grid">
-          <div className="hn-spec-cell">
-            <span className="hn-spec-label">VENUE / REGION</span>
-            <span className="hn-spec-value" title={spec.locationLabel}>
-              {spec.distanceKm != null
-                ? `${spec.locationLabel} (${spec.distanceKm} km)`
-                : spec.locationLabel}
-            </span>
-          </div>
-          <div className="hn-spec-cell">
-            <span className="hn-spec-label">DEADLINE</span>
-            <span className="hn-spec-value">{spec.deadlineLabel}</span>
-          </div>
-          <div className="hn-spec-cell">
-            <span className="hn-spec-label">BOUNTY POOL</span>
-            <span className="hn-spec-value">{spec.prizeLabel}</span>
-          </div>
-          <div className="hn-spec-cell">
-            <span className="hn-spec-label">HOST / SQUAD</span>
-            <span className="hn-spec-value" title={spec.organizer}>
-              {spec.organizer}
-            </span>
-          </div>
-        </div>
-
-        {/* Action Bar */}
-        <div className="hn-card-footer">
-          <div style={{ display: 'flex', gap: '6px' }}>
+        {/* Card Footer Controls */}
+        <div
+          className="hn-card-actions"
+          style={
+            layoutMode === 'rows'
+              ? { borderTop: 'none', marginTop: 0, paddingTop: '8px', justifyContent: 'flex-end' }
+              : undefined
+          }
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
             <button
               type="button"
               className="hn-btn"
               onClick={() => onSelect?.(spec)}
             >
-              Inspect Spec
+              Details
             </button>
-            {onCopyLink && (
+
+            {onToggleSave && (
               <button
                 type="button"
                 className="hn-btn"
-                onClick={() => onCopyLink(spec)}
-                aria-label="Copy event link"
+                onClick={() => onToggleSave(spec.id)}
+                aria-pressed={isSaved}
+                aria-label={isSaved ? 'Remove from saved' : 'Save for later'}
+                title={isSaved ? 'Saved' : 'Save for later'}
               >
-                {copied ? <CheckIcon /> : <CopyIcon />}
-                <span>{copied ? 'Copied' : 'Share'}</span>
+                <BookmarkIcon size={13} filled={isSaved} />
+                <span>{isSaved ? 'Saved' : 'Save'}</span>
+              </button>
+            )}
+
+            {onCopyLink && (
+              <button
+                type="button"
+                className="hn-btn hn-icon-btn"
+                onClick={() => onCopyLink(spec)}
+                aria-label="Copy link to hackathon"
+                title="Copy link"
+              >
+                {copied ? <CheckIcon size={14} /> : <CopyIcon size={14} />}
               </button>
             )}
           </div>
@@ -186,7 +164,7 @@ export function HackathonCard({
               className="hn-btn hn-btn-primary"
             >
               <span>Register</span>
-              <ExternalArrowIcon />
+              <ExternalArrowIcon size={13} />
             </a>
           )}
         </div>

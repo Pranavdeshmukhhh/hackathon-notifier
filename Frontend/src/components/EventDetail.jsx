@@ -1,6 +1,7 @@
-import React, { useEffect } from 'react';
-import { normalizeEventPresentation, buildGoogleCalendarUrl } from '../utils/eventPresentation';
-import { ExternalArrowIcon, CopyIcon, CheckIcon, CloseIcon, CalendarIcon, BookmarkIcon } from './Icons';
+import React from 'react';
+import { Dialog } from './Dialog';
+import { normalizeEventPresentation } from '../utils/eventPresentation';
+import { ExternalArrowIcon, CopyIcon, CheckIcon, BookmarkIcon } from './Icons';
 
 export function EventDetail({
   event,
@@ -8,167 +9,112 @@ export function EventDetail({
   onClose,
   onCopyLink,
   copied = false,
-  onPrev,
-  onNext,
   isSaved = false,
   onToggleSave,
 }) {
-  useEffect(() => {
-    if (!isOpen || !event) return;
-    const handleKey = (e) => {
-      if (e.key === 'Escape') onClose?.();
-      if ((e.key === 'j' || e.key === 'ArrowRight') && onNext) onNext();
-      if ((e.key === 'k' || e.key === 'ArrowLeft') && onPrev) onPrev();
-    };
-    window.addEventListener('keydown', handleKey);
-    return () => window.removeEventListener('keydown', handleKey);
-  }, [isOpen, event, onClose, onNext, onPrev]);
-
   if (!event || !isOpen) return null;
   const spec = event.sourceLabel ? event : normalizeEventPresentation(event);
-  const gcalUrl = buildGoogleCalendarUrl(spec);
+
+  const detailFields = [
+    { label: 'Status', value: spec.lifecycleLabel },
+    { label: 'Platform', value: spec.sourceLabel },
+    { label: 'Organizer', value: spec.organizer },
+    { label: 'Format', value: spec.formatLabel },
+    { label: 'Location', value: spec.locationLabel },
+    { label: 'Registration deadline', value: spec.deadlineDateFormatted || spec.deadlineLabel },
+    { label: 'Event dates', value: spec.dateRangeLabel },
+    { label: 'Prize pool', value: spec.prizeLabel },
+    { label: 'Eligibility', value: spec.eligibilityLabel },
+  ].filter((item) => Boolean(item.value));
 
   return (
-    <div
-      className="hn-drawer-backdrop"
-      role="dialog"
-      aria-modal="true"
-      aria-label={spec.title}
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose?.();
-      }}
-    >
-      <aside className="hn-drawer-panel">
-        {/* Top Inspector Bar with J/K Stepper */}
-        <header
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            padding: '14px 20px',
-            borderBottom: '1px solid var(--border-default)',
-            background: 'var(--bg-surface)',
-          }}
-        >
+    <Dialog
+      isOpen={isOpen}
+      onClose={onClose}
+      subtitle={`${spec.sourceLabel}${spec.organizer ? ` · ${spec.organizer}` : ''}`}
+      title={spec.title}
+      maxWidth="660px"
+      footer={
+        <>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span className="hn-platform-badge">
-              <span className="hn-platform-dot" style={{ background: spec.sourceColor }} />
-              <span>{spec.sourceLabel}</span>
-            </span>
-            <span className={`hn-status-badge ${spec.lifecycleKey}`}>
-              {spec.lifecycleLabel}
-            </span>
-          </div>
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            {(onPrev || onNext) && (
-              <div style={{ display: 'flex', gap: '4px', marginRight: '6px' }}>
-                <button
-                  type="button"
-                  className="hn-btn"
-                  onClick={onPrev}
-                  disabled={!onPrev}
-                  title="Previous event (K)"
-                  style={{ padding: '0 8px', fontFamily: 'var(--font-mono)', fontSize: '0.7rem' }}
-                >
-                  ↑ K
-                </button>
-                <button
-                  type="button"
-                  className="hn-btn"
-                  onClick={onNext}
-                  disabled={!onNext}
-                  title="Next event (J)"
-                  style={{ padding: '0 8px', fontFamily: 'var(--font-mono)', fontSize: '0.7rem' }}
-                >
-                  ↓ J
-                </button>
-              </div>
-            )}
-
             {onToggleSave && (
               <button
                 type="button"
-                className="hn-btn hn-icon-btn"
+                className="hn-btn"
                 onClick={() => onToggleSave(spec.id)}
-                aria-label="Save event"
-                style={{ color: isSaved ? 'var(--accent-signal)' : undefined }}
+                aria-pressed={isSaved}
               >
                 <BookmarkIcon size={14} filled={isSaved} />
+                <span>{isSaved ? 'Saved' : 'Save for later'}</span>
               </button>
             )}
 
             <button
               type="button"
-              className="hn-btn hn-icon-btn"
-              onClick={onClose}
-              aria-label="Close modal"
+              className="hn-btn"
+              onClick={() => onCopyLink?.(spec)}
             >
-              <CloseIcon />
+              {copied ? <CheckIcon size={14} /> : <CopyIcon size={14} />}
+              <span>{copied ? 'Link copied' : 'Share link'}</span>
             </button>
           </div>
-        </header>
 
-        {/* Scrollable Specification Sheet */}
-        <div style={{ padding: '24px 22px', overflowY: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: '22px' }}>
-          <div>
-            <div className="hn-spec-label" style={{ marginBottom: '6px' }}>
-              VERIFIED COMPETITION DOSSIER
-            </div>
-            <h2 style={{ fontSize: '1.35rem', fontWeight: 600, letterSpacing: '-0.025em', lineHeight: 1.25 }}>
-              {spec.title}
-            </h2>
-          </div>
-
-          {/* 6-Cell Telemetry Matrix */}
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(2, 1fr)',
-              gap: '12px',
-              padding: '16px',
-              background: 'var(--bg-inset)',
-              border: '1px solid var(--border-default)',
-              borderRadius: 'var(--radius-sm)',
-            }}
-          >
-            <div className="hn-spec-cell">
-              <span className="hn-spec-label">EXECUTION FORMAT</span>
-              <span className="hn-spec-value">{spec.formatLabel}</span>
-            </div>
-            <div className="hn-spec-cell">
-              <span className="hn-spec-label">VENUE / LOCATION</span>
-              <span className="hn-spec-value">{spec.locationLabel}</span>
-            </div>
-            <div className="hn-spec-cell">
-              <span className="hn-spec-label">REGISTRATION DEADLINE</span>
-              <span className="hn-spec-value">{spec.deadlineLabel}</span>
-            </div>
-            <div className="hn-spec-cell">
-              <span className="hn-spec-label">EVENT SCHEDULE</span>
-              <span className="hn-spec-value">{spec.dateRangeLabel}</span>
-            </div>
-            <div className="hn-spec-cell">
-              <span className="hn-spec-label">BOUNTY / PRIZE POOL</span>
-              <span className="hn-spec-value" style={{ color: 'var(--status-open-text)' }}>
-                {spec.prizeLabel}
+          {spec.url && (
+            <a
+              href={spec.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hn-btn hn-btn-primary"
+            >
+              <span>Register on {spec.sourceLabel}</span>
+              <ExternalArrowIcon size={13} />
+            </a>
+          )}
+        </>
+      }
+    >
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+        {/* Verified Metadata Grid */}
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))',
+            gap: '12px',
+            padding: '14px',
+            backgroundColor: 'var(--bg-subtle)',
+            border: '1px solid var(--border-subtle)',
+            borderRadius: 'var(--radius-md)',
+          }}
+        >
+          {detailFields.map((field) => (
+            <div key={field.label} className="hn-meta-item">
+              <span className="hn-meta-label">{field.label}</span>
+              <span className="hn-meta-value" style={{ whiteSpace: 'normal' }}>
+                {field.value}
               </span>
             </div>
-            <div className="hn-spec-cell">
-              <span className="hn-spec-label">HOST / SQUAD LIMIT</span>
-              <span className="hn-spec-value">{spec.organizer} · {spec.teamSizeLabel}</span>
-            </div>
-          </div>
+          ))}
+        </div>
 
-          {/* Track Overview */}
+        {/* Description */}
+        {spec.description && (
           <div>
-            <div className="hn-spec-label" style={{ marginBottom: '8px' }}>
-              OVERVIEW & PROBLEM STATEMENT
-            </div>
+            <h3
+              style={{
+                fontSize: '0.78rem',
+                fontWeight: 600,
+                color: 'var(--text-muted)',
+                textTransform: 'uppercase',
+                letterSpacing: '0.04em',
+                marginBottom: '8px',
+              }}
+            >
+              About this hackathon
+            </h3>
             <p
               style={{
-                fontSize: '0.86rem',
-                lineHeight: 1.68,
+                fontSize: '0.875rem',
+                lineHeight: 1.65,
                 color: 'var(--text-secondary)',
                 whiteSpace: 'pre-line',
               }}
@@ -176,91 +122,34 @@ export function EventDetail({
               {spec.description}
             </p>
           </div>
+        )}
 
-          {/* Indexed Tags */}
-          {spec.tags?.length > 0 && (
-            <div>
-              <div className="hn-spec-label" style={{ marginBottom: '8px' }}>
-                INDEXED TECHNICAL TRACKS
-              </div>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                {spec.tags.map((tag) => (
-                  <span key={tag} className="hn-platform-badge">
-                    {tag}
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Calendar & Utility Tools */}
-          <div
-            style={{
-              padding: '14px',
-              background: 'var(--bg-surface)',
-              border: '1px solid var(--border-default)',
-              borderRadius: 'var(--radius-sm)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              gap: '12px',
-              flexWrap: 'wrap',
-            }}
-          >
-            <div>
-              <div className="hn-spec-label">DEADLINE REMINDER</div>
-              <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
-                Add registration cutoff to your engineering calendar
-              </div>
-            </div>
-            <a
-              href={gcalUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="hn-btn"
+        {/* Themes / Tags */}
+        {spec.tags?.length > 0 && (
+          <div>
+            <h3
+              style={{
+                fontSize: '0.78rem',
+                fontWeight: 600,
+                color: 'var(--text-muted)',
+                textTransform: 'uppercase',
+                letterSpacing: '0.04em',
+                marginBottom: '8px',
+              }}
             >
-              <CalendarIcon size={13} />
-              <span>Add to Calendar</span>
-            </a>
+              Topics & tracks
+            </h3>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+              {spec.tags.map((tag) => (
+                <span key={tag} className="hn-platform-tag">
+                  {tag}
+                </span>
+              ))}
+            </div>
           </div>
-        </div>
-
-        {/* Sticky Drawer Footer */}
-        <footer
-          style={{
-            padding: '14px 20px',
-            borderTop: '1px solid var(--border-default)',
-            background: 'var(--bg-surface)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            gap: '10px',
-          }}
-        >
-          <button
-            type="button"
-            className="hn-btn"
-            onClick={() => onCopyLink?.(spec)}
-          >
-            {copied ? <CheckIcon /> : <CopyIcon />}
-            <span>{copied ? 'Permalink Copied' : 'Copy Permalink'}</span>
-          </button>
-
-          {spec.url && (
-            <a
-              href={spec.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="hn-btn hn-btn-signal"
-              style={{ height: '34px', padding: '0 16px' }}
-            >
-              <span>Open Official Registration</span>
-              <ExternalArrowIcon />
-            </a>
-          )}
-        </footer>
-      </aside>
-    </div>
+        )}
+      </div>
+    </Dialog>
   );
 }
 

@@ -16,7 +16,7 @@ export function AutoListModal({ isOpen, onClose, onSuccess }) {
       new URL(trimmed);
     } catch {
       setStatus('error');
-      setMessage('Enter a valid https:// event URL.');
+      setMessage('Please enter a valid URL starting with https://');
       return;
     }
 
@@ -25,12 +25,12 @@ export function AutoListModal({ isOpen, onClose, onSuccess }) {
     try {
       const result = await submitAutoListUrl(trimmed);
       setStatus('success');
-      setMessage(result?.message || 'Event URL queued for verification and indexing.');
+      setMessage(result?.message || 'Hackathon submitted and queued for verification.');
       setUrl('');
       onSuccess?.(result);
     } catch (err) {
       setStatus('error');
-      setMessage(err.message || 'Verification failed. Ensure the URL points to a public hackathon page.');
+      setMessage(err.message || 'Could not verify that URL. Please check the link and try again.');
     }
   };
 
@@ -38,18 +38,27 @@ export function AutoListModal({ isOpen, onClose, onSuccess }) {
     <Dialog
       isOpen={isOpen}
       onClose={onClose}
-      subtitle="AUTONOMOUS INGESTION PIPELINE"
-      title="Submit Hackathon URL for Verification"
-      maxWidth="520px"
+      subtitle="Community contribution"
+      title="Submit a hackathon"
+      maxWidth="500px"
     >
       <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-        <p style={{ fontSize: '0.83rem', color: 'var(--text-secondary)', lineHeight: 1.55 }}>
-          Paste a public event link from Devfolio, Unstop, Devpost, HackerEarth, or an official university domain. The verifier extracts deadlines, geocodes the venue, and dispatches to the live index.
+        <p style={{ fontSize: '0.84375rem', color: 'var(--text-secondary)', lineHeight: 1.55 }}>
+          Share a public event link from Devfolio, Unstop, Devpost, HackerEarth, or an official university page. We will verify the dates and add it to the directory.
         </p>
 
         <div>
-          <label htmlFor="autolist-url-input" className="hn-spec-label" style={{ display: 'block', marginBottom: '6px' }}>
-            EVENT REGISTRATION URL
+          <label
+            htmlFor="autolist-url-input"
+            style={{
+              display: 'block',
+              fontSize: '0.78125rem',
+              fontWeight: 500,
+              color: 'var(--text-primary)',
+              marginBottom: '6px',
+            }}
+          >
+            Event registration URL
           </label>
           <input
             id="autolist-url-input"
@@ -68,12 +77,11 @@ export function AutoListModal({ isOpen, onClose, onSuccess }) {
             role="status"
             style={{
               padding: '10px 12px',
-              borderRadius: 'var(--radius-xs)',
-              fontFamily: 'var(--font-mono)',
-              fontSize: '0.74rem',
-              backgroundColor: status === 'error' ? 'rgba(239, 68, 68, 0.1)' : 'var(--status-open-bg)',
-              color: status === 'error' ? '#ef4444' : 'var(--status-open-text)',
-              border: '1px solid var(--border-default)',
+              borderRadius: 'var(--radius-sm)',
+              fontSize: '0.8125rem',
+              backgroundColor: status === 'error' ? 'var(--danger-bg)' : 'var(--status-open-bg)',
+              color: status === 'error' ? 'var(--danger-text)' : 'var(--status-open-text)',
+              border: `1px solid ${status === 'error' ? 'var(--danger-border)' : 'var(--status-open-border)'}`,
             }}
           >
             {message}
@@ -86,10 +94,10 @@ export function AutoListModal({ isOpen, onClose, onSuccess }) {
           </button>
           <button
             type="submit"
-            className="hn-btn hn-btn-signal"
+            className="hn-btn hn-btn-primary"
             disabled={status === 'loading'}
           >
-            {status === 'loading' ? 'Verifying URL...' : 'Verify & Index'}
+            {status === 'loading' ? 'Verifying...' : 'Submit link'}
           </button>
         </div>
       </form>

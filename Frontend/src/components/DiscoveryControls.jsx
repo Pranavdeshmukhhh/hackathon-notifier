@@ -1,17 +1,33 @@
-import React, { useEffect, useRef } from 'react';
-import { SearchIcon, CompassIcon, GridIcon, TableListIcon, BookmarkIcon } from './Icons';
+import React, { useState, useEffect, useRef } from 'react';
+import {
+  SearchIcon,
+  CompassIcon,
+  FilterIcon,
+  CloseIcon,
+  GridIcon,
+  RowsIcon,
+  BookmarkIcon,
+} from './Icons';
 
 const FORMAT_OPTIONS = [
-  { id: 'all', label: 'All Formats' },
-  { id: 'offline', label: 'In-Person' },
-  { id: 'online', label: 'Remote' },
+  { id: 'all', label: 'All formats' },
+  { id: 'online', label: 'Online' },
+  { id: 'offline', label: 'In-person' },
   { id: 'hybrid', label: 'Hybrid' },
 ];
 
+const STATUS_OPTIONS = [
+  { id: 'all', label: 'Any status' },
+  { id: 'open', label: 'Open' },
+  { id: 'closing', label: 'Closing soon' },
+  { id: 'upcoming', label: 'Upcoming' },
+  { id: 'closed', label: 'Closed' },
+];
+
 const SORT_OPTIONS = [
-  { id: 'deadline_asc', label: 'Closing Soonest' },
-  { id: 'newest', label: 'Recently Indexed' },
-  { id: 'distance_asc', label: 'Nearest Venue' },
+  { id: 'deadline_asc', label: 'Deadline: soonest' },
+  { id: 'newest', label: 'Recently added' },
+  { id: 'distance_asc', label: 'Nearest location' },
 ];
 
 export function DiscoveryControls({
@@ -19,22 +35,25 @@ export function DiscoveryControls({
   onSearchChange,
   selectedFormat = 'all',
   onFormatChange,
+  selectedStatus = 'all',
+  onStatusChange,
   selectedSource = 'all',
   onSourceChange,
   availableSources = ['devfolio', 'unstop', 'devpost', 'hackerearth', 'devnovate'],
   sortBy = 'deadline_asc',
   onSortChange,
-  scope = 'all',
-  onScopeChange,
+  savedOnly = false,
+  onToggleSavedOnly,
   savedCount = 0,
-  viewMode = 'grid',
-  onViewModeChange,
+  layoutMode = 'grid',
+  onLayoutModeChange,
   onUseLocation,
   locationActive = false,
   resultCount = 0,
   onResetFilters,
 }) {
   const searchInputRef = useRef(null);
+  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
 
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -54,26 +73,53 @@ export function DiscoveryControls({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  const hasActiveFilters =
-    Boolean(searchQuery?.trim()) ||
-    selectedFormat !== 'all' ||
-    selectedSource !== 'all' ||
-    scope !== 'all' ||
-    locationActive;
+  const activeFilterChips = [];
+  if (selectedFormat !== 'all') {
+    const fmt = FORMAT_OPTIONS.find((f) => f.id === selectedFormat);
+    activeFilterChips.push({
+      key: 'format',
+      label: fmt ? fmt.label : selectedFormat,
+      onRemove: () => onFormatChange?.('all'),
+    });
+  }
+  if (selectedStatus !== 'all') {
+    const st = STATUS_OPTIONS.find((s) => s.id === selectedStatus);
+    activeFilterChips.push({
+      key: 'status',
+      label: st ? st.label : selectedStatus,
+      onRemove: () => onStatusChange?.('all'),
+    });
+  }
+  if (selectedSource !== 'all') {
+    activeFilterChips.push({
+      key: 'source',
+      label: `Platform: ${selectedSource}`,
+      onRemove: () => onSourceChange?.('all'),
+    });
+  }
+  if (savedOnly) {
+    activeFilterChips.push({
+      key: 'saved',
+      label: 'Saved only',
+      onRemove: () => onToggleSavedOnly?.(false),
+    });
+  }
+  if (locationActive) {
+    activeFilterChips.push({
+      key: 'location',
+      label: 'Near my location',
+      onRemove: () => onUseLocation?.(),
+    });
+  }
+
+  const hasActiveFilters = Boolean(searchQuery?.trim()) || activeFilterChips.length > 0;
 
   return (
-    <div className="hn-controls-deck" role="region" aria-label="Discovery filters">
-      <div className="hn-controls-top">
-        <div className="hn-search-box">
-          <span
-            style={{
-              position: 'absolute',
-              left: '11px',
-              color: 'var(--text-tertiary)',
-              display: 'inline-flex',
-              pointerEvents: 'none',
-            }}
-          >
+    <div className="hn-controls" role="region" aria-label="Search and filter hackathons">
+      {/* Primary Search & Quick Controls Row */}
+      <div className="hn-controls-primary">
+        <div className="hn-search-field">
+          <span className="hn-search-icon">
             <SearchIcon size={15} />
           </span>
           <input
@@ -82,69 +128,101 @@ export function DiscoveryControls({
             className="hn-search-input"
             value={searchQuery}
             onChange={(e) => onSearchChange?.(e.target.value)}
-            placeholder="Filter by title, city, college, stack (e.g. Rust, eBPF, Mumbai)..."
+            placeholder="Search by hackathon name, city, organizer, or topic..."
             aria-label="Search hackathons"
           />
-          <div className="hn-kbd-group">
-            <kbd className="hn-kbd">/</kbd>
-          </div>
-        </div>
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          {onUseLocation && (
+          {searchQuery ? (
             <button
               type="button"
-              className="hn-btn"
-              onClick={onUseLocation}
-              aria-pressed={locationActive}
+              onClick={() => onSearchChange?.('')}
+              aria-label="Clear search query"
               style={{
-                height: '36px',
-                borderColor: locationActive ? 'var(--accent-signal)' : undefined,
-                color: locationActive ? 'var(--accent-signal)' : undefined,
+                position: 'absolute',
+                right: '8px',
+                border: 'none',
+                background: 'none',
+                color: 'var(--text-muted)',
+                cursor: 'pointer',
+                display: 'inline-flex',
+                padding: '4px',
               }}
             >
-              <CompassIcon size={14} />
-              <span>{locationActive ? 'Near Me Active' : 'Proximity'}</span>
+              <CloseIcon size={14} />
             </button>
-          )}
-
-          {/* Grid vs Table View Switcher */}
-          {onViewModeChange && (
-            <div className="hn-segmented" role="group" aria-label="Display layout" style={{ height: '36px', alignItems: 'center' }}>
-              <button
-                type="button"
-                className={`hn-seg-btn ${viewMode === 'grid' ? 'active' : ''}`}
-                onClick={() => onViewModeChange('grid')}
-                title="Bento Card Grid"
-                aria-label="Grid view"
-              >
-                <GridIcon />
-              </button>
-              <button
-                type="button"
-                className={`hn-seg-btn ${viewMode === 'table' ? 'active' : ''}`}
-                onClick={() => onViewModeChange('table')}
-                title="Terminal Table View"
-                aria-label="Table view"
-              >
-                <TableListIcon />
-              </button>
-            </div>
+          ) : (
+            <kbd className="hn-kbd-hint" aria-hidden="true">/</kbd>
           )}
         </div>
+
+        {/* Mobile Filter Drawer Toggle */}
+        <button
+          type="button"
+          className="hn-btn hn-mobile-filter-toggle"
+          onClick={() => setMobileFiltersOpen((prev) => !prev)}
+          aria-expanded={mobileFiltersOpen}
+        >
+          <FilterIcon size={14} />
+          <span>Filters</span>
+          {activeFilterChips.length > 0 && (
+            <span className="hn-count-pill">{activeFilterChips.length}</span>
+          )}
+        </button>
+
+        {onUseLocation && (
+          <button
+            type="button"
+            className="hn-btn"
+            onClick={onUseLocation}
+            aria-pressed={locationActive}
+            style={{
+              borderColor: locationActive ? 'var(--accent-primary)' : undefined,
+              color: locationActive ? 'var(--accent-primary)' : undefined,
+            }}
+          >
+            <CompassIcon size={14} />
+            <span className="hn-nav-label-hide-sm">
+              {locationActive ? 'Near me' : 'Nearby'}
+            </span>
+          </button>
+        )}
+
+        {onLayoutModeChange && (
+          <div className="hn-segmented" role="group" aria-label="Listing layout">
+            <button
+              type="button"
+              className={`hn-segment ${layoutMode === 'grid' ? 'active' : ''}`}
+              aria-pressed={layoutMode === 'grid'}
+              onClick={() => onLayoutModeChange('grid')}
+              aria-label="Card grid view"
+              title="Card view"
+            >
+              <GridIcon size={14} />
+            </button>
+            <button
+              type="button"
+              className={`hn-segment ${layoutMode === 'rows' ? 'active' : ''}`}
+              aria-pressed={layoutMode === 'rows'}
+              onClick={() => onLayoutModeChange('rows')}
+              aria-label="Compact row view"
+              title="Row view"
+            >
+              <RowsIcon size={14} />
+            </button>
+          </div>
+        )}
       </div>
 
-      <div className="hn-controls-bottom">
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-          {/* Format Segmented Control */}
-          <div className="hn-segmented" role="group" aria-label="Event format">
+      {/* Secondary Filter Strip (Collapsible on small mobile screens) */}
+      <div className={`hn-controls-secondary ${mobileFiltersOpen ? '' : 'mobile-collapsed'}`}>
+        <div className="hn-filter-group">
+          <div className="hn-segmented" role="group" aria-label="Filter by format">
             {FORMAT_OPTIONS.map((fmt) => {
               const active = selectedFormat === fmt.id;
               return (
                 <button
                   key={fmt.id}
                   type="button"
-                  className={`hn-seg-btn ${active ? 'active' : ''}`}
+                  className={`hn-segment ${active ? 'active' : ''}`}
                   aria-pressed={active}
                   onClick={() => onFormatChange?.(fmt.id)}
                 >
@@ -154,89 +232,100 @@ export function DiscoveryControls({
             })}
           </div>
 
-          {/* Scope Tabs: All vs Closing Soon vs Saved Shortlist */}
-          {onScopeChange && (
-            <div className="hn-segmented" role="group" aria-label="Feed scope">
-              <button
-                type="button"
-                className={`hn-seg-btn ${scope === 'all' ? 'active' : ''}`}
-                onClick={() => onScopeChange('all')}
-              >
-                All
-              </button>
-              <button
-                type="button"
-                className={`hn-seg-btn ${scope === 'closing' ? 'active' : ''}`}
-                onClick={() => onScopeChange('closing')}
-              >
-                Closing Soon
-              </button>
-              <button
-                type="button"
-                className={`hn-seg-btn ${scope === 'saved' ? 'active' : ''}`}
-                onClick={() => onScopeChange('saved')}
-              >
-                <BookmarkIcon size={12} filled={scope === 'saved'} />
-                <span>Saved</span>
-                <span className="hn-seg-count">{savedCount}</span>
-              </button>
-            </div>
+          {onStatusChange && (
+            <select
+              aria-label="Filter by registration status"
+              className="hn-select"
+              value={selectedStatus}
+              onChange={(e) => onStatusChange(e.target.value)}
+            >
+              {STATUS_OPTIONS.map((st) => (
+                <option key={st.id} value={st.id}>
+                  {st.label}
+                </option>
+              ))}
+            </select>
+          )}
+
+          <select
+            aria-label="Filter by platform source"
+            className="hn-select"
+            value={selectedSource}
+            onChange={(e) => onSourceChange?.(e.target.value)}
+          >
+            <option value="all">All platforms</option>
+            {availableSources.map((src) => (
+              <option key={src} value={src}>
+                {src.charAt(0).toUpperCase() + src.slice(1)}
+              </option>
+            ))}
+          </select>
+
+          {onToggleSavedOnly && (
+            <button
+              type="button"
+              className="hn-btn"
+              aria-pressed={savedOnly}
+              onClick={() => onToggleSavedOnly(!savedOnly)}
+              style={{
+                height: '32px',
+                borderColor: savedOnly ? 'var(--accent-primary)' : undefined,
+                backgroundColor: savedOnly ? 'var(--accent-subtle)' : undefined,
+              }}
+            >
+              <BookmarkIcon size={13} filled={savedOnly} />
+              <span>Saved</span>
+              <span className="hn-count-pill">{savedCount}</span>
+            </button>
           )}
         </div>
 
-        {/* Right Controls: Source Select, Sort Select, Reset & Counter */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+        <div className="hn-filter-group">
           <select
-            aria-label="Filter by platform source"
-            value={selectedSource}
-            onChange={(e) => onSourceChange?.(e.target.value)}
-            className="hn-btn"
-            style={{ fontFamily: 'var(--font-mono)', fontSize: '0.72rem' }}
-          >
-            <option value="all">SOURCE: ALL</option>
-            {availableSources.map((src) => (
-              <option key={src} value={src}>
-                SOURCE: {src.toUpperCase()}
-              </option>
-            ))}
-          </select>
-
-          <select
-            aria-label="Sort events"
+            aria-label="Sort hackathons"
+            className="hn-select"
             value={sortBy}
             onChange={(e) => onSortChange?.(e.target.value)}
-            className="hn-btn"
-            style={{ fontFamily: 'var(--font-mono)', fontSize: '0.72rem' }}
           >
             {SORT_OPTIONS.map((opt) => (
               <option key={opt.id} value={opt.id}>
-                SORT: {opt.label.toUpperCase()}
+                {opt.label}
               </option>
             ))}
           </select>
+        </div>
+      </div>
+
+      {/* Active Filter Indicators & Accurate Result Count */}
+      <div className="hn-active-filters">
+        <div className="hn-chip-list">
+          {activeFilterChips.map((chip) => (
+            <span key={chip.key} className="hn-active-chip">
+              <span>{chip.label}</span>
+              <button
+                type="button"
+                onClick={chip.onRemove}
+                aria-label={`Remove ${chip.label} filter`}
+              >
+                <CloseIcon size={12} />
+              </button>
+            </span>
+          ))}
 
           {hasActiveFilters && onResetFilters && (
             <button
               type="button"
-              className="hn-btn"
+              className="hn-btn hn-btn-ghost"
               onClick={onResetFilters}
-              style={{ color: 'var(--accent-signal)', borderColor: 'var(--accent-signal)' }}
+              style={{ height: '26px', padding: '0 8px', fontSize: '0.75rem' }}
             >
-              Reset
+              Clear filters
             </button>
           )}
+        </div>
 
-          <span
-            style={{
-              fontFamily: 'var(--font-mono)',
-              fontSize: '0.72rem',
-              color: 'var(--text-tertiary)',
-              fontVariantNumeric: 'tabular-nums',
-              paddingLeft: '4px',
-            }}
-          >
-            {resultCount} {resultCount === 1 ? 'MATCH' : 'MATCHES'}
-          </span>
+        <div className="hn-result-count" aria-live="polite">
+          {resultCount} {resultCount === 1 ? 'matching hackathon' : 'matching hackathons'}
         </div>
       </div>
     </div>

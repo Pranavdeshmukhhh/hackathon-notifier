@@ -1,10 +1,15 @@
 import { useState, useEffect } from 'react';
 
-export function useDarkMode(defaultDark = true) {
+export function useDarkMode(defaultDark = false) {
   const [isDark, setIsDark] = useState(() => {
     if (typeof window === 'undefined') return defaultDark;
-    const saved = window.localStorage.getItem('hn-theme');
-    if (saved === 'dark' || saved === 'light') return saved === 'dark';
+    try {
+      const saved = window.localStorage.getItem('hn-theme');
+      if (saved === 'dark' || saved === 'light') return saved === 'dark';
+      if (window.matchMedia?.('(prefers-color-scheme: dark)').matches) return true;
+    } catch {
+      // ignore storage errors
+    }
     return defaultDark;
   });
 
@@ -16,7 +21,7 @@ export function useDarkMode(defaultDark = true) {
     try {
       window.localStorage.setItem('hn-theme', isDark ? 'dark' : 'light');
     } catch {
-      // ignore
+      // ignore storage errors
     }
   }, [isDark]);
 
