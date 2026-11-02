@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="color-scheme" content="light dark" />
+    <title>Hackathon Notifier — Student Hackathon Discovery</title>
+    <meta name="description" content="Find student hackathons, compare deadlines and formats, and follow registration links to the organizers. Browse online, in-person, and campus events." />
+    <meta name="theme-color" content="#080f1d" media="(prefers-color-scheme: dark)" />
+    <meta name="theme-color" content="#080f1d" media="(prefers-color-scheme: light)" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+
+    <!-- Open Graph -->
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Hackathon Notifier — Student Hackathon Discovery" />
+    <meta property="og:description" content="Compare hackathon deadlines and formats, then register with the organizer." />
+    <meta property="og:site_name" content="Hackathon Notifier" />
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content="Hackathon Notifier" />
+    <meta name="twitter:description" content="Find online, in-person, and campus hackathons. Check deadlines and registration details." />
+
+    <!-- Apply the theme before first paint to avoid a light/dark flash -->
+    <script>
+      (function () {
+        var saved;
+        try { saved = localStorage.getItem('hn-theme'); } catch (e) {}
+        try {
+          if (saved !== 'light') {
+            document.documentElement.classList.add('dark');
+          }
+        } catch (e) {}
+      })();
+    </script>
+
+    <link rel="preload" href="/fonts/geist-latin.woff2" as="font" type="font/woff2" crossorigin />
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>

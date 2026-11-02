@@ -1,0 +1,58 @@
+# ── Environments & secrets ──
+.env
+*.env
+.env.*
+!.env.example
+.venv/
+env/
+venv/
+ENV/
+
+# ── Python cache & artifacts ──
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.pytest_cache/
+*.egg-info/
+dist/
+build/
+
+# ── IDE / Editor & Backups ──
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+*.backup
+*.bak
+
+# ── Node (Frontend) ──
+node_modules/
+Frontend/dist/
+
+# ── OS files ──
+.DS_Store
+Thumbs.db
+desktop.ini
+
+scratch/
+
+# Local recovery artifacts can contain private database records.
+/backups/
+
+# Private keys and generated quality reports
+*.pem
+*.key
+*.p12
+*.pfx
+.coverage
+.coverage.*
+coverage/
+htmlcov/
+test-results/
+playwright-report/
+
+.venv-quality/
+/benchmarks/local/
+/benchmarks/ci/

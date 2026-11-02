@@ -1,0 +1,12 @@
+[
+  {
+    "id": "fixture-json-1",
+    "name": "Synthetic JSON Fixture",
+    "slug": "synthetic-json-fixture",
+    "title": "Synthetic JSON Fixture",
+    "mode": "online",
+    "registrationDeadline": "2099-01-01",
+    "startDate": "2099-02-01",
+    "eventName": "synthetic-json-fixture"
+  }
+]

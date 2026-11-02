@@ -1,0 +1,159 @@
+{
+  "python": "3.12.14",
+  "method": "Three offline fixture runs; two spawned workers, 1.5s source timeout, 8s run budget. Not live-source availability.",
+  "runs": [
+    {
+      "elapsed_seconds": 1.794559655001649,
+      "healthy_rows": 1,
+      "sources": {
+        "healthy": {
+          "source_id": "healthy",
+          "found": 1,
+          "status": "ok",
+          "error": null,
+          "attempts": 1,
+          "rejected": 0,
+          "finished_at": "2026-11-02T07:03:44.466192+00:00"
+        },
+        "empty": {
+          "source_id": "empty",
+          "found": 0,
+          "status": "zero_results",
+          "error": null,
+          "attempts": 1,
+          "rejected": 0,
+          "finished_at": "2026-11-02T07:03:44.465048+00:00"
+        },
+        "malformed": {
+          "source_id": "malformed",
+          "found": 0,
+          "status": "error",
+          "error": "ValueError",
+          "attempts": 1,
+          "rejected": 0,
+          "finished_at": "2026-11-02T07:03:44.608770+00:00"
+        },
+        "failed": {
+          "source_id": "failed",
+          "found": 0,
+          "status": "error",
+          "error": "RuntimeError",
+          "attempts": 1,
+          "rejected": 0,
+          "finished_at": "2026-11-02T07:03:44.598978+00:00"
+        },
+        "timeout": {
+          "source_id": "timeout",
+          "status": "timeout",
+          "found": 0,
+          "error": "timeout",
+          "attempts": null,
+          "rejected": 0,
+          "finished_at": "2026-11-02T07:03:46.124872+00:00"
+        }
+      }
+    },
+    {
+      "elapsed_seconds": 1.7758108289999655,
+      "healthy_rows": 1,
+      "sources": {
+        "healthy": {
+          "source_id": "healthy",
+          "found": 1,
+          "status": "ok",
+          "error": null,
+          "attempts": 1,
+          "rejected": 0,
+          "finished_at": "2026-11-02T07:03:46.249880+00:00"
+        },
+        "empty": {
+          "source_id": "empty",
+          "found": 0,
+          "status": "zero_results",
+          "error": null,
+          "attempts": 1,
+          "rejected": 0,
+          "finished_at": "2026-11-02T07:03:46.249240+00:00"
+        },
+        "malformed": {
+          "source_id": "malformed",
+          "found": 0,
+          "status": "error",
+          "error": "ValueError",
+          "attempts": 1,
+          "rejected": 0,
+          "finished_at": "2026-11-02T07:03:46.381549+00:00"
+        },
+        "failed": {
+          "source_id": "failed",
+          "found": 0,
+          "status": "error",
+          "error": "RuntimeError",
+          "attempts": 1,
+          "rejected": 0,
+          "finished_at": "2026-11-02T07:03:46.381588+00:00"
+        },
+        "timeout": {
+          "source_id": "timeout",
+          "status": "timeout",
+          "found": 0,
+          "error": "timeout",
+          "attempts": null,
+          "rejected": 0,
+          "finished_at": "2026-11-02T07:03:47.900725+00:00"
+        }
+      }
+    },
+    {
+      "elapsed_seconds": 1.771932489999017,
+      "healthy_rows": 1,
+      "sources": {
+        "healthy": {
+          "source_id": "healthy",
+          "found": 1,
+          "status": "ok",
+          "error": null,
+          "attempts": 1,
+          "rejected": 0,
+          "finished_at": "2026-11-02T07:03:48.029941+00:00"
+        },
+        "empty": {
+          "source_id": "empty",
+          "found": 0,
+          "status": "zero_results",
+          "error": null,
+          "attempts": 1,
+          "rejected": 0,
+          "finished_at": "2026-11-02T07:03:48.021796+00:00"
+        },
+        "malformed": {
+          "source_id": "malformed",
+          "found": 0,
+          "status": "error",
+          "error": "ValueError",
+          "attempts": 1,
+          "rejected": 0,
+          "finished_at": "2026-11-02T07:03:48.153039+00:00"
+        },
+        "failed": {
+          "source_id": "failed",
+          "found": 0,
+          "status": "error",
+          "error": "RuntimeError",
+          "attempts": 1,
+          "rejected": 0,
+          "finished_at": "2026-11-02T07:03:48.167962+00:00"
+        },
+        "timeout": {
+          "source_id": "timeout",
+          "status": "timeout",
+          "found": 0,
+          "error": "timeout",
+          "attempts": null,
+          "rejected": 0,
+          "finished_at": "2026-11-02T07:03:49.672715+00:00"
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,4 @@
+# Local/CI quality tools only. Never imported by the application.
+pip-audit==2.10.1
+bandit==1.9.4
+PyYAML==6.0.3

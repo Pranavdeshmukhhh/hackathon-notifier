@@ -1,0 +1,8 @@
+﻿
+# Security - Ignore secrets and environment configs
+.env
+.env.*
+!.env.example
+*.env
+env
+secrets.*

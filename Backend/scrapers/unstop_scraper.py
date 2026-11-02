@@ -1,0 +1,322 @@
+import logging
+import re
+import time
+import random
+from datetime import datetime
+from curl_cffi import requests
+from tenacity import retry, stop_after_attempt, wait_exponential, before_sleep_log
+from .geocoder import geocode
+
+logger = logging.getLogger(__name__)
+
+# ── Constants ─────────────────────────────────────────────────────────────────
+UNSTOP_API_BASE = (
+    "https://unstop.com/api/public/opportunity/search-result"
+    "?opportunity=hackathons&size=100&status=open"
+)
+
+_SEARCH_QUERIES = [
+    "",                          # all open hackathons
+    "&searchTerm=college",       # college-affiliated hackathons
+    "&searchTerm=internship",    # internship / hiring challenges
+]
+
+REQUEST_TIMEOUT = 15
+
+_HEADERS = {
+    "User-Agent": (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) "
+        "Chrome/107.0.0.0 Safari/537.36"
+    ),
+    "Accept":          "application/json, text/plain, */*",
+    "Accept-Language": "en-US,en;q=0.9",
+    "sec-ch-ua":       '"Chromium";v="107", "Google Chrome";v="107", "Not=A?Brand";v="24"',
+    "sec-ch-ua-mobile": "?0",
+    "sec-ch-ua-platform": '"Windows"',
+}
+
+_session = None
+
+def _get_session() -> requests.Session:
+    global _session
+    if _session is None:
+        _session = requests.Session(impersonate="chrome107")
+        _session.headers.update(_HEADERS)
+    return _session
+
+
+# ── Parse API items ───────────────────────────────────────────────────────────
+
+def _parse_api_items(items):
+    result=[]
+    from event_contract import integer
+    for item in items if isinstance(items,list) else []:
+        try:
+            if not isinstance(item,dict):continue
+            item=dict(item)
+            for key in ('organisation','regnRequirements'):
+                if not isinstance(item.get(key),dict):item[key]={}
+            for key in ('filters','tags','prizes'):
+                item[key]=[value for value in (item.get(key) if isinstance(item.get(key),list) else []) if isinstance(value,dict)]
+            result.extend(_parse_api_items_unchecked([item]))
+        except (ValueError,TypeError,AttributeError,OverflowError): continue
+    return result
+
+
+def _parse_api_items_unchecked(items: list) -> list[dict]:
+    """Parse a list of raw API items into normalised hackathon dicts."""
+    results = []
+    from event_contract import integer
+    # Use timezone-aware UTC datetime
+    from datetime import timezone
+    now_iso = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+
+    for item in items:
+        title = item.get("title") or item.get("organisation", {}).get("name", "")
+        # Unstop returns full URL in seo_url or we can build it
+        link = item.get("seo_url", "")
+        if not link:
+            slug = item.get("public_url", "") or item.get("short_url", "")
+            link = f"https://unstop.com/{slug}" if slug else ""
+            
+        if not title or not link:
+            continue
+
+        # Tags from 'filters' or 'tags' array
+        tags = [
+            t.get("name", "")
+            for t in (item.get("filters") or item.get("tags") or [])
+            if t.get("name")
+        ]
+
+        # Mode
+        mode_raw = item.get("region", "") or ""
+        if "hybrid" in mode_raw.lower():
+            mode = "Hybrid"
+        elif "online" in mode_raw.lower():
+            mode = "Online"
+        elif "offline" in mode_raw.lower():
+            mode = "Offline"
+        else:
+            mode = "Unknown"
+
+        # Location — extract real city/venue, not the mode string
+        city    = item.get("city", "") or ""
+        venue   = item.get("venue", "") or ""
+        org_city = item.get("organisation", {}).get("city", "") or ""
+        if city:
+            location_str = city
+        elif venue and venue.lower() not in ("online", "offline"):
+            location_str = venue
+        elif org_city:
+            location_str = org_city
+        elif mode == "Online":
+            location_str = "Online"
+        else:
+            location_str = ""
+
+        # Registrations — try every known Unstop field name (they're inconsistent)
+        regn_reqs = item.get("regnRequirements") or {}
+        total_regs = (
+            regn_reqs.get("total_teams_registered")
+            or regn_reqs.get("filled_seats")
+            or item.get("registerations")     # Unstop's own typo
+            or item.get("registered_count")
+            or item.get("total_registrations")
+            or item.get("participations_count")
+            or item.get("no_of_registrations")
+            or 0
+        )
+
+        # Team size constraints
+        min_team = regn_reqs.get("min_no") or regn_reqs.get("min_team_size") or item.get("min_team_size")
+        max_team = regn_reqs.get("max_no") or regn_reqs.get("max_team_size") or item.get("max_team_size")
+
+        # Deadline
+        raw_deadline = regn_reqs.get("end_regn_dt") or ""
+        deadline = "TBA"
+        deadline_iso = ""
+        status = "Unknown"
+
+        if raw_deadline:
+            if isinstance(raw_deadline, (int, float)):
+                try:
+                    ts = float(raw_deadline)
+                    if ts > 1e12: ts /= 1000
+                    dt = datetime.fromtimestamp(ts, timezone.utc)
+                    deadline = dt.strftime("%d %b %Y")
+                    deadline_iso = dt.strftime("%Y-%m-%d")
+                except Exception:
+                    pass
+            elif isinstance(raw_deadline, str):
+                for fmt in ("%Y-%m-%dT%H:%M:%S", "%Y-%m-%d %H:%M:%S", "%Y-%m-%d"):
+                    try:
+                        dt = datetime.strptime(raw_deadline.split(".")[0].split("+")[0], fmt)
+                        deadline = dt.strftime("%d %b %Y")
+                        deadline_iso = dt.strftime("%Y-%m-%d")
+                        break
+                    except ValueError:
+                        continue
+
+        if deadline_iso and deadline_iso < now_iso:
+            status = "Ended"
+            # We no longer skip expired hackathons, so the total count matches user expectations.
+            # UI handles displaying them correctly.
+
+        registration_value=raw_deadline
+        if isinstance(raw_deadline,(int,float)) and not isinstance(raw_deadline,bool):
+            try:
+                seconds=raw_deadline/1000 if raw_deadline>1e12 else raw_deadline
+                registration_value=datetime.fromtimestamp(seconds,timezone.utc).isoformat()
+            except (ValueError,OverflowError,OSError):registration_value=None
+        prizes = item.get("prizes", [])
+        prize_str = ""
+        if prizes and len(prizes) > 0 and prizes[0].get("cash"):
+            prize_str = f"{prizes[0].get('currency') or ''} {prizes[0].get('cash')}".strip()
+            
+        org = item.get("organisation", {}).get("name", "")
+
+        # Geocode location to lat/lng for distance sorting
+        lat, lng = None, None
+        if location_str and mode != "Online":
+            lat, lng = geocode(location_str)
+            if lat is None and org:
+                # Fallback: try organisation name + city
+                lat, lng = geocode(org)
+
+        doc = {
+            "title":               title,
+            "deadline":            deadline,
+            "deadline_kind": "registration",
+            "registration_deadline": {"at":registration_value} if isinstance(registration_value,str) and ("T" in registration_value or ":" in registration_value) else {"date":deadline_iso},
+            "registration_opens_at": regn_reqs.get("start_regn_dt"),
+            "event_start": item.get("start_date"),
+            "event_end": item.get("end_date"),
+            "organizer": org or None,
+            "source_event_id": item.get("id"),
+        "source_updated_at": item.get("updatedAt") or item.get("updated_at"),
+            "deadline_iso":        deadline_iso,
+            "status":              status,
+            "mode":                mode,
+            "tags":                tags,
+            "link":                link,
+            "source":              "Unstop",
+            "location":            location_str,
+            "prize":               prize_str,
+            "organization":        org,
+            "total_registrations": integer(total_regs),
+            "scraped_at":          datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+        }
+        if lat is not None:
+            doc["lat"] = lat
+            doc["lng"] = lng
+        if min_team is not None:
+            try:
+                doc["min_team_size"] = int(min_team)
+            except (TypeError, ValueError):
+                pass
+        if max_team is not None:
+            try:
+                doc["max_team_size"] = int(max_team)
+            except (TypeError, ValueError):
+                pass
+        results.append(doc)
+
+    return results
+
+
+@retry(
+    stop=stop_after_attempt(3),
+    wait=wait_exponential(multiplier=1, min=2, max=15),
+    before_sleep=before_sleep_log(logger, logging.WARNING),
+    reraise=True,
+)
+def _fetch_query(session, url: str) -> tuple[list[dict], int, int]:
+    """Fetch a single Unstop API query. Returns (parsed_items, current_page, last_page)."""
+    resp = session.get(url, timeout=REQUEST_TIMEOUT)
+    if resp.status_code != 200:
+        raise RuntimeError(f"Unstop API returned status {resp.status_code}")
+    data = resp.json()
+
+    if not isinstance(data,dict) or not isinstance(data.get('data'),dict) or not isinstance(data['data'].get('data'),list):
+        raise ValueError('Unstop response schema changed')
+    pagination_data = data['data']
+    current_page = pagination_data.get("current_page", 1)
+    last_page = pagination_data.get("last_page", 1)
+
+    raw_items = pagination_data.get("data", [])
+    parsed = _parse_api_items(raw_items)
+    return parsed, current_page, last_page
+
+
+def _fetch_via_api() -> list[dict]:
+    session = _get_session()
+    all_items = {}
+
+    for query in _SEARCH_QUERIES:
+        for page in range(1, 11):  # up to 10 pages (100 items) per query
+            url = f"{UNSTOP_API_BASE}&page={page}{query}"
+            try:
+                parsed, current_page, last_page = _fetch_query(session, url)
+                for p in parsed:
+                    all_items[p["link"]] = p
+
+                logger.info(
+                    "Unstop: Query '%s' fetched page %d/%d (total unique so far: %d)",
+                    query, current_page, last_page, len(all_items),
+                )
+
+                if current_page >= last_page or not parsed:
+                    break
+
+            except Exception as e:
+                err_str = str(e).lower()
+                is_blocked = "connection was reset" in err_str or "ssl" in err_str or "10054" in err_str or "403" in err_str
+                if is_blocked:
+                    logger.warning(
+                        "Unstop edge firewall / Cloudflare TLS block detected: %s. "
+                        "Skipping further Unstop queries this cycle.", e
+                    )
+                    return list(all_items.values())
+
+                logger.warning("Unstop API query '%s' page %d failed after retries: %s", query, page, e)
+                break
+
+            time.sleep(random.uniform(1.0, 2.0))
+
+    return list(all_items.values())
+
+
+# ── Public API ────────────────────────────────────────────────────────────────
+
+def scrape_unstop() -> list[dict]:
+    """
+    Return a list of normalised hackathon dicts from Unstop.
+    """
+    logger.info("Unstop scraper started.")
+
+    results = _fetch_via_api()
+    if results:
+        logger.debug("scrape_unstop() total: %d hackathon(s) from API.", len(results))
+    else:
+        logger.warning("Unstop API returned 0 results. Cloudflare may be blocking requests.")
+        logger.debug("scrape_unstop() total: 0 hackathons.")
+        
+    return results
+
+
+if __name__ == "__main__":
+    import sys
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s", stream=sys.stdout)
+    results = scrape_unstop()
+    if results:
+        print(f"\n{len(results)} hackathons found:\n")
+        for h in results:
+            print(f"  * {h['title']}")
+            print(f"    {h['deadline']} | {h['mode']} | {', '.join(h['tags']) or 'no tags'}")
+            print(f"    {h['link']}\n")
+    else:
+        print("No Unstop hackathons found.")

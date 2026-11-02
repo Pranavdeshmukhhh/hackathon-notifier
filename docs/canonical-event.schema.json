@@ -1,0 +1,606 @@
+{
+  "$defs": {
+    "Coordinates": {
+      "properties": {
+        "latitude": {
+          "anyOf": [
+            {
+              "maximum": 90,
+              "minimum": -90,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Latitude"
+        },
+        "longitude": {
+          "anyOf": [
+            {
+              "maximum": 180,
+              "minimum": -180,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Longitude"
+        },
+        "verified": {
+          "default": false,
+          "title": "Verified",
+          "type": "boolean"
+        },
+        "precision": {
+          "default": "unknown",
+          "enum": [
+            "venue",
+            "city",
+            "unknown"
+          ],
+          "title": "Precision",
+          "type": "string"
+        }
+      },
+      "title": "Coordinates",
+      "type": "object"
+    },
+    "EventDate": {
+      "properties": {
+        "at": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "At"
+        },
+        "date": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Date"
+        },
+        "precision": {
+          "default": "unknown",
+          "enum": [
+            "timestamp",
+            "date",
+            "local_datetime",
+            "unknown"
+          ],
+          "title": "Precision",
+          "type": "string"
+        },
+        "timezone": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Timezone"
+        },
+        "local_value": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Local Value"
+        }
+      },
+      "title": "EventDate",
+      "type": "object"
+    },
+    "EventLocation": {
+      "properties": {
+        "text": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Text"
+        },
+        "venue": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Venue"
+        },
+        "city": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "City"
+        },
+        "country": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Country"
+        },
+        "coordinates": {
+          "$ref": "#/$defs/Coordinates"
+        }
+      },
+      "title": "EventLocation",
+      "type": "object"
+    },
+    "Freshness": {
+      "properties": {
+        "last_seen_at": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Last Seen At"
+        },
+        "last_updated_at": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Last Updated At"
+        },
+        "state": {
+          "default": "unknown",
+          "enum": [
+            "unknown",
+            "fresh",
+            "stale"
+          ],
+          "title": "State",
+          "type": "string"
+        }
+      },
+      "title": "Freshness",
+      "type": "object"
+    },
+    "PrizePool": {
+      "properties": {
+        "original": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Original"
+        },
+        "currency": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Z]{3}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Currency"
+        },
+        "amount": {
+          "anyOf": [
+            {
+              "pattern": "^\\d+(?:\\.\\d{1,2})?$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Amount"
+        }
+      },
+      "title": "PrizePool",
+      "type": "object"
+    },
+    "Provenance": {
+      "properties": {
+        "platform": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Platform"
+        },
+        "url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Url"
+        },
+        "external_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "External Id"
+        },
+        "observed_at": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Observed At"
+        },
+        "source_updated_at": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Updated At"
+        }
+      },
+      "title": "Provenance",
+      "type": "object"
+    },
+    "TeamSize": {
+      "properties": {
+        "minimum": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Minimum"
+        },
+        "maximum": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Maximum"
+        }
+      },
+      "title": "TeamSize",
+      "type": "object"
+    },
+    "Verification": {
+      "properties": {
+        "status": {
+          "default": "unverified",
+          "enum": [
+            "verified",
+            "unverified"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "confidence": {
+          "anyOf": [
+            {
+              "maximum": 1,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Confidence"
+        },
+        "last_success_at": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Last Success At"
+        },
+        "method": {
+          "anyOf": [
+            {
+              "const": "administrator_evidence",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Method"
+        }
+      },
+      "title": "Verification",
+      "type": "object"
+    }
+  },
+  "properties": {
+    "schema_version": {
+      "default": 2,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "id": {
+      "title": "Id",
+      "type": "string"
+    },
+    "title": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Title"
+    },
+    "registration_url": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Registration Url"
+    },
+    "registration_url_status": {
+      "default": "unknown",
+      "enum": [
+        "source_reported",
+        "unknown"
+      ],
+      "title": "Registration Url Status",
+      "type": "string"
+    },
+    "aliases": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Aliases",
+      "type": "array"
+    },
+    "conflicting_fields": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Conflicting Fields",
+      "type": "array"
+    },
+    "source": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Source"
+    },
+    "organizer": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Organizer"
+    },
+    "format": {
+      "default": "unknown",
+      "enum": [
+        "online",
+        "offline",
+        "hybrid",
+        "unknown"
+      ],
+      "title": "Format",
+      "type": "string"
+    },
+    "registration_opens": {
+      "$ref": "#/$defs/EventDate"
+    },
+    "registration_closes": {
+      "$ref": "#/$defs/EventDate"
+    },
+    "submission_closes": {
+      "$ref": "#/$defs/EventDate"
+    },
+    "event_starts": {
+      "$ref": "#/$defs/EventDate"
+    },
+    "event_ends": {
+      "$ref": "#/$defs/EventDate"
+    },
+    "location": {
+      "$ref": "#/$defs/EventLocation"
+    },
+    "prize": {
+      "$ref": "#/$defs/PrizePool"
+    },
+    "team": {
+      "$ref": "#/$defs/TeamSize"
+    },
+    "eligibility": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Eligibility"
+    },
+    "event_status_source": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Event Status Source"
+    },
+    "event_status": {
+      "default": "unknown",
+      "enum": [
+        "scheduled",
+        "live",
+        "ended",
+        "cancelled",
+        "unknown"
+      ],
+      "title": "Event Status",
+      "type": "string"
+    },
+    "registration_state": {
+      "default": "unknown",
+      "enum": [
+        "open",
+        "closing",
+        "upcoming",
+        "closed",
+        "cancelled",
+        "unknown"
+      ],
+      "title": "Registration State",
+      "type": "string"
+    },
+    "publication_state": {
+      "default": "published",
+      "enum": [
+        "published",
+        "archived",
+        "suppressed",
+        "pending"
+      ],
+      "title": "Publication State",
+      "type": "string"
+    },
+    "provenance": {
+      "items": {
+        "$ref": "#/$defs/Provenance"
+      },
+      "title": "Provenance",
+      "type": "array"
+    },
+    "verification": {
+      "$ref": "#/$defs/Verification"
+    },
+    "freshness": {
+      "$ref": "#/$defs/Freshness"
+    }
+  },
+  "required": [
+    "id",
+    "title"
+  ],
+  "title": "CanonicalEvent",
+  "type": "object"
+}

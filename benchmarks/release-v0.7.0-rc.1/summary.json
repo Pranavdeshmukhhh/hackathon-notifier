@@ -1,0 +1,108 @@
+{
+  "candidate": "v0.7.0-rc.1",
+  "baseline_commit": "3c6aa98",
+  "release_readiness": "blocked pending hosted/staging/source/operations approvals",
+  "python": "3.12.14",
+  "node": "v24.19.0",
+  "backend": {
+    "passed": 520,
+    "warnings": 1,
+    "seconds": 48.51,
+    "coverage": {
+      "covered_lines": 4150,
+      "num_statements": 6243,
+      "percent_covered": 63.62481229063186,
+      "percent_covered_display": "64",
+      "missing_lines": 2093,
+      "excluded_lines": 5,
+      "percent_statements_covered": 66.47445138555182,
+      "percent_statements_covered_display": "66",
+      "num_branches": 2414,
+      "num_partial_branches": 326,
+      "covered_branches": 1358,
+      "missing_branches": 1056,
+      "percent_branches_covered": 56.25517812758906,
+      "percent_branches_covered_display": "56"
+    },
+    "critical_combined_percent": {
+      "Backend/catalog_query.py": 94.63,
+      "Backend/notifier/outbox.py": 87.01,
+      "Backend/safe_http.py": 86.25,
+      "Backend/security.py": 92.0,
+      "Backend/source_ingestion.py": 91.03
+    }
+  },
+  "frontend": {
+    "passed": 104,
+    "files": 20,
+    "coverage": {
+      "lines": {
+        "total": 824,
+        "covered": 681,
+        "skipped": 0,
+        "pct": 82.64
+      },
+      "statements": {
+        "total": 958,
+        "covered": 768,
+        "skipped": 0,
+        "pct": 80.16
+      },
+      "functions": {
+        "total": 252,
+        "covered": 191,
+        "skipped": 0,
+        "pct": 75.79
+      },
+      "branches": {
+        "total": 1168,
+        "covered": 927,
+        "skipped": 0,
+        "pct": 79.36
+      },
+      "branchesTrue": {
+        "total": 0,
+        "covered": 0,
+        "skipped": 0,
+        "pct": 100
+      }
+    },
+    "lint": true,
+    "build": true
+  },
+  "checks": {
+    "actionlint": true,
+    "docs_relative_links": true,
+    "pip_check": true,
+    "license_notices": true,
+    "static_high_high_findings": 0,
+    "scheduled_workflow_actionlint": true
+  },
+  "source_hashes": [
+    {
+      "file": "Backend/api.py",
+      "sha256": "25edbfebb952739aec14b348224cda9e57ed8ba1c08f222d94b487caf26cd25d"
+    },
+    {
+      "file": "Backend/entity_resolution.py",
+      "sha256": "5033bd237f6d6af46b972114a8b8ca5fe4f3a4b3a8eb89e8336d3672dba28171"
+    },
+    {
+      "file": "Backend/catalog_query.py",
+      "sha256": "07f30ca4a4f1df0b20f97839cd756d114e0d474876ddc97df7d34f65a8ae7ac6"
+    },
+    {
+      "file": "Backend/source_ingestion.py",
+      "sha256": "8719dcea027055aa4d6fdf7bcbe29c651b026f6dadc43604bf5444da8cec454e"
+    },
+    {
+      "file": "Backend/notifier/outbox.py",
+      "sha256": "058b43bf9a3175b615854af3b7a0bd7b2577c92c8e59c0c6ce5263ec56c7c760"
+    },
+    {
+      "file": "Backend/identity_backfill.py",
+      "sha256": "f612b8831d7d1f385643758c41d8eb3dfa382c85ac9f24ed7a02061469ee642c"
+    }
+  ],
+  "scope": "Local synthetic/offline tests and public policy metadata only. No production/user data, live source jobs, Telegram sends, push or deployment."
+}

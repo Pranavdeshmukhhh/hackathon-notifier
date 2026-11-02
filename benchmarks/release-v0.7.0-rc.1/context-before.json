@@ -1,0 +1,12 @@
+{
+  "passed": false,
+  "leaked_synthetic_paths": [
+    ".env.production",
+    "Backend/.env",
+    "Backend/.env.production",
+    "Backend/private/service.key",
+    "Backend/private/service.pem"
+  ],
+  "missing_examples": [],
+  "private_files_read": false
+}

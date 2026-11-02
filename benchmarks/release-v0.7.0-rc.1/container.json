@@ -1,0 +1,9 @@
+{
+  "passed": true,
+  "dynamic_port": 10001,
+  "memory_limit_bytes": 536870912,
+  "nonroot": true,
+  "production_docs_disabled": true,
+  "missing_admin_secret_denied": true,
+  "scope": "Empty synthetic test database; not cloud capacity or availability evidence"
+}

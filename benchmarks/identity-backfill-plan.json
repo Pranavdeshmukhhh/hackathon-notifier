@@ -1,0 +1,626 @@
+{
+  "records": 10000,
+  "result": {
+    "scanned": 10000,
+    "planned": 10000,
+    "modified": 10000,
+    "raced": 0,
+    "apply": true
+  },
+  "apply_seconds": 2.23490853399926,
+  "source_facts_unchanged": true,
+  "plans": {
+    "legacy_probe_before": {
+      "explainVersion": "1",
+      "queryPlanner": {
+        "namespace": "benchmark_phase4_backfill_0ce25a6dba204f26a23cd4cf385ef967.events",
+        "parsedQuery": {
+          "_identity_v1.version": {
+            "$not": {
+              "$eq": 2
+            }
+          }
+        },
+        "indexFilterSet": false,
+        "queryHash": "B9DDFEDB",
+        "planCacheShapeHash": "B9DDFEDB",
+        "planCacheKey": "278A2178",
+        "optimizationTimeMillis": 0,
+        "maxIndexedOrSolutionsReached": false,
+        "maxIndexedAndSolutionsReached": false,
+        "maxScansToExplodeReached": false,
+        "prunedSimilarIndexes": false,
+        "winningPlan": {
+          "isCached": false,
+          "stage": "PROJECTION_DEFAULT",
+          "transformBy": {
+            "_id": 1,
+            "title": 1,
+            "organizer": 1,
+            "organization": 1,
+            "link": 1,
+            "url_aliases": 1,
+            "source": 1,
+            "source_event_id": 1,
+            "source_records": 1,
+            "source_keys": 1,
+            "edition_key": 1,
+            "event_start": 1,
+            "registration_deadline": 1,
+            "mode": 1,
+            "city": 1,
+            "location": 1,
+            "_identity_v1": 1,
+            "canonical.provenance": 1
+          },
+          "inputStage": {
+            "stage": "COLLSCAN",
+            "filter": {
+              "_identity_v1.version": {
+                "$not": {
+                  "$eq": 2
+                }
+              }
+            },
+            "direction": "forward"
+          }
+        },
+        "rejectedPlans": []
+      },
+      "executionStats": {
+        "executionSuccess": true,
+        "nReturned": 10000,
+        "executionTimeMillis": 7,
+        "totalKeysExamined": 0,
+        "totalDocsExamined": 10000,
+        "executionStages": {
+          "isCached": false,
+          "stage": "PROJECTION_DEFAULT",
+          "nReturned": 10000,
+          "executionTimeMillisEstimate": 0,
+          "works": 10001,
+          "advanced": 10000,
+          "needTime": 0,
+          "needYield": 0,
+          "saveState": 0,
+          "restoreState": 0,
+          "isEOF": 1,
+          "transformBy": {
+            "_id": 1,
+            "title": 1,
+            "organizer": 1,
+            "organization": 1,
+            "link": 1,
+            "url_aliases": 1,
+            "source": 1,
+            "source_event_id": 1,
+            "source_records": 1,
+            "source_keys": 1,
+            "edition_key": 1,
+            "event_start": 1,
+            "registration_deadline": 1,
+            "mode": 1,
+            "city": 1,
+            "location": 1,
+            "_identity_v1": 1,
+            "canonical.provenance": 1
+          },
+          "inputStage": {
+            "stage": "COLLSCAN",
+            "filter": {
+              "_identity_v1.version": {
+                "$not": {
+                  "$eq": 2
+                }
+              }
+            },
+            "nReturned": 10000,
+            "executionTimeMillisEstimate": 0,
+            "works": 10001,
+            "advanced": 10000,
+            "needTime": 0,
+            "needYield": 0,
+            "saveState": 0,
+            "restoreState": 0,
+            "isEOF": 1,
+            "direction": "forward",
+            "docsExamined": 10000
+          }
+        }
+      },
+      "queryShapeHash": "6B18AAB8687BB217CB05082F0542744D2F7497220A50E5204B60E8BA17267B19",
+      "command": {
+        "find": "events",
+        "filter": {
+          "_identity_v1.version": {
+            "$ne": 2
+          }
+        },
+        "projection": {
+          "_id": 1,
+          "title": 1,
+          "organizer": 1,
+          "organization": 1,
+          "link": 1,
+          "url_aliases": 1,
+          "source": 1,
+          "source_event_id": 1,
+          "source_records": 1,
+          "source_keys": 1,
+          "edition_key": 1,
+          "event_start": 1,
+          "registration_deadline": 1,
+          "mode": 1,
+          "city": 1,
+          "location": 1,
+          "_identity_v1": 1,
+          "canonical.provenance": 1
+        },
+        "$db": "benchmark_phase4_backfill_0ce25a6dba204f26a23cd4cf385ef967"
+      },
+      "serverInfo": {
+        "host": "ae4a59a2fc4f",
+        "port": 27017,
+        "version": "8.0.34",
+        "gitVersion": "51db4515a6597aedcf6188ee4e48a27e65b065ae"
+      },
+      "serverParameters": {
+        "internalQueryFacetBufferSizeBytes": 104857600,
+        "internalQueryFacetMaxOutputDocSizeBytes": 104857600,
+        "internalLookupStageIntermediateDocumentMaxSizeBytes": 104857600,
+        "internalDocumentSourceGroupMaxMemoryBytes": 104857600,
+        "internalQueryMaxBlockingSortMemoryUsageBytes": 104857600,
+        "internalQueryProhibitBlockingMergeOnMongoS": 0,
+        "internalQueryMaxAddToSetBytes": 104857600,
+        "internalDocumentSourceSetWindowFieldsMaxMemoryBytes": 104857600,
+        "internalQueryFrameworkControl": "trySbeRestricted",
+        "internalQueryPlannerIgnoreIndexWithCollationForRegex": 1
+      },
+      "ok": 1.0,
+      "$clusterTime": {
+        "clusterTime": {
+          "$timestamp": {
+            "t": 1793595539,
+            "i": 52
+          }
+        },
+        "signature": {
+          "hash": {
+            "$binary": {
+              "base64": "AAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+              "subType": "00"
+            }
+          },
+          "keyId": 0
+        }
+      },
+      "operationTime": {
+        "$timestamp": {
+          "t": 1793595539,
+          "i": 52
+        }
+      }
+    },
+    "legacy_probe_after": {
+      "explainVersion": "1",
+      "queryPlanner": {
+        "namespace": "benchmark_phase4_backfill_0ce25a6dba204f26a23cd4cf385ef967.events",
+        "parsedQuery": {
+          "_identity_v1.version": {
+            "$not": {
+              "$eq": 2
+            }
+          }
+        },
+        "indexFilterSet": false,
+        "queryHash": "B9DDFEDB",
+        "planCacheShapeHash": "B9DDFEDB",
+        "planCacheKey": "70601E41",
+        "optimizationTimeMillis": 0,
+        "maxIndexedOrSolutionsReached": false,
+        "maxIndexedAndSolutionsReached": false,
+        "maxScansToExplodeReached": false,
+        "prunedSimilarIndexes": false,
+        "winningPlan": {
+          "isCached": false,
+          "stage": "PROJECTION_DEFAULT",
+          "transformBy": {
+            "_id": 1,
+            "title": 1,
+            "organizer": 1,
+            "organization": 1,
+            "link": 1,
+            "url_aliases": 1,
+            "source": 1,
+            "source_event_id": 1,
+            "source_records": 1,
+            "source_keys": 1,
+            "edition_key": 1,
+            "event_start": 1,
+            "registration_deadline": 1,
+            "mode": 1,
+            "city": 1,
+            "location": 1,
+            "_identity_v1": 1,
+            "canonical.provenance": 1
+          },
+          "inputStage": {
+            "stage": "FETCH",
+            "inputStage": {
+              "stage": "IXSCAN",
+              "keyPattern": {
+                "_identity_v1.version": 1
+              },
+              "indexName": "identity_version_v1",
+              "isMultiKey": false,
+              "multiKeyPaths": {
+                "_identity_v1.version": []
+              },
+              "isUnique": false,
+              "isSparse": false,
+              "isPartial": false,
+              "indexVersion": 2,
+              "direction": "forward",
+              "indexBounds": {
+                "_identity_v1.version": [
+                  "[MinKey, 2)",
+                  "(2, MaxKey]"
+                ]
+              }
+            }
+          }
+        },
+        "rejectedPlans": []
+      },
+      "executionStats": {
+        "executionSuccess": true,
+        "nReturned": 0,
+        "executionTimeMillis": 0,
+        "totalKeysExamined": 1,
+        "totalDocsExamined": 0,
+        "executionStages": {
+          "isCached": false,
+          "stage": "PROJECTION_DEFAULT",
+          "nReturned": 0,
+          "executionTimeMillisEstimate": 0,
+          "works": 2,
+          "advanced": 0,
+          "needTime": 1,
+          "needYield": 0,
+          "saveState": 0,
+          "restoreState": 0,
+          "isEOF": 1,
+          "transformBy": {
+            "_id": 1,
+            "title": 1,
+            "organizer": 1,
+            "organization": 1,
+            "link": 1,
+            "url_aliases": 1,
+            "source": 1,
+            "source_event_id": 1,
+            "source_records": 1,
+            "source_keys": 1,
+            "edition_key": 1,
+            "event_start": 1,
+            "registration_deadline": 1,
+            "mode": 1,
+            "city": 1,
+            "location": 1,
+            "_identity_v1": 1,
+            "canonical.provenance": 1
+          },
+          "inputStage": {
+            "stage": "FETCH",
+            "nReturned": 0,
+            "executionTimeMillisEstimate": 0,
+            "works": 2,
+            "advanced": 0,
+            "needTime": 1,
+            "needYield": 0,
+            "saveState": 0,
+            "restoreState": 0,
+            "isEOF": 1,
+            "docsExamined": 0,
+            "alreadyHasObj": 0,
+            "inputStage": {
+              "stage": "IXSCAN",
+              "nReturned": 0,
+              "executionTimeMillisEstimate": 0,
+              "works": 2,
+              "advanced": 0,
+              "needTime": 1,
+              "needYield": 0,
+              "saveState": 0,
+              "restoreState": 0,
+              "isEOF": 1,
+              "keyPattern": {
+                "_identity_v1.version": 1
+              },
+              "indexName": "identity_version_v1",
+              "isMultiKey": false,
+              "multiKeyPaths": {
+                "_identity_v1.version": []
+              },
+              "isUnique": false,
+              "isSparse": false,
+              "isPartial": false,
+              "indexVersion": 2,
+              "direction": "forward",
+              "indexBounds": {
+                "_identity_v1.version": [
+                  "[MinKey, 2)",
+                  "(2, MaxKey]"
+                ]
+              },
+              "keysExamined": 1,
+              "seeks": 2,
+              "dupsTested": 0,
+              "dupsDropped": 0
+            }
+          }
+        }
+      },
+      "queryShapeHash": "6B18AAB8687BB217CB05082F0542744D2F7497220A50E5204B60E8BA17267B19",
+      "command": {
+        "find": "events",
+        "filter": {
+          "_identity_v1.version": {
+            "$ne": 2
+          }
+        },
+        "projection": {
+          "_id": 1,
+          "title": 1,
+          "organizer": 1,
+          "organization": 1,
+          "link": 1,
+          "url_aliases": 1,
+          "source": 1,
+          "source_event_id": 1,
+          "source_records": 1,
+          "source_keys": 1,
+          "edition_key": 1,
+          "event_start": 1,
+          "registration_deadline": 1,
+          "mode": 1,
+          "city": 1,
+          "location": 1,
+          "_identity_v1": 1,
+          "canonical.provenance": 1
+        },
+        "$db": "benchmark_phase4_backfill_0ce25a6dba204f26a23cd4cf385ef967"
+      },
+      "serverInfo": {
+        "host": "ae4a59a2fc4f",
+        "port": 27017,
+        "version": "8.0.34",
+        "gitVersion": "51db4515a6597aedcf6188ee4e48a27e65b065ae"
+      },
+      "serverParameters": {
+        "internalQueryFacetBufferSizeBytes": 104857600,
+        "internalQueryFacetMaxOutputDocSizeBytes": 104857600,
+        "internalLookupStageIntermediateDocumentMaxSizeBytes": 104857600,
+        "internalDocumentSourceGroupMaxMemoryBytes": 104857600,
+        "internalQueryMaxBlockingSortMemoryUsageBytes": 104857600,
+        "internalQueryProhibitBlockingMergeOnMongoS": 0,
+        "internalQueryMaxAddToSetBytes": 104857600,
+        "internalDocumentSourceSetWindowFieldsMaxMemoryBytes": 104857600,
+        "internalQueryFrameworkControl": "trySbeRestricted",
+        "internalQueryPlannerIgnoreIndexWithCollationForRegex": 1
+      },
+      "ok": 1.0,
+      "$clusterTime": {
+        "clusterTime": {
+          "$timestamp": {
+            "t": 1793595542,
+            "i": 13
+          }
+        },
+        "signature": {
+          "hash": {
+            "$binary": {
+              "base64": "AAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+              "subType": "00"
+            }
+          },
+          "keyId": 0
+        }
+      },
+      "operationTime": {
+        "$timestamp": {
+          "t": 1793595542,
+          "i": 13
+        }
+      }
+    },
+    "urls": {
+      "explainVersion": "1",
+      "queryPlanner": {
+        "namespace": "benchmark_phase4_backfill_0ce25a6dba204f26a23cd4cf385ef967.events",
+        "parsedQuery": {
+          "_identity_v1.urls": {
+            "$eq": "https://example.com/event/1"
+          }
+        },
+        "indexFilterSet": false,
+        "queryHash": "0F893583",
+        "planCacheShapeHash": "0F893583",
+        "planCacheKey": "4FA3C968",
+        "optimizationTimeMillis": 0,
+        "maxIndexedOrSolutionsReached": false,
+        "maxIndexedAndSolutionsReached": false,
+        "maxScansToExplodeReached": false,
+        "prunedSimilarIndexes": false,
+        "winningPlan": {
+          "isCached": false,
+          "stage": "EXPRESS_IXSCAN",
+          "keyPattern": "{ _identity_v1.urls: 1 }",
+          "indexName": "identity_urls_v2"
+        },
+        "rejectedPlans": []
+      },
+      "executionStats": {
+        "executionSuccess": true,
+        "nReturned": 1,
+        "executionTimeMillis": 0,
+        "totalKeysExamined": 1,
+        "totalDocsExamined": 1,
+        "executionStages": {
+          "isCached": false,
+          "stage": "EXPRESS_IXSCAN",
+          "keyPattern": "{ _identity_v1.urls: 1 }",
+          "indexName": "identity_urls_v2",
+          "keysExamined": 1,
+          "docsExamined": 1,
+          "nReturned": 1
+        }
+      },
+      "queryShapeHash": "EB814279ADA286DD2E1F8253CA97EF928C32F29D33D7A97139D80259F946499B",
+      "command": {
+        "find": "events",
+        "filter": {
+          "_identity_v1.urls": "https://example.com/event/1"
+        },
+        "limit": 1,
+        "$db": "benchmark_phase4_backfill_0ce25a6dba204f26a23cd4cf385ef967"
+      },
+      "serverInfo": {
+        "host": "ae4a59a2fc4f",
+        "port": 27017,
+        "version": "8.0.34",
+        "gitVersion": "51db4515a6597aedcf6188ee4e48a27e65b065ae"
+      },
+      "serverParameters": {
+        "internalQueryFacetBufferSizeBytes": 104857600,
+        "internalQueryFacetMaxOutputDocSizeBytes": 104857600,
+        "internalLookupStageIntermediateDocumentMaxSizeBytes": 104857600,
+        "internalDocumentSourceGroupMaxMemoryBytes": 104857600,
+        "internalQueryMaxBlockingSortMemoryUsageBytes": 104857600,
+        "internalQueryProhibitBlockingMergeOnMongoS": 0,
+        "internalQueryMaxAddToSetBytes": 104857600,
+        "internalDocumentSourceSetWindowFieldsMaxMemoryBytes": 104857600,
+        "internalQueryFrameworkControl": "trySbeRestricted",
+        "internalQueryPlannerIgnoreIndexWithCollationForRegex": 1
+      },
+      "ok": 1.0,
+      "$clusterTime": {
+        "clusterTime": {
+          "$timestamp": {
+            "t": 1793595542,
+            "i": 13
+          }
+        },
+        "signature": {
+          "hash": {
+            "$binary": {
+              "base64": "AAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+              "subType": "00"
+            }
+          },
+          "keyId": 0
+        }
+      },
+      "operationTime": {
+        "$timestamp": {
+          "t": 1793595542,
+          "i": 13
+        }
+      }
+    },
+    "source_ids": {
+      "explainVersion": "1",
+      "queryPlanner": {
+        "namespace": "benchmark_phase4_backfill_0ce25a6dba204f26a23cd4cf385ef967.events",
+        "parsedQuery": {
+          "_identity_v1.source_ids": {
+            "$eq": "05374e56097da432c02d0312a0bbc4e545a2eee5a258e36f3af55a2336b2849f"
+          }
+        },
+        "indexFilterSet": false,
+        "queryHash": "3D6F46BE",
+        "planCacheShapeHash": "3D6F46BE",
+        "planCacheKey": "06B95EA1",
+        "optimizationTimeMillis": 0,
+        "maxIndexedOrSolutionsReached": false,
+        "maxIndexedAndSolutionsReached": false,
+        "maxScansToExplodeReached": false,
+        "prunedSimilarIndexes": false,
+        "winningPlan": {
+          "isCached": false,
+          "stage": "EXPRESS_IXSCAN",
+          "keyPattern": "{ _identity_v1.source_ids: 1 }",
+          "indexName": "identity_sources_v2"
+        },
+        "rejectedPlans": []
+      },
+      "executionStats": {
+        "executionSuccess": true,
+        "nReturned": 1,
+        "executionTimeMillis": 0,
+        "totalKeysExamined": 1,
+        "totalDocsExamined": 1,
+        "executionStages": {
+          "isCached": false,
+          "stage": "EXPRESS_IXSCAN",
+          "keyPattern": "{ _identity_v1.source_ids: 1 }",
+          "indexName": "identity_sources_v2",
+          "keysExamined": 1,
+          "docsExamined": 1,
+          "nReturned": 1
+        }
+      },
+      "queryShapeHash": "634B2F891A1D3641800B94B7DC66530458C1FE7F5923033D88322059609390BC",
+      "command": {
+        "find": "events",
+        "filter": {
+          "_identity_v1.source_ids": "05374e56097da432c02d0312a0bbc4e545a2eee5a258e36f3af55a2336b2849f"
+        },
+        "limit": 1,
+        "$db": "benchmark_phase4_backfill_0ce25a6dba204f26a23cd4cf385ef967"
+      },
+      "serverInfo": {
+        "host": "ae4a59a2fc4f",
+        "port": 27017,
+        "version": "8.0.34",
+        "gitVersion": "51db4515a6597aedcf6188ee4e48a27e65b065ae"
+      },
+      "serverParameters": {
+        "internalQueryFacetBufferSizeBytes": 104857600,
+        "internalQueryFacetMaxOutputDocSizeBytes": 104857600,
+        "internalLookupStageIntermediateDocumentMaxSizeBytes": 104857600,
+        "internalDocumentSourceGroupMaxMemoryBytes": 104857600,
+        "internalQueryMaxBlockingSortMemoryUsageBytes": 104857600,
+        "internalQueryProhibitBlockingMergeOnMongoS": 0,
+        "internalQueryMaxAddToSetBytes": 104857600,
+        "internalDocumentSourceSetWindowFieldsMaxMemoryBytes": 104857600,
+        "internalQueryFrameworkControl": "trySbeRestricted",
+        "internalQueryPlannerIgnoreIndexWithCollationForRegex": 1
+      },
+      "ok": 1.0,
+      "$clusterTime": {
+        "clusterTime": {
+          "$timestamp": {
+            "t": 1793595542,
+            "i": 13
+          }
+        },
+        "signature": {
+          "hash": {
+            "$binary": {
+              "base64": "AAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+              "subType": "00"
+            }
+          },
+          "keyId": 0
+        }
+      },
+      "operationTime": {
+        "$timestamp": {
+          "t": 1793595542,
+          "i": 13
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,4313 @@
+{
+  "python": "3.12.14",
+  "platform": "Linux-6.18.57-x86_64-with-glibc2.41",
+  "mongo_version": "8.0.34",
+  "baseline_commit": "f93b226",
+  "repeats": 3,
+  "requests_per_sample_set": 12,
+  "method": "Sequential API handler calls incl Mongo roundtrips/serialization, excluding ASGI/HTTP transport. Fresh process per algorithm. Warm p50/p95 nearest rank, four query modes (default, source+format, fuzzy text, distance). Python tracemalloc peak for one warm default request, separate process peak RSS. RSS reported on Linux. No production or cloud load measured.",
+  "results": {
+    "1000": {
+      "before": {
+        "samples_seconds": [
+          0.04947527599870227,
+          0.04991736500232946,
+          0.048218389001704054,
+          0.068832757002383,
+          0.04148759999952745,
+          0.039439700998627814,
+          0.04116836500179488,
+          0.040816019998601405,
+          0.07164842999918619,
+          0.04011781999724917,
+          0.0429194920034206,
+          0.03994582399900537
+        ],
+        "p50_ms": 42.203546001474024,
+        "p95_ms": 71.64842999918619,
+        "requests_per_second": 20.906395414177762,
+        "cold_seconds": 0.48906117899969104,
+        "request_python_peak_bytes": 4289667,
+        "process_peak_rss_bytes": 84340736
+      },
+      "after": {
+        "samples_seconds": [
+          0.005803884003398707,
+          0.00797224299822119,
+          0.022111311998742167,
+          0.013999269998748787,
+          0.005913217999477638,
+          0.0069310330000007525,
+          0.023162387999036582,
+          0.00888711500010686,
+          0.006076010002288967,
+          0.006904423000378301,
+          0.021065243003249634,
+          0.009001697002531728
+        ],
+        "p50_ms": 8.429678999164025,
+        "p95_ms": 23.162387999036582,
+        "requests_per_second": 87.0651411770103,
+        "cold_seconds": 0.010009087000071304,
+        "request_python_peak_bytes": 346774,
+        "process_peak_rss_bytes": 64593920
+      },
+      "plans": {
+        "before_catalog_find": {
+          "explainVersion": "1",
+          "queryPlanner": {
+            "namespace": "benchmark_phase4_api_a487ac9ca1064e909991d85fdb6ee77f.events",
+            "parsedQuery": {
+              "publication_state": {
+                "$not": {
+                  "$in": [
+                    "pending",
+                    "suppressed"
+                  ]
+                }
+              }
+            },
+            "indexFilterSet": false,
+            "queryHash": "B1516A0C",
+            "planCacheShapeHash": "B1516A0C",
+            "planCacheKey": "C1E5A0D4",
+            "optimizationTimeMillis": 0,
+            "maxIndexedOrSolutionsReached": false,
+            "maxIndexedAndSolutionsReached": false,
+            "maxScansToExplodeReached": false,
+            "prunedSimilarIndexes": false,
+            "winningPlan": {
+              "isCached": false,
+              "stage": "COLLSCAN",
+              "filter": {
+                "publication_state": {
+                  "$not": {
+                    "$in": [
+                      "pending",
+                      "suppressed"
+                    ]
+                  }
+                }
+              },
+              "direction": "forward"
+            },
+            "rejectedPlans": []
+          },
+          "executionStats": {
+            "executionSuccess": true,
+            "nReturned": 1000,
+            "executionTimeMillis": 0,
+            "totalKeysExamined": 0,
+            "totalDocsExamined": 1000,
+            "executionStages": {
+              "isCached": false,
+              "stage": "COLLSCAN",
+              "filter": {
+                "publication_state": {
+                  "$not": {
+                    "$in": [
+                      "pending",
+                      "suppressed"
+                    ]
+                  }
+                }
+              },
+              "nReturned": 1000,
+              "executionTimeMillisEstimate": 0,
+              "works": 1001,
+              "advanced": 1000,
+              "needTime": 0,
+              "needYield": 0,
+              "saveState": 0,
+              "restoreState": 0,
+              "isEOF": 1,
+              "direction": "forward",
+              "docsExamined": 1000
+            }
+          },
+          "queryShapeHash": "7A50FCC8E5B4AFCBAD12CE5713BC6DCFB665BFEED34C5C44D6426959ACF633FC",
+          "command": {
+            "find": "events",
+            "filter": {
+              "publication_state": {
+                "$nin": [
+                  "suppressed",
+                  "pending"
+                ]
+              }
+            },
+            "$db": "benchmark_phase4_api_a487ac9ca1064e909991d85fdb6ee77f"
+          },
+          "serverInfo": {
+            "host": "00689298b17a",
+            "port": 27017,
+            "version": "8.0.34",
+            "gitVersion": "51db4515a6597aedcf6188ee4e48a27e65b065ae"
+          },
+          "serverParameters": {
+            "internalQueryFacetBufferSizeBytes": 104857600,
+            "internalQueryFacetMaxOutputDocSizeBytes": 104857600,
+            "internalLookupStageIntermediateDocumentMaxSizeBytes": 104857600,
+            "internalDocumentSourceGroupMaxMemoryBytes": 104857600,
+            "internalQueryMaxBlockingSortMemoryUsageBytes": 104857600,
+            "internalQueryProhibitBlockingMergeOnMongoS": 0,
+            "internalQueryMaxAddToSetBytes": 104857600,
+            "internalDocumentSourceSetWindowFieldsMaxMemoryBytes": 104857600,
+            "internalQueryFrameworkControl": "trySbeRestricted",
+            "internalQueryPlannerIgnoreIndexWithCollationForRegex": 1
+          },
+          "ok": 1.0,
+          "$clusterTime": {
+            "clusterTime": {
+              "$timestamp": {
+                "t": 1793602350,
+                "i": 30
+              }
+            },
+            "signature": {
+              "hash": {
+                "$binary": {
+                  "base64": "AAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+                  "subType": "00"
+                }
+              },
+              "keyId": 0
+            }
+          },
+          "operationTime": {
+            "$timestamp": {
+              "t": 1793602350,
+              "i": 30
+            }
+          }
+        },
+        "deadline": {
+          "explainVersion": "1",
+          "queryPlanner": {
+            "namespace": "benchmark_phase4_api_a487ac9ca1064e909991d85fdb6ee77f._public_catalog_9d954f796d914dd19c51df3fafe1b153",
+            "parsedQuery": {},
+            "indexFilterSet": false,
+            "queryHash": "CEAB87D0",
+            "planCacheShapeHash": "CEAB87D0",
+            "planCacheKey": "E0D62B70",
+            "optimizationTimeMillis": 0,
+            "maxIndexedOrSolutionsReached": false,
+            "maxIndexedAndSolutionsReached": false,
+            "maxScansToExplodeReached": false,
+            "prunedSimilarIndexes": false,
+            "winningPlan": {
+              "isCached": false,
+              "stage": "LIMIT",
+              "limitAmount": 12,
+              "inputStage": {
+                "stage": "FETCH",
+                "inputStage": {
+                  "stage": "IXSCAN",
+                  "keyPattern": {
+                    "q.past": 1,
+                    "q.missing": 1,
+                    "q.deadline": 1,
+                    "q.rank": 1
+                  },
+                  "indexName": "deadline",
+                  "isMultiKey": false,
+                  "multiKeyPaths": {
+                    "q.past": [],
+                    "q.missing": [],
+                    "q.deadline": [],
+                    "q.rank": []
+                  },
+                  "isUnique": false,
+                  "isSparse": false,
+                  "isPartial": false,
+                  "indexVersion": 2,
+                  "direction": "forward",
+                  "indexBounds": {
+                    "q.past": [
+                      "[MinKey, MaxKey]"
+                    ],
+                    "q.missing": [
+                      "[MinKey, MaxKey]"
+                    ],
+                    "q.deadline": [
+                      "[MinKey, MaxKey]"
+                    ],
+                    "q.rank": [
+                      "[MinKey, MaxKey]"
+                    ]
+                  }
+                }
+              }
+            },
+            "rejectedPlans": []
+          },
+          "executionStats": {
+            "executionSuccess": true,
+            "nReturned": 12,
+            "executionTimeMillis": 0,
+            "totalKeysExamined": 12,
+            "totalDocsExamined": 12,
+            "executionStages": {
+              "isCached": false,
+              "stage": "LIMIT",
+              "nReturned": 12,
+              "executionTimeMillisEstimate": 0,
+              "works": 13,
+              "advanced": 12,
+              "needTime": 0,
+              "needYield": 0,
+              "saveState": 0,
+              "restoreState": 0,
+              "isEOF": 1,
+              "limitAmount": 12,
+              "inputStage": {
+                "stage": "FETCH",
+                "nReturned": 12,
+                "executionTimeMillisEstimate": 0,
+                "works": 12,
+                "advanced": 12,
+                "needTime": 0,
+                "needYield": 0,
+                "saveState": 0,
+                "restoreState": 0,
+                "isEOF": 0,
+                "docsExamined": 12,
+                "alreadyHasObj": 0,
+                "inputStage": {
+                  "stage": "IXSCAN",
+                  "nReturned": 12,
+                  "executionTimeMillisEstimate": 0,
+                  "works": 12,
+                  "advanced": 12,
+                  "needTime": 0,
+                  "needYield": 0,
+                  "saveState": 0,
+                  "restoreState": 0,
+                  "isEOF": 0,
+                  "keyPattern": {
+                    "q.past": 1,
+                    "q.missing": 1,
+                    "q.deadline": 1,
+                    "q.rank": 1
+                  },
+                  "indexName": "deadline",
+                  "isMultiKey": false,
+                  "multiKeyPaths": {
+                    "q.past": [],
+                    "q.missing": [],
+                    "q.deadline": [],
+                    "q.rank": []
+                  },
+                  "isUnique": false,
+                  "isSparse": false,
+                  "isPartial": false,
+                  "indexVersion": 2,
+                  "direction": "forward",
+                  "indexBounds": {
+                    "q.past": [
+                      "[MinKey, MaxKey]"
+                    ],
+                    "q.missing": [
+                      "[MinKey, MaxKey]"
+                    ],
+                    "q.deadline": [
+                      "[MinKey, MaxKey]"
+                    ],
+                    "q.rank": [
+                      "[MinKey, MaxKey]"
+                    ]
+                  },
+                  "keysExamined": 12,
+                  "seeks": 1,
+                  "dupsTested": 0,
+                  "dupsDropped": 0
+                }
+              }
+            }
+          },
+          "queryShapeHash": "6D404E2201D392CEC5199C98118435A68AF7BC68035E1C8F2579B3EC6AD203EF",
+          "command": {
+            "find": "_public_catalog_9d954f796d914dd19c51df3fafe1b153",
+            "filter": {},
+            "sort": {
+              "q.past": 1,
+              "q.missing": 1,
+              "q.deadline": 1,
+              "q.rank": 1
+            },
+            "limit": 12,
+            "$db": "benchmark_phase4_api_a487ac9ca1064e909991d85fdb6ee77f"
+          },
+          "serverInfo": {
+            "host": "00689298b17a",
+            "port": 27017,
+            "version": "8.0.34",
+            "gitVersion": "51db4515a6597aedcf6188ee4e48a27e65b065ae"
+          },
+          "serverParameters": {
+            "internalQueryFacetBufferSizeBytes": 104857600,
+            "internalQueryFacetMaxOutputDocSizeBytes": 104857600,
+            "internalLookupStageIntermediateDocumentMaxSizeBytes": 104857600,
+            "internalDocumentSourceGroupMaxMemoryBytes": 104857600,
+            "internalQueryMaxBlockingSortMemoryUsageBytes": 104857600,
+            "internalQueryProhibitBlockingMergeOnMongoS": 0,
+            "internalQueryMaxAddToSetBytes": 104857600,
+            "internalDocumentSourceSetWindowFieldsMaxMemoryBytes": 104857600,
+            "internalQueryFrameworkControl": "trySbeRestricted",
+            "internalQueryPlannerIgnoreIndexWithCollationForRegex": 1
+          },
+          "ok": 1.0,
+          "$clusterTime": {
+            "clusterTime": {
+              "$timestamp": {
+                "t": 1793602350,
+                "i": 30
+              }
+            },
+            "signature": {
+              "hash": {
+                "$binary": {
+                  "base64": "AAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+                  "subType": "00"
+                }
+              },
+              "keyId": 0
+            }
+          },
+          "operationTime": {
+            "$timestamp": {
+              "t": 1793602350,
+              "i": 30
+            }
+          }
+        },
+        "format_deadline": {
+          "explainVersion": "1",
+          "queryPlanner": {
+            "namespace": "benchmark_phase4_api_a487ac9ca1064e909991d85fdb6ee77f._public_catalog_9d954f796d914dd19c51df3fafe1b153",
+            "parsedQuery": {
+              "q.format": {
+                "$eq": "Online"
+              }
+            },
+            "indexFilterSet": false,
+            "queryHash": "17D015B6",
+            "planCacheShapeHash": "17D015B6",
+            "planCacheKey": "19B28C13",
+            "optimizationTimeMillis": 0,
+            "maxIndexedOrSolutionsReached": false,
+            "maxIndexedAndSolutionsReached": false,
+            "maxScansToExplodeReached": false,
+            "prunedSimilarIndexes": false,
+            "winningPlan": {
+              "isCached": false,
+              "stage": "LIMIT",
+              "limitAmount": 12,
+              "inputStage": {
+                "stage": "FETCH",
+                "inputStage": {
+                  "stage": "IXSCAN",
+                  "keyPattern": {
+                    "q.format": 1,
+                    "q.past": 1,
+                    "q.missing": 1,
+                    "q.deadline": 1,
+                    "q.rank": 1
+                  },
+                  "indexName": "format_deadline",
+                  "isMultiKey": false,
+                  "multiKeyPaths": {
+                    "q.format": [],
+                    "q.past": [],
+                    "q.missing": [],
+                    "q.deadline": [],
+                    "q.rank": []
+                  },
+                  "isUnique": false,
+                  "isSparse": false,
+                  "isPartial": false,
+                  "indexVersion": 2,
+                  "direction": "forward",
+                  "indexBounds": {
+                    "q.format": [
+                      "[\"Online\", \"Online\"]"
+                    ],
+                    "q.past": [
+                      "[MinKey, MaxKey]"
+                    ],
+                    "q.missing": [
+                      "[MinKey, MaxKey]"
+                    ],
+                    "q.deadline": [
+                      "[MinKey, MaxKey]"
+                    ],
+                    "q.rank": [
+                      "[MinKey, MaxKey]"
+                    ]
+                  }
+                }
+              }
+            },
+            "rejectedPlans": []
+          },
+          "executionStats": {
+            "executionSuccess": true,
+            "nReturned": 12,
+            "executionTimeMillis": 0,
+            "totalKeysExamined": 12,
+            "totalDocsExamined": 12,
+            "executionStages": {
+              "isCached": false,
+              "stage": "LIMIT",
+              "nReturned": 12,
+              "executionTimeMillisEstimate": 0,
+              "works": 13,
+              "advanced": 12,
+              "needTime": 0,
+              "needYield": 0,
+              "saveState": 0,
+              "restoreState": 0,
+              "isEOF": 1,
+              "limitAmount": 12,
+              "inputStage": {
+                "stage": "FETCH",
+                "nReturned": 12,
+                "executionTimeMillisEstimate": 0,
+                "works": 12,
+                "advanced": 12,
+                "needTime": 0,
+                "needYield": 0,
+                "saveState": 0,
+                "restoreState": 0,
+                "isEOF": 0,
+                "docsExamined": 12,
+                "alreadyHasObj": 0,
+                "inputStage": {
+                  "stage": "IXSCAN",
+                  "nReturned": 12,
+                  "executionTimeMillisEstimate": 0,
+                  "works": 12,
+                  "advanced": 12,
+                  "needTime": 0,
+                  "needYield": 0,
+                  "saveState": 0,
+                  "restoreState": 0,
+                  "isEOF": 0,
+                  "keyPattern": {
+                    "q.format": 1,
+                    "q.past": 1,
+                    "q.missing": 1,
+                    "q.deadline": 1,
+                    "q.rank": 1
+                  },
+                  "indexName": "format_deadline",
+                  "isMultiKey": false,
+                  "multiKeyPaths": {
+                    "q.format": [],
+                    "q.past": [],
+                    "q.missing": [],
+                    "q.deadline": [],
+                    "q.rank": []
+                  },
+                  "isUnique": false,
+                  "isSparse": false,
+                  "isPartial": false,
+                  "indexVersion": 2,
+                  "direction": "forward",
+                  "indexBounds": {
+                    "q.format": [
+                      "[\"Online\", \"Online\"]"
+                    ],
+                    "q.past": [
+                      "[MinKey, MaxKey]"
+                    ],
+                    "q.missing": [
+                      "[MinKey, MaxKey]"
+                    ],
+                    "q.deadline": [
+                      "[MinKey, MaxKey]"
+                    ],
+                    "q.rank": [
+                      "[MinKey, MaxKey]"
+                    ]
+                  },
+                  "keysExamined": 12,
+                  "seeks": 1,
+                  "dupsTested": 0,
+                  "dupsDropped": 0
+                }
+              }
+            }
+          },
+          "queryShapeHash": "D33BDA0069D829DBF93FC6B0DCC965997F68016E295D4BCDEC8D2C38A5E219AB",
+          "command": {
+            "find": "_public_catalog_9d954f796d914dd19c51df3fafe1b153",
+            "filter": {
+              "$and": [
+                {
+                  "q.format": "Online"
+                }
+              ]
+            },
+            "sort": {
+              "q.past": 1,
+              "q.missing": 1,
+              "q.deadline": 1,
+              "q.rank": 1
+            },
+            "limit": 12,
+            "$db": "benchmark_phase4_api_a487ac9ca1064e909991d85fdb6ee77f"
+          },
+          "serverInfo": {
+            "host": "00689298b17a",
+            "port": 27017,
+            "version": "8.0.34",
+            "gitVersion": "51db4515a6597aedcf6188ee4e48a27e65b065ae"
+          },
+          "serverParameters": {
+            "internalQueryFacetBufferSizeBytes": 104857600,
+            "internalQueryFacetMaxOutputDocSizeBytes": 104857600,
+            "internalLookupStageIntermediateDocumentMaxSizeBytes": 104857600,
+            "internalDocumentSourceGroupMaxMemoryBytes": 104857600,
+            "internalQueryMaxBlockingSortMemoryUsageBytes": 104857600,
+            "internalQueryProhibitBlockingMergeOnMongoS": 0,
+            "internalQueryMaxAddToSetBytes": 104857600,
+            "internalDocumentSourceSetWindowFieldsMaxMemoryBytes": 104857600,
+            "internalQueryFrameworkControl": "trySbeRestricted",
+            "internalQueryPlannerIgnoreIndexWithCollationForRegex": 1
+          },
+          "ok": 1.0,
+          "$clusterTime": {
+            "clusterTime": {
+              "$timestamp": {
+                "t": 1793602350,
+                "i": 30
+              }
+            },
+            "signature": {
+              "hash": {
+                "$binary": {
+                  "base64": "AAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+                  "subType": "00"
+                }
+              },
+              "keyId": 0
+            }
+          },
+          "operationTime": {
+            "$timestamp": {
+              "t": 1793602350,
+              "i": 30
+            }
+          }
+        },
+        "source_deadline": {
+          "explainVersion": "1",
+          "queryPlanner": {
+            "namespace": "benchmark_phase4_api_a487ac9ca1064e909991d85fdb6ee77f._public_catalog_9d954f796d914dd19c51df3fafe1b153",
+            "parsedQuery": {
+              "q.sources": {
+                "$eq": "devpost"
+              }
+            },
+            "indexFilterSet": false,
+            "queryHash": "F442E82C",
+            "planCacheShapeHash": "F442E82C",
+            "planCacheKey": "E6335D34",
+            "optimizationTimeMillis": 0,
+            "maxIndexedOrSolutionsReached": false,
+            "maxIndexedAndSolutionsReached": false,
+            "maxScansToExplodeReached": false,
+            "prunedSimilarIndexes": false,
+            "winningPlan": {
+              "isCached": false,
+              "stage": "LIMIT",
+              "limitAmount": 12,
+              "inputStage": {
+                "stage": "FETCH",
+                "inputStage": {
+                  "stage": "IXSCAN",
+                  "keyPattern": {
+                    "q.sources": 1,
+                    "q.past": 1,
+                    "q.missing": 1,
+                    "q.deadline": 1,
+                    "q.rank": 1
+                  },
+                  "indexName": "source_deadline",
+                  "isMultiKey": true,
+                  "multiKeyPaths": {
+                    "q.sources": [
+                      "q.sources"
+                    ],
+                    "q.past": [],
+                    "q.missing": [],
+                    "q.deadline": [],
+                    "q.rank": []
+                  },
+                  "isUnique": false,
+                  "isSparse": false,
+                  "isPartial": false,
+                  "indexVersion": 2,
+                  "direction": "forward",
+                  "indexBounds": {
+                    "q.sources": [
+                      "[\"devpost\", \"devpost\"]"
+                    ],
+                    "q.past": [
+                      "[MinKey, MaxKey]"
+                    ],
+                    "q.missing": [
+                      "[MinKey, MaxKey]"
+                    ],
+                    "q.deadline": [
+                      "[MinKey, MaxKey]"
+                    ],
+                    "q.rank": [
+                      "[MinKey, MaxKey]"
+                    ]
+                  }
+                }
+              }
+            },
+            "rejectedPlans": []
+          },
+          "executionStats": {
+            "executionSuccess": true,
+            "nReturned": 12,
+            "executionTimeMillis": 0,
+            "totalKeysExamined": 12,
+            "totalDocsExamined": 12,
+            "executionStages": {
+              "isCached": false,
+              "stage": "LIMIT",
+              "nReturned": 12,
+              "executionTimeMillisEstimate": 0,
+              "works": 13,
+              "advanced": 12,
+              "needTime": 0,
+              "needYield": 0,
+              "saveState": 0,
+              "restoreState": 0,
+              "isEOF": 1,
+              "limitAmount": 12,
+              "inputStage": {
+                "stage": "FETCH",
+                "nReturned": 12,
+                "executionTimeMillisEstimate": 0,
+                "works": 12,
+                "advanced": 12,
+                "needTime": 0,
+                "needYield": 0,
+                "saveState": 0,
+                "restoreState": 0,
+                "isEOF": 0,
+                "docsExamined": 12,
+                "alreadyHasObj": 0,
+                "inputStage": {
+                  "stage": "IXSCAN",
+                  "nReturned": 12,
+                  "executionTimeMillisEstimate": 0,
+                  "works": 12,
+                  "advanced": 12,
+                  "needTime": 0,
+                  "needYield": 0,
+                  "saveState": 0,
+                  "restoreState": 0,
+                  "isEOF": 0,
+                  "keyPattern": {
+                    "q.sources": 1,
+                    "q.past": 1,
+                    "q.missing": 1,
+                    "q.deadline": 1,
+                    "q.rank": 1
+                  },
+                  "indexName": "source_deadline",
+                  "isMultiKey": true,
+                  "multiKeyPaths": {
+                    "q.sources": [
+                      "q.sources"
+                    ],
+                    "q.past": [],
+                    "q.missing": [],
+                    "q.deadline": [],
+                    "q.rank": []
+                  },
+                  "isUnique": false,
+                  "isSparse": false,
+                  "isPartial": false,
+                  "indexVersion": 2,
+                  "direction": "forward",
+                  "indexBounds": {
+                    "q.sources": [
+                      "[\"devpost\", \"devpost\"]"
+                    ],
+                    "q.past": [
+                      "[MinKey, MaxKey]"
+                    ],
+                    "q.missing": [
+                      "[MinKey, MaxKey]"
+                    ],
+                    "q.deadline": [
+                      "[MinKey, MaxKey]"
+                    ],
+                    "q.rank": [
+                      "[MinKey, MaxKey]"
+                    ]
+                  },
+                  "keysExamined": 12,
+                  "seeks": 1,
+                  "dupsTested": 12,
+                  "dupsDropped": 0
+                }
+              }
+            }
+          },
+          "queryShapeHash": "0CAC3EACEC4E190FD0ADBA95D88918586B8F61A3260E272BAB254BE6D156653D",
+          "command": {
+            "find": "_public_catalog_9d954f796d914dd19c51df3fafe1b153",
+            "filter": {
+              "$and": [
+                {
+                  "q.sources": "devpost"
+                }
+              ]
+            },
+            "sort": {
+              "q.past": 1,
+              "q.missing": 1,
+              "q.deadline": 1,
+              "q.rank": 1
+            },
+            "limit": 12,
+            "$db": "benchmark_phase4_api_a487ac9ca1064e909991d85fdb6ee77f"
+          },
+          "serverInfo": {
+            "host": "00689298b17a",
+            "port": 27017,
+            "version": "8.0.34",
+            "gitVersion": "51db4515a6597aedcf6188ee4e48a27e65b065ae"
+          },
+          "serverParameters": {
+            "internalQueryFacetBufferSizeBytes": 104857600,
+            "internalQueryFacetMaxOutputDocSizeBytes": 104857600,
+            "internalLookupStageIntermediateDocumentMaxSizeBytes": 104857600,
+            "internalDocumentSourceGroupMaxMemoryBytes": 104857600,
+            "internalQueryMaxBlockingSortMemoryUsageBytes": 104857600,
+            "internalQueryProhibitBlockingMergeOnMongoS": 0,
+            "internalQueryMaxAddToSetBytes": 104857600,
+            "internalDocumentSourceSetWindowFieldsMaxMemoryBytes": 104857600,
+            "internalQueryFrameworkControl": "trySbeRestricted",
+            "internalQueryPlannerIgnoreIndexWithCollationForRegex": 1
+          },
+          "ok": 1.0,
+          "$clusterTime": {
+            "clusterTime": {
+              "$timestamp": {
+                "t": 1793602350,
+                "i": 30
+              }
+            },
+            "signature": {
+              "hash": {
+                "$binary": {
+                  "base64": "AAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+                  "subType": "00"
+                }
+              },
+              "keyId": 0
+            }
+          },
+          "operationTime": {
+            "$timestamp": {
+              "t": 1793602350,
+              "i": 30
+            }
+          }
+        },
+        "name": {
+          "explainVersion": "1",
+          "queryPlanner": {
+            "namespace": "benchmark_phase4_api_a487ac9ca1064e909991d85fdb6ee77f._public_catalog_9d954f796d914dd19c51df3fafe1b153",
+            "parsedQuery": {},
+            "indexFilterSet": false,
+            "queryHash": "6FB8FDDF",
+            "planCacheShapeHash": "6FB8FDDF",
+            "planCacheKey": "54F49733",
+            "optimizationTimeMillis": 0,
+            "maxIndexedOrSolutionsReached": false,
+            "maxIndexedAndSolutionsReached": false,
+            "maxScansToExplodeReached": false,
+            "prunedSimilarIndexes": false,
+            "winningPlan": {
+              "isCached": false,
+              "stage": "LIMIT",
+              "limitAmount": 12,
+              "inputStage": {
+                "stage": "FETCH",
+                "inputStage": {
+                  "stage": "IXSCAN",
+                  "keyPattern": {
+                    "q.name": 1,
+                    "q.rank": 1
+                  },
+                  "indexName": "name",
+                  "isMultiKey": false,
+                  "multiKeyPaths": {
+                    "q.name": [],
+                    "q.rank": []
+                  },
+                  "isUnique": false,
+                  "isSparse": false,
+                  "isPartial": false,
+                  "indexVersion": 2,
+                  "direction": "forward",
+                  "indexBounds": {
+                    "q.name": [
+                      "[MinKey, MaxKey]"
+                    ],
+                    "q.rank": [
+                      "[MinKey, MaxKey]"
+                    ]
+                  }
+                }
+              }
+            },
+            "rejectedPlans": []
+          },
+          "executionStats": {
+            "executionSuccess": true,
+            "nReturned": 12,
+            "executionTimeMillis": 0,
+            "totalKeysExamined": 12,
+            "totalDocsExamined": 12,
+            "executionStages": {
+              "isCached": false,
+              "stage": "LIMIT",
+              "nReturned": 12,
+              "executionTimeMillisEstimate": 0,
+              "works": 13,
+              "advanced": 12,
+              "needTime": 0,
+              "needYield": 0,
+              "saveState": 0,
+              "restoreState": 0,
+              "isEOF": 1,
+              "limitAmount": 12,
+              "inputStage": {
+                "stage": "FETCH",
+                "nReturned": 12,
+                "executionTimeMillisEstimate": 0,
+                "works": 12,
+                "advanced": 12,
+                "needTime": 0,
+                "needYield": 0,
+                "saveState": 0,
+                "restoreState": 0,
+                "isEOF": 0,
+                "docsExamined": 12,
+                "alreadyHasObj": 0,
+                "inputStage": {
+                  "stage": "IXSCAN",
+                  "nReturned": 12,
+                  "executionTimeMillisEstimate": 0,
+                  "works": 12,
+                  "advanced": 12,
+                  "needTime": 0,
+                  "needYield": 0,
+                  "saveState": 0,
+                  "restoreState": 0,
+                  "isEOF": 0,
+                  "keyPattern": {
+                    "q.name": 1,
+                    "q.rank": 1
+                  },
+                  "indexName": "name",
+                  "isMultiKey": false,
+                  "multiKeyPaths": {
+                    "q.name": [],
+                    "q.rank": []
+                  },
+                  "isUnique": false,
+                  "isSparse": false,
+                  "isPartial": false,
+                  "indexVersion": 2,
+                  "direction": "forward",
+                  "indexBounds": {
+                    "q.name": [
+                      "[MinKey, MaxKey]"
+                    ],
+                    "q.rank": [
+                      "[MinKey, MaxKey]"
+                    ]
+                  },
+                  "keysExamined": 12,
+                  "seeks": 1,
+                  "dupsTested": 0,
+                  "dupsDropped": 0
+                }
+              }
+            }
+          },
+          "queryShapeHash": "8880E8EE4BCF4036DAFA30F1F5323D6ECCE96C57AD971221651294FD4BBC172D",
+          "command": {
+            "find": "_public_catalog_9d954f796d914dd19c51df3fafe1b153",
+            "filter": {},
+            "sort": {
+              "q.name": 1,
+              "q.rank": 1
+            },
+            "limit": 12,
+            "$db": "benchmark_phase4_api_a487ac9ca1064e909991d85fdb6ee77f"
+          },
+          "serverInfo": {
+            "host": "00689298b17a",
+            "port": 27017,
+            "version": "8.0.34",
+            "gitVersion": "51db4515a6597aedcf6188ee4e48a27e65b065ae"
+          },
+          "serverParameters": {
+            "internalQueryFacetBufferSizeBytes": 104857600,
+            "internalQueryFacetMaxOutputDocSizeBytes": 104857600,
+            "internalLookupStageIntermediateDocumentMaxSizeBytes": 104857600,
+            "internalDocumentSourceGroupMaxMemoryBytes": 104857600,
+            "internalQueryMaxBlockingSortMemoryUsageBytes": 104857600,
+            "internalQueryProhibitBlockingMergeOnMongoS": 0,
+            "internalQueryMaxAddToSetBytes": 104857600,
+            "internalDocumentSourceSetWindowFieldsMaxMemoryBytes": 104857600,
+            "internalQueryFrameworkControl": "trySbeRestricted",
+            "internalQueryPlannerIgnoreIndexWithCollationForRegex": 1
+          },
+          "ok": 1.0,
+          "$clusterTime": {
+            "clusterTime": {
+              "$timestamp": {
+                "t": 1793602350,
+                "i": 30
+              }
+            },
+            "signature": {
+              "hash": {
+                "$binary": {
+                  "base64": "AAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+                  "subType": "00"
+                }
+              },
+              "keyId": 0
+            }
+          },
+          "operationTime": {
+            "$timestamp": {
+              "t": 1793602350,
+              "i": 30
+            }
+          }
+        },
+        "newest": {
+          "explainVersion": "1",
+          "queryPlanner": {
+            "namespace": "benchmark_phase4_api_a487ac9ca1064e909991d85fdb6ee77f._public_catalog_9d954f796d914dd19c51df3fafe1b153",
+            "parsedQuery": {},
+            "indexFilterSet": false,
+            "queryHash": "F2E51B51",
+            "planCacheShapeHash": "F2E51B51",
+            "planCacheKey": "088FCE85",
+            "optimizationTimeMillis": 0,
+            "maxIndexedOrSolutionsReached": false,
+            "maxIndexedAndSolutionsReached": false,
+            "maxScansToExplodeReached": false,
+            "prunedSimilarIndexes": false,
+            "winningPlan": {
+              "isCached": false,
+              "stage": "LIMIT",
+              "limitAmount": 12,
+              "inputStage": {
+                "stage": "FETCH",
+                "inputStage": {
+                  "stage": "IXSCAN",
+                  "keyPattern": {
+                    "q.scraped": -1,
+                    "q.rank": 1
+                  },
+                  "indexName": "newest",
+                  "isMultiKey": false,
+                  "multiKeyPaths": {
+                    "q.scraped": [],
+                    "q.rank": []
+                  },
+                  "isUnique": false,
+                  "isSparse": false,
+                  "isPartial": false,
+                  "indexVersion": 2,
+                  "direction": "forward",
+                  "indexBounds": {
+                    "q.scraped": [
+                      "[MaxKey, MinKey]"
+                    ],
+                    "q.rank": [
+                      "[MinKey, MaxKey]"
+                    ]
+                  }
+                }
+              }
+            },
+            "rejectedPlans": []
+          },
+          "executionStats": {
+            "executionSuccess": true,
+            "nReturned": 12,
+            "executionTimeMillis": 0,
+            "totalKeysExamined": 12,
+            "totalDocsExamined": 12,
+            "executionStages": {
+              "isCached": false,
+              "stage": "LIMIT",
+              "nReturned": 12,
+              "executionTimeMillisEstimate": 0,
+              "works": 13,
+              "advanced": 12,
+              "needTime": 0,
+              "needYield": 0,
+              "saveState": 0,
+              "restoreState": 0,
+              "isEOF": 1,
+              "limitAmount": 12,
+              "inputStage": {
+                "stage": "FETCH",
+                "nReturned": 12,
+                "executionTimeMillisEstimate": 0,
+                "works": 12,
+                "advanced": 12,
+                "needTime": 0,
+                "needYield": 0,
+                "saveState": 0,
+                "restoreState": 0,
+                "isEOF": 0,
+                "docsExamined": 12,
+                "alreadyHasObj": 0,
+                "inputStage": {
+                  "stage": "IXSCAN",
+                  "nReturned": 12,
+                  "executionTimeMillisEstimate": 0,
+                  "works": 12,
+                  "advanced": 12,
+                  "needTime": 0,
+                  "needYield": 0,
+                  "saveState": 0,
+                  "restoreState": 0,
+                  "isEOF": 0,
+                  "keyPattern": {
+                    "q.scraped": -1,
+                    "q.rank": 1
+                  },
+                  "indexName": "newest",
+                  "isMultiKey": false,
+                  "multiKeyPaths": {
+                    "q.scraped": [],
+                    "q.rank": []
+                  },
+                  "isUnique": false,
+                  "isSparse": false,
+                  "isPartial": false,
+                  "indexVersion": 2,
+                  "direction": "forward",
+                  "indexBounds": {
+                    "q.scraped": [
+                      "[MaxKey, MinKey]"
+                    ],
+                    "q.rank": [
+                      "[MinKey, MaxKey]"
+                    ]
+                  },
+                  "keysExamined": 12,
+                  "seeks": 1,
+                  "dupsTested": 0,
+                  "dupsDropped": 0
+                }
+              }
+            }
+          },
+          "queryShapeHash": "673DF460588C5B50EACF3F87795691F968E8787C685FA953A3917D123CE42252",
+          "command": {
+            "find": "_public_catalog_9d954f796d914dd19c51df3fafe1b153",
+            "filter": {},
+            "sort": {
+              "q.scraped": -1,
+              "q.rank": 1
+            },
+            "limit": 12,
+            "$db": "benchmark_phase4_api_a487ac9ca1064e909991d85fdb6ee77f"
+          },
+          "serverInfo": {
+            "host": "00689298b17a",
+            "port": 27017,
+            "version": "8.0.34",
+            "gitVersion": "51db4515a6597aedcf6188ee4e48a27e65b065ae"
+          },
+          "serverParameters": {
+            "internalQueryFacetBufferSizeBytes": 104857600,
+            "internalQueryFacetMaxOutputDocSizeBytes": 104857600,
+            "internalLookupStageIntermediateDocumentMaxSizeBytes": 104857600,
+            "internalDocumentSourceGroupMaxMemoryBytes": 104857600,
+            "internalQueryMaxBlockingSortMemoryUsageBytes": 104857600,
+            "internalQueryProhibitBlockingMergeOnMongoS": 0,
+            "internalQueryMaxAddToSetBytes": 104857600,
+            "internalDocumentSourceSetWindowFieldsMaxMemoryBytes": 104857600,
+            "internalQueryFrameworkControl": "trySbeRestricted",
+            "internalQueryPlannerIgnoreIndexWithCollationForRegex": 1
+          },
+          "ok": 1.0,
+          "$clusterTime": {
+            "clusterTime": {
+              "$timestamp": {
+                "t": 1793602350,
+                "i": 30
+              }
+            },
+            "signature": {
+              "hash": {
+                "$binary": {
+                  "base64": "AAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+                  "subType": "00"
+                }
+              },
+              "keyId": 0
+            }
+          },
+          "operationTime": {
+            "$timestamp": {
+              "t": 1793602350,
+              "i": 30
+            }
+          }
+        },
+        "saved_ids": {
+          "explainVersion": "1",
+          "queryPlanner": {
+            "namespace": "benchmark_phase4_api_a487ac9ca1064e909991d85fdb6ee77f._public_catalog_9d954f796d914dd19c51df3fafe1b153",
+            "parsedQuery": {
+              "q.ids": {
+                "$eq": "000000000000000000000001"
+              }
+            },
+            "indexFilterSet": false,
+            "queryHash": "9F4DEF00",
+            "planCacheShapeHash": "9F4DEF00",
+            "planCacheKey": "CCC79A85",
+            "optimizationTimeMillis": 0,
+            "maxIndexedOrSolutionsReached": false,
+            "maxIndexedAndSolutionsReached": false,
+            "maxScansToExplodeReached": false,
+            "prunedSimilarIndexes": false,
+            "winningPlan": {
+              "isCached": false,
+              "stage": "SORT",
+              "sortPattern": {
+                "q.past": 1,
+                "q.missing": 1,
+                "q.deadline": 1,
+                "q.rank": 1
+              },
+              "memLimit": 104857600,
+              "limitAmount": 12,
+              "type": "simple",
+              "inputStage": {
+                "stage": "FETCH",
+                "inputStage": {
+                  "stage": "IXSCAN",
+                  "keyPattern": {
+                    "q.ids": 1
+                  },
+                  "indexName": "saved_ids",
+                  "isMultiKey": true,
+                  "multiKeyPaths": {
+                    "q.ids": [
+                      "q.ids"
+                    ]
+                  },
+                  "isUnique": false,
+                  "isSparse": false,
+                  "isPartial": false,
+                  "indexVersion": 2,
+                  "direction": "forward",
+                  "indexBounds": {
+                    "q.ids": [
+                      "[\"000000000000000000000001\", \"000000000000000000000001\"]"
+                    ]
+                  }
+                }
+              }
+            },
+            "rejectedPlans": [
+              {
+                "isCached": false,
+                "stage": "LIMIT",
+                "limitAmount": 12,
+                "inputStage": {
+                  "stage": "FETCH",
+                  "filter": {
+                    "q.ids": {
+                      "$eq": "000000000000000000000001"
+                    }
+                  },
+                  "inputStage": {
+                    "stage": "IXSCAN",
+                    "keyPattern": {
+                      "q.past": 1,
+                      "q.missing": 1,
+                      "q.deadline": 1,
+                      "q.rank": 1
+                    },
+                    "indexName": "deadline",
+                    "isMultiKey": false,
+                    "multiKeyPaths": {
+                      "q.past": [],
+                      "q.missing": [],
+                      "q.deadline": [],
+                      "q.rank": []
+                    },
+                    "isUnique": false,
+                    "isSparse": false,
+                    "isPartial": false,
+                    "indexVersion": 2,
+                    "direction": "forward",
+                    "indexBounds": {
+                      "q.past": [
+                        "[MinKey, MaxKey]"
+                      ],
+                      "q.missing": [
+                        "[MinKey, MaxKey]"
+                      ],
+                      "q.deadline": [
+                        "[MinKey, MaxKey]"
+                      ],
+                      "q.rank": [
+                        "[MinKey, MaxKey]"
+                      ]
+                    }
+                  }
+                }
+              }
+            ]
+          },
+          "executionStats": {
+            "executionSuccess": true,
+            "nReturned": 1,
+            "executionTimeMillis": 0,
+            "totalKeysExamined": 1,
+            "totalDocsExamined": 1,
+            "executionStages": {
+              "isCached": false,
+              "stage": "SORT",
+              "nReturned": 1,
+              "executionTimeMillisEstimate": 0,
+              "works": 5,
+              "advanced": 1,
+              "needTime": 2,
+              "needYield": 0,
+              "saveState": 0,
+              "restoreState": 0,
+              "isEOF": 1,
+              "sortPattern": {
+                "q.past": 1,
+                "q.missing": 1,
+                "q.deadline": 1,
+                "q.rank": 1
+              },
+              "memLimit": 104857600,
+              "limitAmount": 12,
+              "type": "simple",
+              "totalDataSizeSorted": 3258,
+              "usedDisk": false,
+              "spills": 0,
+              "spilledDataStorageSize": 0,
+              "inputStage": {
+                "stage": "FETCH",
+                "nReturned": 1,
+                "executionTimeMillisEstimate": 0,
+                "works": 2,
+                "advanced": 1,
+                "needTime": 0,
+                "needYield": 0,
+                "saveState": 0,
+                "restoreState": 0,
+                "isEOF": 1,
+                "docsExamined": 1,
+                "alreadyHasObj": 0,
+                "inputStage": {
+                  "stage": "IXSCAN",
+                  "nReturned": 1,
+                  "executionTimeMillisEstimate": 0,
+                  "works": 2,
+                  "advanced": 1,
+                  "needTime": 0,
+                  "needYield": 0,
+                  "saveState": 0,
+                  "restoreState": 0,
+                  "isEOF": 1,
+                  "keyPattern": {
+                    "q.ids": 1
+                  },
+                  "indexName": "saved_ids",
+                  "isMultiKey": true,
+                  "multiKeyPaths": {
+                    "q.ids": [
+                      "q.ids"
+                    ]
+                  },
+                  "isUnique": false,
+                  "isSparse": false,
+                  "isPartial": false,
+                  "indexVersion": 2,
+                  "direction": "forward",
+                  "indexBounds": {
+                    "q.ids": [
+                      "[\"000000000000000000000001\", \"000000000000000000000001\"]"
+                    ]
+                  },
+                  "keysExamined": 1,
+                  "seeks": 1,
+                  "dupsTested": 1,
+                  "dupsDropped": 0
+                }
+              }
+            }
+          },
+          "queryShapeHash": "BAB0544211C247727FC7065701151452EB1F49EFE03CB77CC0E9ADD920915A4A",
+          "command": {
+            "find": "_public_catalog_9d954f796d914dd19c51df3fafe1b153",
+            "filter": {
+              "$and": [
+                {
+                  "q.ids": {
+                    "$in": [
+                      "000000000000000000000001"
+                    ]
+                  }
+                }
+              ]
+            },
+            "sort": {
+              "q.past": 1,
+              "q.missing": 1,
+              "q.deadline": 1,
+              "q.rank": 1
+            },
+            "limit": 12,
+            "$db": "benchmark_phase4_api_a487ac9ca1064e909991d85fdb6ee77f"
+          },
+          "serverInfo": {
+            "host": "00689298b17a",
+            "port": 27017,
+            "version": "8.0.34",
+            "gitVersion": "51db4515a6597aedcf6188ee4e48a27e65b065ae"
+          },
+          "serverParameters": {
+            "internalQueryFacetBufferSizeBytes": 104857600,
+            "internalQueryFacetMaxOutputDocSizeBytes": 104857600,
+            "internalLookupStageIntermediateDocumentMaxSizeBytes": 104857600,
+            "internalDocumentSourceGroupMaxMemoryBytes": 104857600,
+            "internalQueryMaxBlockingSortMemoryUsageBytes": 104857600,
+            "internalQueryProhibitBlockingMergeOnMongoS": 0,
+            "internalQueryMaxAddToSetBytes": 104857600,
+            "internalDocumentSourceSetWindowFieldsMaxMemoryBytes": 104857600,
+            "internalQueryFrameworkControl": "trySbeRestricted",
+            "internalQueryPlannerIgnoreIndexWithCollationForRegex": 1
+          },
+          "ok": 1.0,
+          "$clusterTime": {
+            "clusterTime": {
+              "$timestamp": {
+                "t": 1793602350,
+                "i": 30
+              }
+            },
+            "signature": {
+              "hash": {
+                "$binary": {
+                  "base64": "AAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+                  "subType": "00"
+                }
+              },
+              "keyId": 0
+            }
+          },
+          "operationTime": {
+            "$timestamp": {
+              "t": 1793602350,
+              "i": 30
+            }
+          }
+        }
+      }
+    },
+    "10000": {
+      "before": {
+        "samples_seconds": [
+          0.6520324929988419,
+          0.6290947499983304,
+          0.7905375459995412,
+          0.6754520750000665,
+          0.7139221109973732,
+          0.6744147859972145,
+          0.6666579379998439,
+          0.6645918350004649,
+          0.6660676930005138,
+          0.802192325998476,
+          0.7317731999974058,
+          0.6939846180030145
+        ],
+        "p50_ms": 674.9334304986405,
+        "p95_ms": 802.192325998476,
+        "requests_per_second": 1.4352828503095434,
+        "cold_seconds": 4.949647165998613,
+        "request_python_peak_bytes": 41907193,
+        "process_peak_rss_bytes": 264470528
+      },
+      "after": {
+        "samples_seconds": [
+          0.005806909000966698,
+          0.012053033999109175,
+          0.16823540200130083,
+          0.03485516799992183,
+          0.005900979998841649,
+          0.009923761997924885,
+          0.15726719399754074,
+          0.034875238001404796,
+          0.005846148000273388,
+          0.008992175000457792,
+          0.16671877300177584,
+          0.04409871199823101
+        ],
+        "p50_ms": 23.454100999515504,
+        "p95_ms": 168.23540200130083,
+        "requests_per_second": 18.332547974679716,
+        "cold_seconds": 0.009727730001031887,
+        "request_python_peak_bytes": 346990,
+        "process_peak_rss_bytes": 64356352
+      },
+      "plans": {
+        "before_catalog_find": {
+          "explainVersion": "1",
+          "queryPlanner": {
+            "namespace": "benchmark_phase4_api_1a463884ae6d4f3b9f946430a98b11d1.events",
+            "parsedQuery": {
+              "publication_state": {
+                "$not": {
+                  "$in": [
+                    "pending",
+                    "suppressed"
+                  ]
+                }
+              }
+            },
+            "indexFilterSet": false,
+            "queryHash": "B1516A0C",
+            "planCacheShapeHash": "B1516A0C",
+            "planCacheKey": "C1E5A0D4",
+            "optimizationTimeMillis": 0,
+            "maxIndexedOrSolutionsReached": false,
+            "maxIndexedAndSolutionsReached": false,
+            "maxScansToExplodeReached": false,
+            "prunedSimilarIndexes": false,
+            "winningPlan": {
+              "isCached": false,
+              "stage": "COLLSCAN",
+              "filter": {
+                "publication_state": {
+                  "$not": {
+                    "$in": [
+                      "pending",
+                      "suppressed"
+                    ]
+                  }
+                }
+              },
+              "direction": "forward"
+            },
+            "rejectedPlans": []
+          },
+          "executionStats": {
+            "executionSuccess": true,
+            "nReturned": 10000,
+            "executionTimeMillis": 4,
+            "totalKeysExamined": 0,
+            "totalDocsExamined": 10000,
+            "executionStages": {
+              "isCached": false,
+              "stage": "COLLSCAN",
+              "filter": {
+                "publication_state": {
+                  "$not": {
+                    "$in": [
+                      "pending",
+                      "suppressed"
+                    ]
+                  }
+                }
+              },
+              "nReturned": 10000,
+              "executionTimeMillisEstimate": 0,
+              "works": 10001,
+              "advanced": 10000,
+              "needTime": 0,
+              "needYield": 0,
+              "saveState": 0,
+              "restoreState": 0,
+              "isEOF": 1,
+              "direction": "forward",
+              "docsExamined": 10000
+            }
+          },
+          "queryShapeHash": "82EFA2EEFCB90C184BFE5C5D1D2F18F6998E5D3FE2BC003276D1A518F5AD6A9A",
+          "command": {
+            "find": "events",
+            "filter": {
+              "publication_state": {
+                "$nin": [
+                  "suppressed",
+                  "pending"
+                ]
+              }
+            },
+            "$db": "benchmark_phase4_api_1a463884ae6d4f3b9f946430a98b11d1"
+          },
+          "serverInfo": {
+            "host": "00689298b17a",
+            "port": 27017,
+            "version": "8.0.34",
+            "gitVersion": "51db4515a6597aedcf6188ee4e48a27e65b065ae"
+          },
+          "serverParameters": {
+            "internalQueryFacetBufferSizeBytes": 104857600,
+            "internalQueryFacetMaxOutputDocSizeBytes": 104857600,
+            "internalLookupStageIntermediateDocumentMaxSizeBytes": 104857600,
+            "internalDocumentSourceGroupMaxMemoryBytes": 104857600,
+            "internalQueryMaxBlockingSortMemoryUsageBytes": 104857600,
+            "internalQueryProhibitBlockingMergeOnMongoS": 0,
+            "internalQueryMaxAddToSetBytes": 104857600,
+            "internalDocumentSourceSetWindowFieldsMaxMemoryBytes": 104857600,
+            "internalQueryFrameworkControl": "trySbeRestricted",
+            "internalQueryPlannerIgnoreIndexWithCollationForRegex": 1
+          },
+          "ok": 1.0,
+          "$clusterTime": {
+            "clusterTime": {
+              "$timestamp": {
+                "t": 1793602371,
+                "i": 1
+              }
+            },
+            "signature": {
+              "hash": {
+                "$binary": {
+                  "base64": "AAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+                  "subType": "00"
+                }
+              },
+              "keyId": 0
+            }
+          },
+          "operationTime": {
+            "$timestamp": {
+              "t": 1793602371,
+              "i": 1
+            }
+          }
+        },
+        "deadline": {
+          "explainVersion": "1",
+          "queryPlanner": {
+            "namespace": "benchmark_phase4_api_1a463884ae6d4f3b9f946430a98b11d1._public_catalog_5c37c32416a14c1b94a9fac79e689dd1",
+            "parsedQuery": {},
+            "indexFilterSet": false,
+            "queryHash": "CEAB87D0",
+            "planCacheShapeHash": "CEAB87D0",
+            "planCacheKey": "E0D62B70",
+            "optimizationTimeMillis": 0,
+            "maxIndexedOrSolutionsReached": false,
+            "maxIndexedAndSolutionsReached": false,
+            "maxScansToExplodeReached": false,
+            "prunedSimilarIndexes": false,
+            "winningPlan": {
+              "isCached": false,
+              "stage": "LIMIT",
+              "limitAmount": 12,
+              "inputStage": {
+                "stage": "FETCH",
+                "inputStage": {
+                  "stage": "IXSCAN",
+                  "keyPattern": {
+                    "q.past": 1,
+                    "q.missing": 1,
+                    "q.deadline": 1,
+                    "q.rank": 1
+                  },
+                  "indexName": "deadline",
+                  "isMultiKey": false,
+                  "multiKeyPaths": {
+                    "q.past": [],
+                    "q.missing": [],
+                    "q.deadline": [],
+                    "q.rank": []
+                  },
+                  "isUnique": false,
+                  "isSparse": false,
+                  "isPartial": false,
+                  "indexVersion": 2,
+                  "direction": "forward",
+                  "indexBounds": {
+                    "q.past": [
+                      "[MinKey, MaxKey]"
+                    ],
+                    "q.missing": [
+                      "[MinKey, MaxKey]"
+                    ],
+                    "q.deadline": [
+                      "[MinKey, MaxKey]"
+                    ],
+                    "q.rank": [
+                      "[MinKey, MaxKey]"
+                    ]
+                  }
+                }
+              }
+            },
+            "rejectedPlans": []
+          },
+          "executionStats": {
+            "executionSuccess": true,
+            "nReturned": 12,
+            "executionTimeMillis": 0,
+            "totalKeysExamined": 12,
+            "totalDocsExamined": 12,
+            "executionStages": {
+              "isCached": false,
+              "stage": "LIMIT",
+              "nReturned": 12,
+              "executionTimeMillisEstimate": 0,
+              "works": 13,
+              "advanced": 12,
+              "needTime": 0,
+              "needYield": 0,
+              "saveState": 0,
+              "restoreState": 0,
+              "isEOF": 1,
+              "limitAmount": 12,
+              "inputStage": {
+                "stage": "FETCH",
+                "nReturned": 12,
+                "executionTimeMillisEstimate": 0,
+                "works": 12,
+                "advanced": 12,
+                "needTime": 0,
+                "needYield": 0,
+                "saveState": 0,
+                "restoreState": 0,
+                "isEOF": 0,
+                "docsExamined": 12,
+                "alreadyHasObj": 0,
+                "inputStage": {
+                  "stage": "IXSCAN",
+                  "nReturned": 12,
+                  "executionTimeMillisEstimate": 0,
+                  "works": 12,
+                  "advanced": 12,
+                  "needTime": 0,
+                  "needYield": 0,
+                  "saveState": 0,
+                  "restoreState": 0,
+                  "isEOF": 0,
+                  "keyPattern": {
+                    "q.past": 1,
+                    "q.missing": 1,
+                    "q.deadline": 1,
+                    "q.rank": 1
+                  },
+                  "indexName": "deadline",
+                  "isMultiKey": false,
+                  "multiKeyPaths": {
+                    "q.past": [],
+                    "q.missing": [],
+                    "q.deadline": [],
+                    "q.rank": []
+                  },
+                  "isUnique": false,
+                  "isSparse": false,
+                  "isPartial": false,
+                  "indexVersion": 2,
+                  "direction": "forward",
+                  "indexBounds": {
+                    "q.past": [
+                      "[MinKey, MaxKey]"
+                    ],
+                    "q.missing": [
+                      "[MinKey, MaxKey]"
+                    ],
+                    "q.deadline": [
+                      "[MinKey, MaxKey]"
+                    ],
+                    "q.rank": [
+                      "[MinKey, MaxKey]"
+                    ]
+                  },
+                  "keysExamined": 12,
+                  "seeks": 1,
+                  "dupsTested": 0,
+                  "dupsDropped": 0
+                }
+              }
+            }
+          },
+          "queryShapeHash": "E61C56236553849B8EFD5A7AD16C71785C252C66AF23DAE8786149152B004921",
+          "command": {
+            "find": "_public_catalog_5c37c32416a14c1b94a9fac79e689dd1",
+            "filter": {},
+            "sort": {
+              "q.past": 1,
+              "q.missing": 1,
+              "q.deadline": 1,
+              "q.rank": 1
+            },
+            "limit": 12,
+            "$db": "benchmark_phase4_api_1a463884ae6d4f3b9f946430a98b11d1"
+          },
+          "serverInfo": {
+            "host": "00689298b17a",
+            "port": 27017,
+            "version": "8.0.34",
+            "gitVersion": "51db4515a6597aedcf6188ee4e48a27e65b065ae"
+          },
+          "serverParameters": {
+            "internalQueryFacetBufferSizeBytes": 104857600,
+            "internalQueryFacetMaxOutputDocSizeBytes": 104857600,
+            "internalLookupStageIntermediateDocumentMaxSizeBytes": 104857600,
+            "internalDocumentSourceGroupMaxMemoryBytes": 104857600,
+            "internalQueryMaxBlockingSortMemoryUsageBytes": 104857600,
+            "internalQueryProhibitBlockingMergeOnMongoS": 0,
+            "internalQueryMaxAddToSetBytes": 104857600,
+            "internalDocumentSourceSetWindowFieldsMaxMemoryBytes": 104857600,
+            "internalQueryFrameworkControl": "trySbeRestricted",
+            "internalQueryPlannerIgnoreIndexWithCollationForRegex": 1
+          },
+          "ok": 1.0,
+          "$clusterTime": {
+            "clusterTime": {
+              "$timestamp": {
+                "t": 1793602371,
+                "i": 1
+              }
+            },
+            "signature": {
+              "hash": {
+                "$binary": {
+                  "base64": "AAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+                  "subType": "00"
+                }
+              },
+              "keyId": 0
+            }
+          },
+          "operationTime": {
+            "$timestamp": {
+              "t": 1793602371,
+              "i": 1
+            }
+          }
+        },
+        "format_deadline": {
+          "explainVersion": "1",
+          "queryPlanner": {
+            "namespace": "benchmark_phase4_api_1a463884ae6d4f3b9f946430a98b11d1._public_catalog_5c37c32416a14c1b94a9fac79e689dd1",
+            "parsedQuery": {
+              "q.format": {
+                "$eq": "Online"
+              }
+            },
+            "indexFilterSet": false,
+            "queryHash": "17D015B6",
+            "planCacheShapeHash": "17D015B6",
+            "planCacheKey": "19B28C13",
+            "optimizationTimeMillis": 0,
+            "maxIndexedOrSolutionsReached": false,
+            "maxIndexedAndSolutionsReached": false,
+            "maxScansToExplodeReached": false,
+            "prunedSimilarIndexes": false,
+            "winningPlan": {
+              "isCached": false,
+              "stage": "LIMIT",
+              "limitAmount": 12,
+              "inputStage": {
+                "stage": "FETCH",
+                "inputStage": {
+                  "stage": "IXSCAN",
+                  "keyPattern": {
+                    "q.format": 1,
+                    "q.past": 1,
+                    "q.missing": 1,
+                    "q.deadline": 1,
+                    "q.rank": 1
+                  },
+                  "indexName": "format_deadline",
+                  "isMultiKey": false,
+                  "multiKeyPaths": {
+                    "q.format": [],
+                    "q.past": [],
+                    "q.missing": [],
+                    "q.deadline": [],
+                    "q.rank": []
+                  },
+                  "isUnique": false,
+                  "isSparse": false,
+                  "isPartial": false,
+                  "indexVersion": 2,
+                  "direction": "forward",
+                  "indexBounds": {
+                    "q.format": [
+                      "[\"Online\", \"Online\"]"
+                    ],
+                    "q.past": [
+                      "[MinKey, MaxKey]"
+                    ],
+                    "q.missing": [
+                      "[MinKey, MaxKey]"
+                    ],
+                    "q.deadline": [
+                      "[MinKey, MaxKey]"
+                    ],
+                    "q.rank": [
+                      "[MinKey, MaxKey]"
+                    ]
+                  }
+                }
+              }
+            },
+            "rejectedPlans": []
+          },
+          "executionStats": {
+            "executionSuccess": true,
+            "nReturned": 12,
+            "executionTimeMillis": 0,
+            "totalKeysExamined": 12,
+            "totalDocsExamined": 12,
+            "executionStages": {
+              "isCached": false,
+              "stage": "LIMIT",
+              "nReturned": 12,
+              "executionTimeMillisEstimate": 0,
+              "works": 13,
+              "advanced": 12,
+              "needTime": 0,
+              "needYield": 0,
+              "saveState": 0,
+              "restoreState": 0,
+              "isEOF": 1,
+              "limitAmount": 12,
+              "inputStage": {
+                "stage": "FETCH",
+                "nReturned": 12,
+                "executionTimeMillisEstimate": 0,
+                "works": 12,
+                "advanced": 12,
+                "needTime": 0,
+                "needYield": 0,
+                "saveState": 0,
+                "restoreState": 0,
+                "isEOF": 0,
+                "docsExamined": 12,
+                "alreadyHasObj": 0,
+                "inputStage": {
+                  "stage": "IXSCAN",
+                  "nReturned": 12,
+                  "executionTimeMillisEstimate": 0,
+                  "works": 12,
+                  "advanced": 12,
+                  "needTime": 0,
+                  "needYield": 0,
+                  "saveState": 0,
+                  "restoreState": 0,
+                  "isEOF": 0,
+                  "keyPattern": {
+                    "q.format": 1,
+                    "q.past": 1,
+                    "q.missing": 1,
+                    "q.deadline": 1,
+                    "q.rank": 1
+                  },
+                  "indexName": "format_deadline",
+                  "isMultiKey": false,
+                  "multiKeyPaths": {
+                    "q.format": [],
+                    "q.past": [],
+                    "q.missing": [],
+                    "q.deadline": [],
+                    "q.rank": []
+                  },
+                  "isUnique": false,
+                  "isSparse": false,
+                  "isPartial": false,
+                  "indexVersion": 2,
+                  "direction": "forward",
+                  "indexBounds": {
+                    "q.format": [
+                      "[\"Online\", \"Online\"]"
+                    ],
+                    "q.past": [
+                      "[MinKey, MaxKey]"
+                    ],
+                    "q.missing": [
+                      "[MinKey, MaxKey]"
+                    ],
+                    "q.deadline": [
+                      "[MinKey, MaxKey]"
+                    ],
+                    "q.rank": [
+                      "[MinKey, MaxKey]"
+                    ]
+                  },
+                  "keysExamined": 12,
+                  "seeks": 1,
+                  "dupsTested": 0,
+                  "dupsDropped": 0
+                }
+              }
+            }
+          },
+          "queryShapeHash": "073740D0EC40155F27164CB4E84EB3D9016EA7F807C76FA9E0E1A3ACE3860B7A",
+          "command": {
+            "find": "_public_catalog_5c37c32416a14c1b94a9fac79e689dd1",
+            "filter": {
+              "$and": [
+                {
+                  "q.format": "Online"
+                }
+              ]
+            },
+            "sort": {
+              "q.past": 1,
+              "q.missing": 1,
+              "q.deadline": 1,
+              "q.rank": 1
+            },
+            "limit": 12,
+            "$db": "benchmark_phase4_api_1a463884ae6d4f3b9f946430a98b11d1"
+          },
+          "serverInfo": {
+            "host": "00689298b17a",
+            "port": 27017,
+            "version": "8.0.34",
+            "gitVersion": "51db4515a6597aedcf6188ee4e48a27e65b065ae"
+          },
+          "serverParameters": {
+            "internalQueryFacetBufferSizeBytes": 104857600,
+            "internalQueryFacetMaxOutputDocSizeBytes": 104857600,
+            "internalLookupStageIntermediateDocumentMaxSizeBytes": 104857600,
+            "internalDocumentSourceGroupMaxMemoryBytes": 104857600,
+            "internalQueryMaxBlockingSortMemoryUsageBytes": 104857600,
+            "internalQueryProhibitBlockingMergeOnMongoS": 0,
+            "internalQueryMaxAddToSetBytes": 104857600,
+            "internalDocumentSourceSetWindowFieldsMaxMemoryBytes": 104857600,
+            "internalQueryFrameworkControl": "trySbeRestricted",
+            "internalQueryPlannerIgnoreIndexWithCollationForRegex": 1
+          },
+          "ok": 1.0,
+          "$clusterTime": {
+            "clusterTime": {
+              "$timestamp": {
+                "t": 1793602371,
+                "i": 1
+              }
+            },
+            "signature": {
+              "hash": {
+                "$binary": {
+                  "base64": "AAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+                  "subType": "00"
+                }
+              },
+              "keyId": 0
+            }
+          },
+          "operationTime": {
+            "$timestamp": {
+              "t": 1793602371,
+              "i": 1
+            }
+          }
+        },
+        "source_deadline": {
+          "explainVersion": "1",
+          "queryPlanner": {
+            "namespace": "benchmark_phase4_api_1a463884ae6d4f3b9f946430a98b11d1._public_catalog_5c37c32416a14c1b94a9fac79e689dd1",
+            "parsedQuery": {
+              "q.sources": {
+                "$eq": "devpost"
+              }
+            },
+            "indexFilterSet": false,
+            "queryHash": "F442E82C",
+            "planCacheShapeHash": "F442E82C",
+            "planCacheKey": "E6335D34",
+            "optimizationTimeMillis": 0,
+            "maxIndexedOrSolutionsReached": false,
+            "maxIndexedAndSolutionsReached": false,
+            "maxScansToExplodeReached": false,
+            "prunedSimilarIndexes": false,
+            "winningPlan": {
+              "isCached": false,
+              "stage": "LIMIT",
+              "limitAmount": 12,
+              "inputStage": {
+                "stage": "FETCH",
+                "inputStage": {
+                  "stage": "IXSCAN",
+                  "keyPattern": {
+                    "q.sources": 1,
+                    "q.past": 1,
+                    "q.missing": 1,
+                    "q.deadline": 1,
+                    "q.rank": 1
+                  },
+                  "indexName": "source_deadline",
+                  "isMultiKey": true,
+                  "multiKeyPaths": {
+                    "q.sources": [
+                      "q.sources"
+                    ],
+                    "q.past": [],
+                    "q.missing": [],
+                    "q.deadline": [],
+                    "q.rank": []
+                  },
+                  "isUnique": false,
+                  "isSparse": false,
+                  "isPartial": false,
+                  "indexVersion": 2,
+                  "direction": "forward",
+                  "indexBounds": {
+                    "q.sources": [
+                      "[\"devpost\", \"devpost\"]"
+                    ],
+                    "q.past": [
+                      "[MinKey, MaxKey]"
+                    ],
+                    "q.missing": [
+                      "[MinKey, MaxKey]"
+                    ],
+                    "q.deadline": [
+                      "[MinKey, MaxKey]"
+                    ],
+                    "q.rank": [
+                      "[MinKey, MaxKey]"
+                    ]
+                  }
+                }
+              }
+            },
+            "rejectedPlans": []
+          },
+          "executionStats": {
+            "executionSuccess": true,
+            "nReturned": 12,
+            "executionTimeMillis": 0,
+            "totalKeysExamined": 12,
+            "totalDocsExamined": 12,
+            "executionStages": {
+              "isCached": false,
+              "stage": "LIMIT",
+              "nReturned": 12,
+              "executionTimeMillisEstimate": 0,
+              "works": 13,
+              "advanced": 12,
+              "needTime": 0,
+              "needYield": 0,
+              "saveState": 0,
+              "restoreState": 0,
+              "isEOF": 1,
+              "limitAmount": 12,
+              "inputStage": {
+                "stage": "FETCH",
+                "nReturned": 12,
+                "executionTimeMillisEstimate": 0,
+                "works": 12,
+                "advanced": 12,
+                "needTime": 0,
+                "needYield": 0,
+                "saveState": 0,
+                "restoreState": 0,
+                "isEOF": 0,
+                "docsExamined": 12,
+                "alreadyHasObj": 0,
+                "inputStage": {
+                  "stage": "IXSCAN",
+                  "nReturned": 12,
+                  "executionTimeMillisEstimate": 0,
+                  "works": 12,
+                  "advanced": 12,
+                  "needTime": 0,
+                  "needYield": 0,
+                  "saveState": 0,
+                  "restoreState": 0,
+                  "isEOF": 0,
+                  "keyPattern": {
+                    "q.sources": 1,
+                    "q.past": 1,
+                    "q.missing": 1,
+                    "q.deadline": 1,
+                    "q.rank": 1
+                  },
+                  "indexName": "source_deadline",
+                  "isMultiKey": true,
+                  "multiKeyPaths": {
+                    "q.sources": [
+                      "q.sources"
+                    ],
+                    "q.past": [],
+                    "q.missing": [],
+                    "q.deadline": [],
+                    "q.rank": []
+                  },
+                  "isUnique": false,
+                  "isSparse": false,
+                  "isPartial": false,
+                  "indexVersion": 2,
+                  "direction": "forward",
+                  "indexBounds": {
+                    "q.sources": [
+                      "[\"devpost\", \"devpost\"]"
+                    ],
+                    "q.past": [
+                      "[MinKey, MaxKey]"
+                    ],
+                    "q.missing": [
+                      "[MinKey, MaxKey]"
+                    ],
+                    "q.deadline": [
+                      "[MinKey, MaxKey]"
+                    ],
+                    "q.rank": [
+                      "[MinKey, MaxKey]"
+                    ]
+                  },
+                  "keysExamined": 12,
+                  "seeks": 1,
+                  "dupsTested": 12,
+                  "dupsDropped": 0
+                }
+              }
+            }
+          },
+          "queryShapeHash": "AE6F539A4C3B2690FD6E627443B5E961157D2A1808093E150412BEAD71FFAF53",
+          "command": {
+            "find": "_public_catalog_5c37c32416a14c1b94a9fac79e689dd1",
+            "filter": {
+              "$and": [
+                {
+                  "q.sources": "devpost"
+                }
+              ]
+            },
+            "sort": {
+              "q.past": 1,
+              "q.missing": 1,
+              "q.deadline": 1,
+              "q.rank": 1
+            },
+            "limit": 12,
+            "$db": "benchmark_phase4_api_1a463884ae6d4f3b9f946430a98b11d1"
+          },
+          "serverInfo": {
+            "host": "00689298b17a",
+            "port": 27017,
+            "version": "8.0.34",
+            "gitVersion": "51db4515a6597aedcf6188ee4e48a27e65b065ae"
+          },
+          "serverParameters": {
+            "internalQueryFacetBufferSizeBytes": 104857600,
+            "internalQueryFacetMaxOutputDocSizeBytes": 104857600,
+            "internalLookupStageIntermediateDocumentMaxSizeBytes": 104857600,
+            "internalDocumentSourceGroupMaxMemoryBytes": 104857600,
+            "internalQueryMaxBlockingSortMemoryUsageBytes": 104857600,
+            "internalQueryProhibitBlockingMergeOnMongoS": 0,
+            "internalQueryMaxAddToSetBytes": 104857600,
+            "internalDocumentSourceSetWindowFieldsMaxMemoryBytes": 104857600,
+            "internalQueryFrameworkControl": "trySbeRestricted",
+            "internalQueryPlannerIgnoreIndexWithCollationForRegex": 1
+          },
+          "ok": 1.0,
+          "$clusterTime": {
+            "clusterTime": {
+              "$timestamp": {
+                "t": 1793602371,
+                "i": 1
+              }
+            },
+            "signature": {
+              "hash": {
+                "$binary": {
+                  "base64": "AAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+                  "subType": "00"
+                }
+              },
+              "keyId": 0
+            }
+          },
+          "operationTime": {
+            "$timestamp": {
+              "t": 1793602371,
+              "i": 1
+            }
+          }
+        },
+        "name": {
+          "explainVersion": "1",
+          "queryPlanner": {
+            "namespace": "benchmark_phase4_api_1a463884ae6d4f3b9f946430a98b11d1._public_catalog_5c37c32416a14c1b94a9fac79e689dd1",
+            "parsedQuery": {},
+            "indexFilterSet": false,
+            "queryHash": "6FB8FDDF",
+            "planCacheShapeHash": "6FB8FDDF",
+            "planCacheKey": "54F49733",
+            "optimizationTimeMillis": 0,
+            "maxIndexedOrSolutionsReached": false,
+            "maxIndexedAndSolutionsReached": false,
+            "maxScansToExplodeReached": false,
+            "prunedSimilarIndexes": false,
+            "winningPlan": {
+              "isCached": false,
+              "stage": "LIMIT",
+              "limitAmount": 12,
+              "inputStage": {
+                "stage": "FETCH",
+                "inputStage": {
+                  "stage": "IXSCAN",
+                  "keyPattern": {
+                    "q.name": 1,
+                    "q.rank": 1
+                  },
+                  "indexName": "name",
+                  "isMultiKey": false,
+                  "multiKeyPaths": {
+                    "q.name": [],
+                    "q.rank": []
+                  },
+                  "isUnique": false,
+                  "isSparse": false,
+                  "isPartial": false,
+                  "indexVersion": 2,
+                  "direction": "forward",
+                  "indexBounds": {
+                    "q.name": [
+                      "[MinKey, MaxKey]"
+                    ],
+                    "q.rank": [
+                      "[MinKey, MaxKey]"
+                    ]
+                  }
+                }
+              }
+            },
+            "rejectedPlans": []
+          },
+          "executionStats": {
+            "executionSuccess": true,
+            "nReturned": 12,
+            "executionTimeMillis": 0,
+            "totalKeysExamined": 12,
+            "totalDocsExamined": 12,
+            "executionStages": {
+              "isCached": false,
+              "stage": "LIMIT",
+              "nReturned": 12,
+              "executionTimeMillisEstimate": 1,
+              "works": 13,
+              "advanced": 12,
+              "needTime": 0,
+              "needYield": 0,
+              "saveState": 0,
+              "restoreState": 0,
+              "isEOF": 1,
+              "limitAmount": 12,
+              "inputStage": {
+                "stage": "FETCH",
+                "nReturned": 12,
+                "executionTimeMillisEstimate": 1,
+                "works": 12,
+                "advanced": 12,
+                "needTime": 0,
+                "needYield": 0,
+                "saveState": 0,
+                "restoreState": 0,
+                "isEOF": 0,
+                "docsExamined": 12,
+                "alreadyHasObj": 0,
+                "inputStage": {
+                  "stage": "IXSCAN",
+                  "nReturned": 12,
+                  "executionTimeMillisEstimate": 1,
+                  "works": 12,
+                  "advanced": 12,
+                  "needTime": 0,
+                  "needYield": 0,
+                  "saveState": 0,
+                  "restoreState": 0,
+                  "isEOF": 0,
+                  "keyPattern": {
+                    "q.name": 1,
+                    "q.rank": 1
+                  },
+                  "indexName": "name",
+                  "isMultiKey": false,
+                  "multiKeyPaths": {
+                    "q.name": [],
+                    "q.rank": []
+                  },
+                  "isUnique": false,
+                  "isSparse": false,
+                  "isPartial": false,
+                  "indexVersion": 2,
+                  "direction": "forward",
+                  "indexBounds": {
+                    "q.name": [
+                      "[MinKey, MaxKey]"
+                    ],
+                    "q.rank": [
+                      "[MinKey, MaxKey]"
+                    ]
+                  },
+                  "keysExamined": 12,
+                  "seeks": 1,
+                  "dupsTested": 0,
+                  "dupsDropped": 0
+                }
+              }
+            }
+          },
+          "queryShapeHash": "B24291359D3D5E6DB0410EC0C44854259AAC7E683C7BE0DB7FFE0AA5C701DE48",
+          "command": {
+            "find": "_public_catalog_5c37c32416a14c1b94a9fac79e689dd1",
+            "filter": {},
+            "sort": {
+              "q.name": 1,
+              "q.rank": 1
+            },
+            "limit": 12,
+            "$db": "benchmark_phase4_api_1a463884ae6d4f3b9f946430a98b11d1"
+          },
+          "serverInfo": {
+            "host": "00689298b17a",
+            "port": 27017,
+            "version": "8.0.34",
+            "gitVersion": "51db4515a6597aedcf6188ee4e48a27e65b065ae"
+          },
+          "serverParameters": {
+            "internalQueryFacetBufferSizeBytes": 104857600,
+            "internalQueryFacetMaxOutputDocSizeBytes": 104857600,
+            "internalLookupStageIntermediateDocumentMaxSizeBytes": 104857600,
+            "internalDocumentSourceGroupMaxMemoryBytes": 104857600,
+            "internalQueryMaxBlockingSortMemoryUsageBytes": 104857600,
+            "internalQueryProhibitBlockingMergeOnMongoS": 0,
+            "internalQueryMaxAddToSetBytes": 104857600,
+            "internalDocumentSourceSetWindowFieldsMaxMemoryBytes": 104857600,
+            "internalQueryFrameworkControl": "trySbeRestricted",
+            "internalQueryPlannerIgnoreIndexWithCollationForRegex": 1
+          },
+          "ok": 1.0,
+          "$clusterTime": {
+            "clusterTime": {
+              "$timestamp": {
+                "t": 1793602371,
+                "i": 1
+              }
+            },
+            "signature": {
+              "hash": {
+                "$binary": {
+                  "base64": "AAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+                  "subType": "00"
+                }
+              },
+              "keyId": 0
+            }
+          },
+          "operationTime": {
+            "$timestamp": {
+              "t": 1793602371,
+              "i": 1
+            }
+          }
+        },
+        "newest": {
+          "explainVersion": "1",
+          "queryPlanner": {
+            "namespace": "benchmark_phase4_api_1a463884ae6d4f3b9f946430a98b11d1._public_catalog_5c37c32416a14c1b94a9fac79e689dd1",
+            "parsedQuery": {},
+            "indexFilterSet": false,
+            "queryHash": "F2E51B51",
+            "planCacheShapeHash": "F2E51B51",
+            "planCacheKey": "088FCE85",
+            "optimizationTimeMillis": 0,
+            "maxIndexedOrSolutionsReached": false,
+            "maxIndexedAndSolutionsReached": false,
+            "maxScansToExplodeReached": false,
+            "prunedSimilarIndexes": false,
+            "winningPlan": {
+              "isCached": false,
+              "stage": "LIMIT",
+              "limitAmount": 12,
+              "inputStage": {
+                "stage": "FETCH",
+                "inputStage": {
+                  "stage": "IXSCAN",
+                  "keyPattern": {
+                    "q.scraped": -1,
+                    "q.rank": 1
+                  },
+                  "indexName": "newest",
+                  "isMultiKey": false,
+                  "multiKeyPaths": {
+                    "q.scraped": [],
+                    "q.rank": []
+                  },
+                  "isUnique": false,
+                  "isSparse": false,
+                  "isPartial": false,
+                  "indexVersion": 2,
+                  "direction": "forward",
+                  "indexBounds": {
+                    "q.scraped": [
+                      "[MaxKey, MinKey]"
+                    ],
+                    "q.rank": [
+                      "[MinKey, MaxKey]"
+                    ]
+                  }
+                }
+              }
+            },
+            "rejectedPlans": []
+          },
+          "executionStats": {
+            "executionSuccess": true,
+            "nReturned": 12,
+            "executionTimeMillis": 0,
+            "totalKeysExamined": 12,
+            "totalDocsExamined": 12,
+            "executionStages": {
+              "isCached": false,
+              "stage": "LIMIT",
+              "nReturned": 12,
+              "executionTimeMillisEstimate": 0,
+              "works": 13,
+              "advanced": 12,
+              "needTime": 0,
+              "needYield": 0,
+              "saveState": 0,
+              "restoreState": 0,
+              "isEOF": 1,
+              "limitAmount": 12,
+              "inputStage": {
+                "stage": "FETCH",
+                "nReturned": 12,
+                "executionTimeMillisEstimate": 0,
+                "works": 12,
+                "advanced": 12,
+                "needTime": 0,
+                "needYield": 0,
+                "saveState": 0,
+                "restoreState": 0,
+                "isEOF": 0,
+                "docsExamined": 12,
+                "alreadyHasObj": 0,
+                "inputStage": {
+                  "stage": "IXSCAN",
+                  "nReturned": 12,
+                  "executionTimeMillisEstimate": 0,
+                  "works": 12,
+                  "advanced": 12,
+                  "needTime": 0,
+                  "needYield": 0,
+                  "saveState": 0,
+                  "restoreState": 0,
+                  "isEOF": 0,
+                  "keyPattern": {
+                    "q.scraped": -1,
+                    "q.rank": 1
+                  },
+                  "indexName": "newest",
+                  "isMultiKey": false,
+                  "multiKeyPaths": {
+                    "q.scraped": [],
+                    "q.rank": []
+                  },
+                  "isUnique": false,
+                  "isSparse": false,
+                  "isPartial": false,
+                  "indexVersion": 2,
+                  "direction": "forward",
+                  "indexBounds": {
+                    "q.scraped": [
+                      "[MaxKey, MinKey]"
+                    ],
+                    "q.rank": [
+                      "[MinKey, MaxKey]"
+                    ]
+                  },
+                  "keysExamined": 12,
+                  "seeks": 1,
+                  "dupsTested": 0,
+                  "dupsDropped": 0
+                }
+              }
+            }
+          },
+          "queryShapeHash": "A2A5EACAC45A668CD25018464877300AAC5742F84FC6A88A23975C07B4866D39",
+          "command": {
+            "find": "_public_catalog_5c37c32416a14c1b94a9fac79e689dd1",
+            "filter": {},
+            "sort": {
+              "q.scraped": -1,
+              "q.rank": 1
+            },
+            "limit": 12,
+            "$db": "benchmark_phase4_api_1a463884ae6d4f3b9f946430a98b11d1"
+          },
+          "serverInfo": {
+            "host": "00689298b17a",
+            "port": 27017,
+            "version": "8.0.34",
+            "gitVersion": "51db4515a6597aedcf6188ee4e48a27e65b065ae"
+          },
+          "serverParameters": {
+            "internalQueryFacetBufferSizeBytes": 104857600,
+            "internalQueryFacetMaxOutputDocSizeBytes": 104857600,
+            "internalLookupStageIntermediateDocumentMaxSizeBytes": 104857600,
+            "internalDocumentSourceGroupMaxMemoryBytes": 104857600,
+            "internalQueryMaxBlockingSortMemoryUsageBytes": 104857600,
+            "internalQueryProhibitBlockingMergeOnMongoS": 0,
+            "internalQueryMaxAddToSetBytes": 104857600,
+            "internalDocumentSourceSetWindowFieldsMaxMemoryBytes": 104857600,
+            "internalQueryFrameworkControl": "trySbeRestricted",
+            "internalQueryPlannerIgnoreIndexWithCollationForRegex": 1
+          },
+          "ok": 1.0,
+          "$clusterTime": {
+            "clusterTime": {
+              "$timestamp": {
+                "t": 1793602371,
+                "i": 1
+              }
+            },
+            "signature": {
+              "hash": {
+                "$binary": {
+                  "base64": "AAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+                  "subType": "00"
+                }
+              },
+              "keyId": 0
+            }
+          },
+          "operationTime": {
+            "$timestamp": {
+              "t": 1793602371,
+              "i": 1
+            }
+          }
+        },
+        "saved_ids": {
+          "explainVersion": "1",
+          "queryPlanner": {
+            "namespace": "benchmark_phase4_api_1a463884ae6d4f3b9f946430a98b11d1._public_catalog_5c37c32416a14c1b94a9fac79e689dd1",
+            "parsedQuery": {
+              "q.ids": {
+                "$eq": "000000000000000000000001"
+              }
+            },
+            "indexFilterSet": false,
+            "queryHash": "9F4DEF00",
+            "planCacheShapeHash": "9F4DEF00",
+            "planCacheKey": "CCC79A85",
+            "optimizationTimeMillis": 0,
+            "maxIndexedOrSolutionsReached": false,
+            "maxIndexedAndSolutionsReached": false,
+            "maxScansToExplodeReached": false,
+            "prunedSimilarIndexes": false,
+            "winningPlan": {
+              "isCached": false,
+              "stage": "SORT",
+              "sortPattern": {
+                "q.past": 1,
+                "q.missing": 1,
+                "q.deadline": 1,
+                "q.rank": 1
+              },
+              "memLimit": 104857600,
+              "limitAmount": 12,
+              "type": "simple",
+              "inputStage": {
+                "stage": "FETCH",
+                "inputStage": {
+                  "stage": "IXSCAN",
+                  "keyPattern": {
+                    "q.ids": 1
+                  },
+                  "indexName": "saved_ids",
+                  "isMultiKey": true,
+                  "multiKeyPaths": {
+                    "q.ids": [
+                      "q.ids"
+                    ]
+                  },
+                  "isUnique": false,
+                  "isSparse": false,
+                  "isPartial": false,
+                  "indexVersion": 2,
+                  "direction": "forward",
+                  "indexBounds": {
+                    "q.ids": [
+                      "[\"000000000000000000000001\", \"000000000000000000000001\"]"
+                    ]
+                  }
+                }
+              }
+            },
+            "rejectedPlans": [
+              {
+                "isCached": false,
+                "stage": "LIMIT",
+                "limitAmount": 12,
+                "inputStage": {
+                  "stage": "FETCH",
+                  "filter": {
+                    "q.ids": {
+                      "$eq": "000000000000000000000001"
+                    }
+                  },
+                  "inputStage": {
+                    "stage": "IXSCAN",
+                    "keyPattern": {
+                      "q.past": 1,
+                      "q.missing": 1,
+                      "q.deadline": 1,
+                      "q.rank": 1
+                    },
+                    "indexName": "deadline",
+                    "isMultiKey": false,
+                    "multiKeyPaths": {
+                      "q.past": [],
+                      "q.missing": [],
+                      "q.deadline": [],
+                      "q.rank": []
+                    },
+                    "isUnique": false,
+                    "isSparse": false,
+                    "isPartial": false,
+                    "indexVersion": 2,
+                    "direction": "forward",
+                    "indexBounds": {
+                      "q.past": [
+                        "[MinKey, MaxKey]"
+                      ],
+                      "q.missing": [
+                        "[MinKey, MaxKey]"
+                      ],
+                      "q.deadline": [
+                        "[MinKey, MaxKey]"
+                      ],
+                      "q.rank": [
+                        "[MinKey, MaxKey]"
+                      ]
+                    }
+                  }
+                }
+              }
+            ]
+          },
+          "executionStats": {
+            "executionSuccess": true,
+            "nReturned": 1,
+            "executionTimeMillis": 0,
+            "totalKeysExamined": 1,
+            "totalDocsExamined": 1,
+            "executionStages": {
+              "isCached": false,
+              "stage": "SORT",
+              "nReturned": 1,
+              "executionTimeMillisEstimate": 0,
+              "works": 5,
+              "advanced": 1,
+              "needTime": 2,
+              "needYield": 0,
+              "saveState": 0,
+              "restoreState": 0,
+              "isEOF": 1,
+              "sortPattern": {
+                "q.past": 1,
+                "q.missing": 1,
+                "q.deadline": 1,
+                "q.rank": 1
+              },
+              "memLimit": 104857600,
+              "limitAmount": 12,
+              "type": "simple",
+              "totalDataSizeSorted": 3258,
+              "usedDisk": false,
+              "spills": 0,
+              "spilledDataStorageSize": 0,
+              "inputStage": {
+                "stage": "FETCH",
+                "nReturned": 1,
+                "executionTimeMillisEstimate": 0,
+                "works": 2,
+                "advanced": 1,
+                "needTime": 0,
+                "needYield": 0,
+                "saveState": 0,
+                "restoreState": 0,
+                "isEOF": 1,
+                "docsExamined": 1,
+                "alreadyHasObj": 0,
+                "inputStage": {
+                  "stage": "IXSCAN",
+                  "nReturned": 1,
+                  "executionTimeMillisEstimate": 0,
+                  "works": 2,
+                  "advanced": 1,
+                  "needTime": 0,
+                  "needYield": 0,
+                  "saveState": 0,
+                  "restoreState": 0,
+                  "isEOF": 1,
+                  "keyPattern": {
+                    "q.ids": 1
+                  },
+                  "indexName": "saved_ids",
+                  "isMultiKey": true,
+                  "multiKeyPaths": {
+                    "q.ids": [
+                      "q.ids"
+                    ]
+                  },
+                  "isUnique": false,
+                  "isSparse": false,
+                  "isPartial": false,
+                  "indexVersion": 2,
+                  "direction": "forward",
+                  "indexBounds": {
+                    "q.ids": [
+                      "[\"000000000000000000000001\", \"000000000000000000000001\"]"
+                    ]
+                  },
+                  "keysExamined": 1,
+                  "seeks": 1,
+                  "dupsTested": 1,
+                  "dupsDropped": 0
+                }
+              }
+            }
+          },
+          "queryShapeHash": "769A2F69CC0EE9DCB67A124FBCACB34F8009B67B372496BD1661C664D2C2154C",
+          "command": {
+            "find": "_public_catalog_5c37c32416a14c1b94a9fac79e689dd1",
+            "filter": {
+              "$and": [
+                {
+                  "q.ids": {
+                    "$in": [
+                      "000000000000000000000001"
+                    ]
+                  }
+                }
+              ]
+            },
+            "sort": {
+              "q.past": 1,
+              "q.missing": 1,
+              "q.deadline": 1,
+              "q.rank": 1
+            },
+            "limit": 12,
+            "$db": "benchmark_phase4_api_1a463884ae6d4f3b9f946430a98b11d1"
+          },
+          "serverInfo": {
+            "host": "00689298b17a",
+            "port": 27017,
+            "version": "8.0.34",
+            "gitVersion": "51db4515a6597aedcf6188ee4e48a27e65b065ae"
+          },
+          "serverParameters": {
+            "internalQueryFacetBufferSizeBytes": 104857600,
+            "internalQueryFacetMaxOutputDocSizeBytes": 104857600,
+            "internalLookupStageIntermediateDocumentMaxSizeBytes": 104857600,
+            "internalDocumentSourceGroupMaxMemoryBytes": 104857600,
+            "internalQueryMaxBlockingSortMemoryUsageBytes": 104857600,
+            "internalQueryProhibitBlockingMergeOnMongoS": 0,
+            "internalQueryMaxAddToSetBytes": 104857600,
+            "internalDocumentSourceSetWindowFieldsMaxMemoryBytes": 104857600,
+            "internalQueryFrameworkControl": "trySbeRestricted",
+            "internalQueryPlannerIgnoreIndexWithCollationForRegex": 1
+          },
+          "ok": 1.0,
+          "$clusterTime": {
+            "clusterTime": {
+              "$timestamp": {
+                "t": 1793602371,
+                "i": 1
+              }
+            },
+            "signature": {
+              "hash": {
+                "$binary": {
+                  "base64": "AAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+                  "subType": "00"
+                }
+              },
+              "keyId": 0
+            }
+          },
+          "operationTime": {
+            "$timestamp": {
+              "t": 1793602371,
+              "i": 1
+            }
+          }
+        }
+      }
+    },
+    "100000": {
+      "before": {
+        "samples_seconds": [
+          7.915836072999809,
+          7.592243544997473,
+          9.24155368600259,
+          6.927014289001818,
+          7.727760228997795,
+          9.068187451997801,
+          6.800767437001923,
+          9.5342856319985,
+          6.744367744999181,
+          7.7532534370002395,
+          8.084631609999633,
+          8.15318076299809
+        ],
+        "p50_ms": 7834.544755000024,
+        "p95_ms": 9534.2856319985,
+        "requests_per_second": 0.12559779066800064,
+        "cold_seconds": 53.9138680190008,
+        "request_python_peak_bytes": 419191827,
+        "process_peak_rss_bytes": 2022957056
+      },
+      "after": {
+        "samples_seconds": [
+          0.006936841997230658,
+          0.07001983300142456,
+          1.6748701090000395,
+          0.2931242509985168,
+          0.006721059999108547,
+          0.0671421389997704,
+          1.606070945999818,
+          0.29806517500037444,
+          0.005621172000246588,
+          0.07042955400174833,
+          1.594916860001831,
+          0.2973216850004974
+        ],
+        "p50_ms": 181.77690250013256,
+        "p95_ms": 1674.8701090000395,
+        "requests_per_second": 2.00292439446467,
+        "cold_seconds": 0.01100017399949138,
+        "request_python_peak_bytes": 347133,
+        "process_peak_rss_bytes": 64323584
+      },
+      "plans": {
+        "before_catalog_find": {
+          "explainVersion": "1",
+          "queryPlanner": {
+            "namespace": "benchmark_phase4_api_0bc21e1352a946bc8b63abf0200bc5af.events",
+            "parsedQuery": {
+              "publication_state": {
+                "$not": {
+                  "$in": [
+                    "pending",
+                    "suppressed"
+                  ]
+                }
+              }
+            },
+            "indexFilterSet": false,
+            "queryHash": "B1516A0C",
+            "planCacheShapeHash": "B1516A0C",
+            "planCacheKey": "C1E5A0D4",
+            "optimizationTimeMillis": 0,
+            "maxIndexedOrSolutionsReached": false,
+            "maxIndexedAndSolutionsReached": false,
+            "maxScansToExplodeReached": false,
+            "prunedSimilarIndexes": false,
+            "winningPlan": {
+              "isCached": false,
+              "stage": "COLLSCAN",
+              "filter": {
+                "publication_state": {
+                  "$not": {
+                    "$in": [
+                      "pending",
+                      "suppressed"
+                    ]
+                  }
+                }
+              },
+              "direction": "forward"
+            },
+            "rejectedPlans": []
+          },
+          "executionStats": {
+            "executionSuccess": true,
+            "nReturned": 100000,
+            "executionTimeMillis": 33,
+            "totalKeysExamined": 0,
+            "totalDocsExamined": 100000,
+            "executionStages": {
+              "isCached": false,
+              "stage": "COLLSCAN",
+              "filter": {
+                "publication_state": {
+                  "$not": {
+                    "$in": [
+                      "pending",
+                      "suppressed"
+                    ]
+                  }
+                }
+              },
+              "nReturned": 100000,
+              "executionTimeMillisEstimate": 29,
+              "works": 100001,
+              "advanced": 100000,
+              "needTime": 0,
+              "needYield": 0,
+              "saveState": 1,
+              "restoreState": 1,
+              "isEOF": 1,
+              "direction": "forward",
+              "docsExamined": 100000
+            }
+          },
+          "queryShapeHash": "5FF26013E0D2A44E782CADF91030F1B31FDD1EA49240E3B0D422FA67CC84D29C",
+          "command": {
+            "find": "events",
+            "filter": {
+              "publication_state": {
+                "$nin": [
+                  "suppressed",
+                  "pending"
+                ]
+              }
+            },
+            "$db": "benchmark_phase4_api_0bc21e1352a946bc8b63abf0200bc5af"
+          },
+          "serverInfo": {
+            "host": "00689298b17a",
+            "port": 27017,
+            "version": "8.0.34",
+            "gitVersion": "51db4515a6597aedcf6188ee4e48a27e65b065ae"
+          },
+          "serverParameters": {
+            "internalQueryFacetBufferSizeBytes": 104857600,
+            "internalQueryFacetMaxOutputDocSizeBytes": 104857600,
+            "internalLookupStageIntermediateDocumentMaxSizeBytes": 104857600,
+            "internalDocumentSourceGroupMaxMemoryBytes": 104857600,
+            "internalQueryMaxBlockingSortMemoryUsageBytes": 104857600,
+            "internalQueryProhibitBlockingMergeOnMongoS": 0,
+            "internalQueryMaxAddToSetBytes": 104857600,
+            "internalDocumentSourceSetWindowFieldsMaxMemoryBytes": 104857600,
+            "internalQueryFrameworkControl": "trySbeRestricted",
+            "internalQueryPlannerIgnoreIndexWithCollationForRegex": 1
+          },
+          "ok": 1.0,
+          "$clusterTime": {
+            "clusterTime": {
+              "$timestamp": {
+                "t": 1793602611,
+                "i": 1
+              }
+            },
+            "signature": {
+              "hash": {
+                "$binary": {
+                  "base64": "AAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+                  "subType": "00"
+                }
+              },
+              "keyId": 0
+            }
+          },
+          "operationTime": {
+            "$timestamp": {
+              "t": 1793602611,
+              "i": 1
+            }
+          }
+        },
+        "deadline": {
+          "explainVersion": "1",
+          "queryPlanner": {
+            "namespace": "benchmark_phase4_api_0bc21e1352a946bc8b63abf0200bc5af._public_catalog_200d9c4d864243258b7fed95384ac677",
+            "parsedQuery": {},
+            "indexFilterSet": false,
+            "queryHash": "CEAB87D0",
+            "planCacheShapeHash": "CEAB87D0",
+            "planCacheKey": "E0D62B70",
+            "optimizationTimeMillis": 0,
+            "maxIndexedOrSolutionsReached": false,
+            "maxIndexedAndSolutionsReached": false,
+            "maxScansToExplodeReached": false,
+            "prunedSimilarIndexes": false,
+            "winningPlan": {
+              "isCached": false,
+              "stage": "LIMIT",
+              "limitAmount": 12,
+              "inputStage": {
+                "stage": "FETCH",
+                "inputStage": {
+                  "stage": "IXSCAN",
+                  "keyPattern": {
+                    "q.past": 1,
+                    "q.missing": 1,
+                    "q.deadline": 1,
+                    "q.rank": 1
+                  },
+                  "indexName": "deadline",
+                  "isMultiKey": false,
+                  "multiKeyPaths": {
+                    "q.past": [],
+                    "q.missing": [],
+                    "q.deadline": [],
+                    "q.rank": []
+                  },
+                  "isUnique": false,
+                  "isSparse": false,
+                  "isPartial": false,
+                  "indexVersion": 2,
+                  "direction": "forward",
+                  "indexBounds": {
+                    "q.past": [
+                      "[MinKey, MaxKey]"
+                    ],
+                    "q.missing": [
+                      "[MinKey, MaxKey]"
+                    ],
+                    "q.deadline": [
+                      "[MinKey, MaxKey]"
+                    ],
+                    "q.rank": [
+                      "[MinKey, MaxKey]"
+                    ]
+                  }
+                }
+              }
+            },
+            "rejectedPlans": []
+          },
+          "executionStats": {
+            "executionSuccess": true,
+            "nReturned": 12,
+            "executionTimeMillis": 0,
+            "totalKeysExamined": 12,
+            "totalDocsExamined": 12,
+            "executionStages": {
+              "isCached": false,
+              "stage": "LIMIT",
+              "nReturned": 12,
+              "executionTimeMillisEstimate": 0,
+              "works": 13,
+              "advanced": 12,
+              "needTime": 0,
+              "needYield": 0,
+              "saveState": 0,
+              "restoreState": 0,
+              "isEOF": 1,
+              "limitAmount": 12,
+              "inputStage": {
+                "stage": "FETCH",
+                "nReturned": 12,
+                "executionTimeMillisEstimate": 0,
+                "works": 12,
+                "advanced": 12,
+                "needTime": 0,
+                "needYield": 0,
+                "saveState": 0,
+                "restoreState": 0,
+                "isEOF": 0,
+                "docsExamined": 12,
+                "alreadyHasObj": 0,
+                "inputStage": {
+                  "stage": "IXSCAN",
+                  "nReturned": 12,
+                  "executionTimeMillisEstimate": 0,
+                  "works": 12,
+                  "advanced": 12,
+                  "needTime": 0,
+                  "needYield": 0,
+                  "saveState": 0,
+                  "restoreState": 0,
+                  "isEOF": 0,
+                  "keyPattern": {
+                    "q.past": 1,
+                    "q.missing": 1,
+                    "q.deadline": 1,
+                    "q.rank": 1
+                  },
+                  "indexName": "deadline",
+                  "isMultiKey": false,
+                  "multiKeyPaths": {
+                    "q.past": [],
+                    "q.missing": [],
+                    "q.deadline": [],
+                    "q.rank": []
+                  },
+                  "isUnique": false,
+                  "isSparse": false,
+                  "isPartial": false,
+                  "indexVersion": 2,
+                  "direction": "forward",
+                  "indexBounds": {
+                    "q.past": [
+                      "[MinKey, MaxKey]"
+                    ],
+                    "q.missing": [
+                      "[MinKey, MaxKey]"
+                    ],
+                    "q.deadline": [
+                      "[MinKey, MaxKey]"
+                    ],
+                    "q.rank": [
+                      "[MinKey, MaxKey]"
+                    ]
+                  },
+                  "keysExamined": 12,
+                  "seeks": 1,
+                  "dupsTested": 0,
+                  "dupsDropped": 0
+                }
+              }
+            }
+          },
+          "queryShapeHash": "5EDAA64365873B26EDD7DA6A1ED71C7E9A31CC1113B94171BC30153137C5A209",
+          "command": {
+            "find": "_public_catalog_200d9c4d864243258b7fed95384ac677",
+            "filter": {},
+            "sort": {
+              "q.past": 1,
+              "q.missing": 1,
+              "q.deadline": 1,
+              "q.rank": 1
+            },
+            "limit": 12,
+            "$db": "benchmark_phase4_api_0bc21e1352a946bc8b63abf0200bc5af"
+          },
+          "serverInfo": {
+            "host": "00689298b17a",
+            "port": 27017,
+            "version": "8.0.34",
+            "gitVersion": "51db4515a6597aedcf6188ee4e48a27e65b065ae"
+          },
+          "serverParameters": {
+            "internalQueryFacetBufferSizeBytes": 104857600,
+            "internalQueryFacetMaxOutputDocSizeBytes": 104857600,
+            "internalLookupStageIntermediateDocumentMaxSizeBytes": 104857600,
+            "internalDocumentSourceGroupMaxMemoryBytes": 104857600,
+            "internalQueryMaxBlockingSortMemoryUsageBytes": 104857600,
+            "internalQueryProhibitBlockingMergeOnMongoS": 0,
+            "internalQueryMaxAddToSetBytes": 104857600,
+            "internalDocumentSourceSetWindowFieldsMaxMemoryBytes": 104857600,
+            "internalQueryFrameworkControl": "trySbeRestricted",
+            "internalQueryPlannerIgnoreIndexWithCollationForRegex": 1
+          },
+          "ok": 1.0,
+          "$clusterTime": {
+            "clusterTime": {
+              "$timestamp": {
+                "t": 1793602611,
+                "i": 1
+              }
+            },
+            "signature": {
+              "hash": {
+                "$binary": {
+                  "base64": "AAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+                  "subType": "00"
+                }
+              },
+              "keyId": 0
+            }
+          },
+          "operationTime": {
+            "$timestamp": {
+              "t": 1793602611,
+              "i": 1
+            }
+          }
+        },
+        "format_deadline": {
+          "explainVersion": "1",
+          "queryPlanner": {
+            "namespace": "benchmark_phase4_api_0bc21e1352a946bc8b63abf0200bc5af._public_catalog_200d9c4d864243258b7fed95384ac677",
+            "parsedQuery": {
+              "q.format": {
+                "$eq": "Online"
+              }
+            },
+            "indexFilterSet": false,
+            "queryHash": "17D015B6",
+            "planCacheShapeHash": "17D015B6",
+            "planCacheKey": "19B28C13",
+            "optimizationTimeMillis": 0,
+            "maxIndexedOrSolutionsReached": false,
+            "maxIndexedAndSolutionsReached": false,
+            "maxScansToExplodeReached": false,
+            "prunedSimilarIndexes": false,
+            "winningPlan": {
+              "isCached": false,
+              "stage": "LIMIT",
+              "limitAmount": 12,
+              "inputStage": {
+                "stage": "FETCH",
+                "inputStage": {
+                  "stage": "IXSCAN",
+                  "keyPattern": {
+                    "q.format": 1,
+                    "q.past": 1,
+                    "q.missing": 1,
+                    "q.deadline": 1,
+                    "q.rank": 1
+                  },
+                  "indexName": "format_deadline",
+                  "isMultiKey": false,
+                  "multiKeyPaths": {
+                    "q.format": [],
+                    "q.past": [],
+                    "q.missing": [],
+                    "q.deadline": [],
+                    "q.rank": []
+                  },
+                  "isUnique": false,
+                  "isSparse": false,
+                  "isPartial": false,
+                  "indexVersion": 2,
+                  "direction": "forward",
+                  "indexBounds": {
+                    "q.format": [
+                      "[\"Online\", \"Online\"]"
+                    ],
+                    "q.past": [
+                      "[MinKey, MaxKey]"
+                    ],
+                    "q.missing": [
+                      "[MinKey, MaxKey]"
+                    ],
+                    "q.deadline": [
+                      "[MinKey, MaxKey]"
+                    ],
+                    "q.rank": [
+                      "[MinKey, MaxKey]"
+                    ]
+                  }
+                }
+              }
+            },
+            "rejectedPlans": []
+          },
+          "executionStats": {
+            "executionSuccess": true,
+            "nReturned": 12,
+            "executionTimeMillis": 0,
+            "totalKeysExamined": 12,
+            "totalDocsExamined": 12,
+            "executionStages": {
+              "isCached": false,
+              "stage": "LIMIT",
+              "nReturned": 12,
+              "executionTimeMillisEstimate": 0,
+              "works": 13,
+              "advanced": 12,
+              "needTime": 0,
+              "needYield": 0,
+              "saveState": 0,
+              "restoreState": 0,
+              "isEOF": 1,
+              "limitAmount": 12,
+              "inputStage": {
+                "stage": "FETCH",
+                "nReturned": 12,
+                "executionTimeMillisEstimate": 0,
+                "works": 12,
+                "advanced": 12,
+                "needTime": 0,
+                "needYield": 0,
+                "saveState": 0,
+                "restoreState": 0,
+                "isEOF": 0,
+                "docsExamined": 12,
+                "alreadyHasObj": 0,
+                "inputStage": {
+                  "stage": "IXSCAN",
+                  "nReturned": 12,
+                  "executionTimeMillisEstimate": 0,
+                  "works": 12,
+                  "advanced": 12,
+                  "needTime": 0,
+                  "needYield": 0,
+                  "saveState": 0,
+                  "restoreState": 0,
+                  "isEOF": 0,
+                  "keyPattern": {
+                    "q.format": 1,
+                    "q.past": 1,
+                    "q.missing": 1,
+                    "q.deadline": 1,
+                    "q.rank": 1
+                  },
+                  "indexName": "format_deadline",
+                  "isMultiKey": false,
+                  "multiKeyPaths": {
+                    "q.format": [],
+                    "q.past": [],
+                    "q.missing": [],
+                    "q.deadline": [],
+                    "q.rank": []
+                  },
+                  "isUnique": false,
+                  "isSparse": false,
+                  "isPartial": false,
+                  "indexVersion": 2,
+                  "direction": "forward",
+                  "indexBounds": {
+                    "q.format": [
+                      "[\"Online\", \"Online\"]"
+                    ],
+                    "q.past": [
+                      "[MinKey, MaxKey]"
+                    ],
+                    "q.missing": [
+                      "[MinKey, MaxKey]"
+                    ],
+                    "q.deadline": [
+                      "[MinKey, MaxKey]"
+                    ],
+                    "q.rank": [
+                      "[MinKey, MaxKey]"
+                    ]
+                  },
+                  "keysExamined": 12,
+                  "seeks": 1,
+                  "dupsTested": 0,
+                  "dupsDropped": 0
+                }
+              }
+            }
+          },
+          "queryShapeHash": "1D23D74D80E4A3E7B85FD352CDB156CBA285F6DE21A47DB114C95B059C72D014",
+          "command": {
+            "find": "_public_catalog_200d9c4d864243258b7fed95384ac677",
+            "filter": {
+              "$and": [
+                {
+                  "q.format": "Online"
+                }
+              ]
+            },
+            "sort": {
+              "q.past": 1,
+              "q.missing": 1,
+              "q.deadline": 1,
+              "q.rank": 1
+            },
+            "limit": 12,
+            "$db": "benchmark_phase4_api_0bc21e1352a946bc8b63abf0200bc5af"
+          },
+          "serverInfo": {
+            "host": "00689298b17a",
+            "port": 27017,
+            "version": "8.0.34",
+            "gitVersion": "51db4515a6597aedcf6188ee4e48a27e65b065ae"
+          },
+          "serverParameters": {
+            "internalQueryFacetBufferSizeBytes": 104857600,
+            "internalQueryFacetMaxOutputDocSizeBytes": 104857600,
+            "internalLookupStageIntermediateDocumentMaxSizeBytes": 104857600,
+            "internalDocumentSourceGroupMaxMemoryBytes": 104857600,
+            "internalQueryMaxBlockingSortMemoryUsageBytes": 104857600,
+            "internalQueryProhibitBlockingMergeOnMongoS": 0,
+            "internalQueryMaxAddToSetBytes": 104857600,
+            "internalDocumentSourceSetWindowFieldsMaxMemoryBytes": 104857600,
+            "internalQueryFrameworkControl": "trySbeRestricted",
+            "internalQueryPlannerIgnoreIndexWithCollationForRegex": 1
+          },
+          "ok": 1.0,
+          "$clusterTime": {
+            "clusterTime": {
+              "$timestamp": {
+                "t": 1793602611,
+                "i": 1
+              }
+            },
+            "signature": {
+              "hash": {
+                "$binary": {
+                  "base64": "AAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+                  "subType": "00"
+                }
+              },
+              "keyId": 0
+            }
+          },
+          "operationTime": {
+            "$timestamp": {
+              "t": 1793602611,
+              "i": 1
+            }
+          }
+        },
+        "source_deadline": {
+          "explainVersion": "1",
+          "queryPlanner": {
+            "namespace": "benchmark_phase4_api_0bc21e1352a946bc8b63abf0200bc5af._public_catalog_200d9c4d864243258b7fed95384ac677",
+            "parsedQuery": {
+              "q.sources": {
+                "$eq": "devpost"
+              }
+            },
+            "indexFilterSet": false,
+            "queryHash": "F442E82C",
+            "planCacheShapeHash": "F442E82C",
+            "planCacheKey": "E6335D34",
+            "optimizationTimeMillis": 0,
+            "maxIndexedOrSolutionsReached": false,
+            "maxIndexedAndSolutionsReached": false,
+            "maxScansToExplodeReached": false,
+            "prunedSimilarIndexes": false,
+            "winningPlan": {
+              "isCached": false,
+              "stage": "LIMIT",
+              "limitAmount": 12,
+              "inputStage": {
+                "stage": "FETCH",
+                "inputStage": {
+                  "stage": "IXSCAN",
+                  "keyPattern": {
+                    "q.sources": 1,
+                    "q.past": 1,
+                    "q.missing": 1,
+                    "q.deadline": 1,
+                    "q.rank": 1
+                  },
+                  "indexName": "source_deadline",
+                  "isMultiKey": true,
+                  "multiKeyPaths": {
+                    "q.sources": [
+                      "q.sources"
+                    ],
+                    "q.past": [],
+                    "q.missing": [],
+                    "q.deadline": [],
+                    "q.rank": []
+                  },
+                  "isUnique": false,
+                  "isSparse": false,
+                  "isPartial": false,
+                  "indexVersion": 2,
+                  "direction": "forward",
+                  "indexBounds": {
+                    "q.sources": [
+                      "[\"devpost\", \"devpost\"]"
+                    ],
+                    "q.past": [
+                      "[MinKey, MaxKey]"
+                    ],
+                    "q.missing": [
+                      "[MinKey, MaxKey]"
+                    ],
+                    "q.deadline": [
+                      "[MinKey, MaxKey]"
+                    ],
+                    "q.rank": [
+                      "[MinKey, MaxKey]"
+                    ]
+                  }
+                }
+              }
+            },
+            "rejectedPlans": []
+          },
+          "executionStats": {
+            "executionSuccess": true,
+            "nReturned": 12,
+            "executionTimeMillis": 0,
+            "totalKeysExamined": 12,
+            "totalDocsExamined": 12,
+            "executionStages": {
+              "isCached": false,
+              "stage": "LIMIT",
+              "nReturned": 12,
+              "executionTimeMillisEstimate": 0,
+              "works": 13,
+              "advanced": 12,
+              "needTime": 0,
+              "needYield": 0,
+              "saveState": 0,
+              "restoreState": 0,
+              "isEOF": 1,
+              "limitAmount": 12,
+              "inputStage": {
+                "stage": "FETCH",
+                "nReturned": 12,
+                "executionTimeMillisEstimate": 0,
+                "works": 12,
+                "advanced": 12,
+                "needTime": 0,
+                "needYield": 0,
+                "saveState": 0,
+                "restoreState": 0,
+                "isEOF": 0,
+                "docsExamined": 12,
+                "alreadyHasObj": 0,
+                "inputStage": {
+                  "stage": "IXSCAN",
+                  "nReturned": 12,
+                  "executionTimeMillisEstimate": 0,
+                  "works": 12,
+                  "advanced": 12,
+                  "needTime": 0,
+                  "needYield": 0,
+                  "saveState": 0,
+                  "restoreState": 0,
+                  "isEOF": 0,
+                  "keyPattern": {
+                    "q.sources": 1,
+                    "q.past": 1,
+                    "q.missing": 1,
+                    "q.deadline": 1,
+                    "q.rank": 1
+                  },
+                  "indexName": "source_deadline",
+                  "isMultiKey": true,
+                  "multiKeyPaths": {
+                    "q.sources": [
+                      "q.sources"
+                    ],
+                    "q.past": [],
+                    "q.missing": [],
+                    "q.deadline": [],
+                    "q.rank": []
+                  },
+                  "isUnique": false,
+                  "isSparse": false,
+                  "isPartial": false,
+                  "indexVersion": 2,
+                  "direction": "forward",
+                  "indexBounds": {
+                    "q.sources": [
+                      "[\"devpost\", \"devpost\"]"
+                    ],
+                    "q.past": [
+                      "[MinKey, MaxKey]"
+                    ],
+                    "q.missing": [
+                      "[MinKey, MaxKey]"
+                    ],
+                    "q.deadline": [
+                      "[MinKey, MaxKey]"
+                    ],
+                    "q.rank": [
+                      "[MinKey, MaxKey]"
+                    ]
+                  },
+                  "keysExamined": 12,
+                  "seeks": 1,
+                  "dupsTested": 12,
+                  "dupsDropped": 0
+                }
+              }
+            }
+          },
+          "queryShapeHash": "8C29E7C5DA508F04DB2211034DBE135EEB373164F1F4B365BE2F2F4682E58F44",
+          "command": {
+            "find": "_public_catalog_200d9c4d864243258b7fed95384ac677",
+            "filter": {
+              "$and": [
+                {
+                  "q.sources": "devpost"
+                }
+              ]
+            },
+            "sort": {
+              "q.past": 1,
+              "q.missing": 1,
+              "q.deadline": 1,
+              "q.rank": 1
+            },
+            "limit": 12,
+            "$db": "benchmark_phase4_api_0bc21e1352a946bc8b63abf0200bc5af"
+          },
+          "serverInfo": {
+            "host": "00689298b17a",
+            "port": 27017,
+            "version": "8.0.34",
+            "gitVersion": "51db4515a6597aedcf6188ee4e48a27e65b065ae"
+          },
+          "serverParameters": {
+            "internalQueryFacetBufferSizeBytes": 104857600,
+            "internalQueryFacetMaxOutputDocSizeBytes": 104857600,
+            "internalLookupStageIntermediateDocumentMaxSizeBytes": 104857600,
+            "internalDocumentSourceGroupMaxMemoryBytes": 104857600,
+            "internalQueryMaxBlockingSortMemoryUsageBytes": 104857600,
+            "internalQueryProhibitBlockingMergeOnMongoS": 0,
+            "internalQueryMaxAddToSetBytes": 104857600,
+            "internalDocumentSourceSetWindowFieldsMaxMemoryBytes": 104857600,
+            "internalQueryFrameworkControl": "trySbeRestricted",
+            "internalQueryPlannerIgnoreIndexWithCollationForRegex": 1
+          },
+          "ok": 1.0,
+          "$clusterTime": {
+            "clusterTime": {
+              "$timestamp": {
+                "t": 1793602611,
+                "i": 1
+              }
+            },
+            "signature": {
+              "hash": {
+                "$binary": {
+                  "base64": "AAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+                  "subType": "00"
+                }
+              },
+              "keyId": 0
+            }
+          },
+          "operationTime": {
+            "$timestamp": {
+              "t": 1793602611,
+              "i": 1
+            }
+          }
+        },
+        "name": {
+          "explainVersion": "1",
+          "queryPlanner": {
+            "namespace": "benchmark_phase4_api_0bc21e1352a946bc8b63abf0200bc5af._public_catalog_200d9c4d864243258b7fed95384ac677",
+            "parsedQuery": {},
+            "indexFilterSet": false,
+            "queryHash": "6FB8FDDF",
+            "planCacheShapeHash": "6FB8FDDF",
+            "planCacheKey": "54F49733",
+            "optimizationTimeMillis": 0,
+            "maxIndexedOrSolutionsReached": false,
+            "maxIndexedAndSolutionsReached": false,
+            "maxScansToExplodeReached": false,
+            "prunedSimilarIndexes": false,
+            "winningPlan": {
+              "isCached": false,
+              "stage": "LIMIT",
+              "limitAmount": 12,
+              "inputStage": {
+                "stage": "FETCH",
+                "inputStage": {
+                  "stage": "IXSCAN",
+                  "keyPattern": {
+                    "q.name": 1,
+                    "q.rank": 1
+                  },
+                  "indexName": "name",
+                  "isMultiKey": false,
+                  "multiKeyPaths": {
+                    "q.name": [],
+                    "q.rank": []
+                  },
+                  "isUnique": false,
+                  "isSparse": false,
+                  "isPartial": false,
+                  "indexVersion": 2,
+                  "direction": "forward",
+                  "indexBounds": {
+                    "q.name": [
+                      "[MinKey, MaxKey]"
+                    ],
+                    "q.rank": [
+                      "[MinKey, MaxKey]"
+                    ]
+                  }
+                }
+              }
+            },
+            "rejectedPlans": []
+          },
+          "executionStats": {
+            "executionSuccess": true,
+            "nReturned": 12,
+            "executionTimeMillis": 0,
+            "totalKeysExamined": 12,
+            "totalDocsExamined": 12,
+            "executionStages": {
+              "isCached": false,
+              "stage": "LIMIT",
+              "nReturned": 12,
+              "executionTimeMillisEstimate": 0,
+              "works": 13,
+              "advanced": 12,
+              "needTime": 0,
+              "needYield": 0,
+              "saveState": 0,
+              "restoreState": 0,
+              "isEOF": 1,
+              "limitAmount": 12,
+              "inputStage": {
+                "stage": "FETCH",
+                "nReturned": 12,
+                "executionTimeMillisEstimate": 0,
+                "works": 12,
+                "advanced": 12,
+                "needTime": 0,
+                "needYield": 0,
+                "saveState": 0,
+                "restoreState": 0,
+                "isEOF": 0,
+                "docsExamined": 12,
+                "alreadyHasObj": 0,
+                "inputStage": {
+                  "stage": "IXSCAN",
+                  "nReturned": 12,
+                  "executionTimeMillisEstimate": 0,
+                  "works": 12,
+                  "advanced": 12,
+                  "needTime": 0,
+                  "needYield": 0,
+                  "saveState": 0,
+                  "restoreState": 0,
+                  "isEOF": 0,
+                  "keyPattern": {
+                    "q.name": 1,
+                    "q.rank": 1
+                  },
+                  "indexName": "name",
+                  "isMultiKey": false,
+                  "multiKeyPaths": {
+                    "q.name": [],
+                    "q.rank": []
+                  },
+                  "isUnique": false,
+                  "isSparse": false,
+                  "isPartial": false,
+                  "indexVersion": 2,
+                  "direction": "forward",
+                  "indexBounds": {
+                    "q.name": [
+                      "[MinKey, MaxKey]"
+                    ],
+                    "q.rank": [
+                      "[MinKey, MaxKey]"
+                    ]
+                  },
+                  "keysExamined": 12,
+                  "seeks": 1,
+                  "dupsTested": 0,
+                  "dupsDropped": 0
+                }
+              }
+            }
+          },
+          "queryShapeHash": "8F891BB3F2F376B7DC670BC7F7EB48F3C77D0AB763F6C9B9D65BF2FD16A9FDAE",
+          "command": {
+            "find": "_public_catalog_200d9c4d864243258b7fed95384ac677",
+            "filter": {},
+            "sort": {
+              "q.name": 1,
+              "q.rank": 1
+            },
+            "limit": 12,
+            "$db": "benchmark_phase4_api_0bc21e1352a946bc8b63abf0200bc5af"
+          },
+          "serverInfo": {
+            "host": "00689298b17a",
+            "port": 27017,
+            "version": "8.0.34",
+            "gitVersion": "51db4515a6597aedcf6188ee4e48a27e65b065ae"
+          },
+          "serverParameters": {
+            "internalQueryFacetBufferSizeBytes": 104857600,
+            "internalQueryFacetMaxOutputDocSizeBytes": 104857600,
+            "internalLookupStageIntermediateDocumentMaxSizeBytes": 104857600,
+            "internalDocumentSourceGroupMaxMemoryBytes": 104857600,
+            "internalQueryMaxBlockingSortMemoryUsageBytes": 104857600,
+            "internalQueryProhibitBlockingMergeOnMongoS": 0,
+            "internalQueryMaxAddToSetBytes": 104857600,
+            "internalDocumentSourceSetWindowFieldsMaxMemoryBytes": 104857600,
+            "internalQueryFrameworkControl": "trySbeRestricted",
+            "internalQueryPlannerIgnoreIndexWithCollationForRegex": 1
+          },
+          "ok": 1.0,
+          "$clusterTime": {
+            "clusterTime": {
+              "$timestamp": {
+                "t": 1793602611,
+                "i": 1
+              }
+            },
+            "signature": {
+              "hash": {
+                "$binary": {
+                  "base64": "AAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+                  "subType": "00"
+                }
+              },
+              "keyId": 0
+            }
+          },
+          "operationTime": {
+            "$timestamp": {
+              "t": 1793602611,
+              "i": 1
+            }
+          }
+        },
+        "newest": {
+          "explainVersion": "1",
+          "queryPlanner": {
+            "namespace": "benchmark_phase4_api_0bc21e1352a946bc8b63abf0200bc5af._public_catalog_200d9c4d864243258b7fed95384ac677",
+            "parsedQuery": {},
+            "indexFilterSet": false,
+            "queryHash": "F2E51B51",
+            "planCacheShapeHash": "F2E51B51",
+            "planCacheKey": "088FCE85",
+            "optimizationTimeMillis": 0,
+            "maxIndexedOrSolutionsReached": false,
+            "maxIndexedAndSolutionsReached": false,
+            "maxScansToExplodeReached": false,
+            "prunedSimilarIndexes": false,
+            "winningPlan": {
+              "isCached": false,
+              "stage": "LIMIT",
+              "limitAmount": 12,
+              "inputStage": {
+                "stage": "FETCH",
+                "inputStage": {
+                  "stage": "IXSCAN",
+                  "keyPattern": {
+                    "q.scraped": -1,
+                    "q.rank": 1
+                  },
+                  "indexName": "newest",
+                  "isMultiKey": false,
+                  "multiKeyPaths": {
+                    "q.scraped": [],
+                    "q.rank": []
+                  },
+                  "isUnique": false,
+                  "isSparse": false,
+                  "isPartial": false,
+                  "indexVersion": 2,
+                  "direction": "forward",
+                  "indexBounds": {
+                    "q.scraped": [
+                      "[MaxKey, MinKey]"
+                    ],
+                    "q.rank": [
+                      "[MinKey, MaxKey]"
+                    ]
+                  }
+                }
+              }
+            },
+            "rejectedPlans": []
+          },
+          "executionStats": {
+            "executionSuccess": true,
+            "nReturned": 12,
+            "executionTimeMillis": 0,
+            "totalKeysExamined": 12,
+            "totalDocsExamined": 12,
+            "executionStages": {
+              "isCached": false,
+              "stage": "LIMIT",
+              "nReturned": 12,
+              "executionTimeMillisEstimate": 0,
+              "works": 13,
+              "advanced": 12,
+              "needTime": 0,
+              "needYield": 0,
+              "saveState": 0,
+              "restoreState": 0,
+              "isEOF": 1,
+              "limitAmount": 12,
+              "inputStage": {
+                "stage": "FETCH",
+                "nReturned": 12,
+                "executionTimeMillisEstimate": 0,
+                "works": 12,
+                "advanced": 12,
+                "needTime": 0,
+                "needYield": 0,
+                "saveState": 0,
+                "restoreState": 0,
+                "isEOF": 0,
+                "docsExamined": 12,
+                "alreadyHasObj": 0,
+                "inputStage": {
+                  "stage": "IXSCAN",
+                  "nReturned": 12,
+                  "executionTimeMillisEstimate": 0,
+                  "works": 12,
+                  "advanced": 12,
+                  "needTime": 0,
+                  "needYield": 0,
+                  "saveState": 0,
+                  "restoreState": 0,
+                  "isEOF": 0,
+                  "keyPattern": {
+                    "q.scraped": -1,
+                    "q.rank": 1
+                  },
+                  "indexName": "newest",
+                  "isMultiKey": false,
+                  "multiKeyPaths": {
+                    "q.scraped": [],
+                    "q.rank": []
+                  },
+                  "isUnique": false,
+                  "isSparse": false,
+                  "isPartial": false,
+                  "indexVersion": 2,
+                  "direction": "forward",
+                  "indexBounds": {
+                    "q.scraped": [
+                      "[MaxKey, MinKey]"
+                    ],
+                    "q.rank": [
+                      "[MinKey, MaxKey]"
+                    ]
+                  },
+                  "keysExamined": 12,
+                  "seeks": 1,
+                  "dupsTested": 0,
+                  "dupsDropped": 0
+                }
+              }
+            }
+          },
+          "queryShapeHash": "F6ABDFC89814908A34B3D35FAFC9C0B6CC3B4D7D5F0ECBCD95F107A867A34C13",
+          "command": {
+            "find": "_public_catalog_200d9c4d864243258b7fed95384ac677",
+            "filter": {},
+            "sort": {
+              "q.scraped": -1,
+              "q.rank": 1
+            },
+            "limit": 12,
+            "$db": "benchmark_phase4_api_0bc21e1352a946bc8b63abf0200bc5af"
+          },
+          "serverInfo": {
+            "host": "00689298b17a",
+            "port": 27017,
+            "version": "8.0.34",
+            "gitVersion": "51db4515a6597aedcf6188ee4e48a27e65b065ae"
+          },
+          "serverParameters": {
+            "internalQueryFacetBufferSizeBytes": 104857600,
+            "internalQueryFacetMaxOutputDocSizeBytes": 104857600,
+            "internalLookupStageIntermediateDocumentMaxSizeBytes": 104857600,
+            "internalDocumentSourceGroupMaxMemoryBytes": 104857600,
+            "internalQueryMaxBlockingSortMemoryUsageBytes": 104857600,
+            "internalQueryProhibitBlockingMergeOnMongoS": 0,
+            "internalQueryMaxAddToSetBytes": 104857600,
+            "internalDocumentSourceSetWindowFieldsMaxMemoryBytes": 104857600,
+            "internalQueryFrameworkControl": "trySbeRestricted",
+            "internalQueryPlannerIgnoreIndexWithCollationForRegex": 1
+          },
+          "ok": 1.0,
+          "$clusterTime": {
+            "clusterTime": {
+              "$timestamp": {
+                "t": 1793602611,
+                "i": 1
+              }
+            },
+            "signature": {
+              "hash": {
+                "$binary": {
+                  "base64": "AAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+                  "subType": "00"
+                }
+              },
+              "keyId": 0
+            }
+          },
+          "operationTime": {
+            "$timestamp": {
+              "t": 1793602611,
+              "i": 1
+            }
+          }
+        },
+        "saved_ids": {
+          "explainVersion": "1",
+          "queryPlanner": {
+            "namespace": "benchmark_phase4_api_0bc21e1352a946bc8b63abf0200bc5af._public_catalog_200d9c4d864243258b7fed95384ac677",
+            "parsedQuery": {
+              "q.ids": {
+                "$eq": "000000000000000000000001"
+              }
+            },
+            "indexFilterSet": false,
+            "queryHash": "9F4DEF00",
+            "planCacheShapeHash": "9F4DEF00",
+            "planCacheKey": "CCC79A85",
+            "optimizationTimeMillis": 0,
+            "maxIndexedOrSolutionsReached": false,
+            "maxIndexedAndSolutionsReached": false,
+            "maxScansToExplodeReached": false,
+            "prunedSimilarIndexes": false,
+            "winningPlan": {
+              "isCached": false,
+              "stage": "SORT",
+              "sortPattern": {
+                "q.past": 1,
+                "q.missing": 1,
+                "q.deadline": 1,
+                "q.rank": 1
+              },
+              "memLimit": 104857600,
+              "limitAmount": 12,
+              "type": "simple",
+              "inputStage": {
+                "stage": "FETCH",
+                "inputStage": {
+                  "stage": "IXSCAN",
+                  "keyPattern": {
+                    "q.ids": 1
+                  },
+                  "indexName": "saved_ids",
+                  "isMultiKey": true,
+                  "multiKeyPaths": {
+                    "q.ids": [
+                      "q.ids"
+                    ]
+                  },
+                  "isUnique": false,
+                  "isSparse": false,
+                  "isPartial": false,
+                  "indexVersion": 2,
+                  "direction": "forward",
+                  "indexBounds": {
+                    "q.ids": [
+                      "[\"000000000000000000000001\", \"000000000000000000000001\"]"
+                    ]
+                  }
+                }
+              }
+            },
+            "rejectedPlans": [
+              {
+                "isCached": false,
+                "stage": "LIMIT",
+                "limitAmount": 12,
+                "inputStage": {
+                  "stage": "FETCH",
+                  "filter": {
+                    "q.ids": {
+                      "$eq": "000000000000000000000001"
+                    }
+                  },
+                  "inputStage": {
+                    "stage": "IXSCAN",
+                    "keyPattern": {
+                      "q.past": 1,
+                      "q.missing": 1,
+                      "q.deadline": 1,
+                      "q.rank": 1
+                    },
+                    "indexName": "deadline",
+                    "isMultiKey": false,
+                    "multiKeyPaths": {
+                      "q.past": [],
+                      "q.missing": [],
+                      "q.deadline": [],
+                      "q.rank": []
+                    },
+                    "isUnique": false,
+                    "isSparse": false,
+                    "isPartial": false,
+                    "indexVersion": 2,
+                    "direction": "forward",
+                    "indexBounds": {
+                      "q.past": [
+                        "[MinKey, MaxKey]"
+                      ],
+                      "q.missing": [
+                        "[MinKey, MaxKey]"
+                      ],
+                      "q.deadline": [
+                        "[MinKey, MaxKey]"
+                      ],
+                      "q.rank": [
+                        "[MinKey, MaxKey]"
+                      ]
+                    }
+                  }
+                }
+              }
+            ]
+          },
+          "executionStats": {
+            "executionSuccess": true,
+            "nReturned": 1,
+            "executionTimeMillis": 0,
+            "totalKeysExamined": 1,
+            "totalDocsExamined": 1,
+            "executionStages": {
+              "isCached": false,
+              "stage": "SORT",
+              "nReturned": 1,
+              "executionTimeMillisEstimate": 0,
+              "works": 5,
+              "advanced": 1,
+              "needTime": 2,
+              "needYield": 0,
+              "saveState": 0,
+              "restoreState": 0,
+              "isEOF": 1,
+              "sortPattern": {
+                "q.past": 1,
+                "q.missing": 1,
+                "q.deadline": 1,
+                "q.rank": 1
+              },
+              "memLimit": 104857600,
+              "limitAmount": 12,
+              "type": "simple",
+              "totalDataSizeSorted": 3258,
+              "usedDisk": false,
+              "spills": 0,
+              "spilledDataStorageSize": 0,
+              "inputStage": {
+                "stage": "FETCH",
+                "nReturned": 1,
+                "executionTimeMillisEstimate": 0,
+                "works": 2,
+                "advanced": 1,
+                "needTime": 0,
+                "needYield": 0,
+                "saveState": 0,
+                "restoreState": 0,
+                "isEOF": 1,
+                "docsExamined": 1,
+                "alreadyHasObj": 0,
+                "inputStage": {
+                  "stage": "IXSCAN",
+                  "nReturned": 1,
+                  "executionTimeMillisEstimate": 0,
+                  "works": 2,
+                  "advanced": 1,
+                  "needTime": 0,
+                  "needYield": 0,
+                  "saveState": 0,
+                  "restoreState": 0,
+                  "isEOF": 1,
+                  "keyPattern": {
+                    "q.ids": 1
+                  },
+                  "indexName": "saved_ids",
+                  "isMultiKey": true,
+                  "multiKeyPaths": {
+                    "q.ids": [
+                      "q.ids"
+                    ]
+                  },
+                  "isUnique": false,
+                  "isSparse": false,
+                  "isPartial": false,
+                  "indexVersion": 2,
+                  "direction": "forward",
+                  "indexBounds": {
+                    "q.ids": [
+                      "[\"000000000000000000000001\", \"000000000000000000000001\"]"
+                    ]
+                  },
+                  "keysExamined": 1,
+                  "seeks": 1,
+                  "dupsTested": 1,
+                  "dupsDropped": 0
+                }
+              }
+            }
+          },
+          "queryShapeHash": "F704330A83D11AF0358FFF489EF7480DCEAE505C5A8442407D2516B759D9A8D0",
+          "command": {
+            "find": "_public_catalog_200d9c4d864243258b7fed95384ac677",
+            "filter": {
+              "$and": [
+                {
+                  "q.ids": {
+                    "$in": [
+                      "000000000000000000000001"
+                    ]
+                  }
+                }
+              ]
+            },
+            "sort": {
+              "q.past": 1,
+              "q.missing": 1,
+              "q.deadline": 1,
+              "q.rank": 1
+            },
+            "limit": 12,
+            "$db": "benchmark_phase4_api_0bc21e1352a946bc8b63abf0200bc5af"
+          },
+          "serverInfo": {
+            "host": "00689298b17a",
+            "port": 27017,
+            "version": "8.0.34",
+            "gitVersion": "51db4515a6597aedcf6188ee4e48a27e65b065ae"
+          },
+          "serverParameters": {
+            "internalQueryFacetBufferSizeBytes": 104857600,
+            "internalQueryFacetMaxOutputDocSizeBytes": 104857600,
+            "internalLookupStageIntermediateDocumentMaxSizeBytes": 104857600,
+            "internalDocumentSourceGroupMaxMemoryBytes": 104857600,
+            "internalQueryMaxBlockingSortMemoryUsageBytes": 104857600,
+            "internalQueryProhibitBlockingMergeOnMongoS": 0,
+            "internalQueryMaxAddToSetBytes": 104857600,
+            "internalDocumentSourceSetWindowFieldsMaxMemoryBytes": 104857600,
+            "internalQueryFrameworkControl": "trySbeRestricted",
+            "internalQueryPlannerIgnoreIndexWithCollationForRegex": 1
+          },
+          "ok": 1.0,
+          "$clusterTime": {
+            "clusterTime": {
+              "$timestamp": {
+                "t": 1793602611,
+                "i": 1
+              }
+            },
+            "signature": {
+              "hash": {
+                "$binary": {
+                  "base64": "AAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+                  "subType": "00"
+                }
+              },
+              "keyId": 0
+            }
+          },
+          "operationTime": {
+            "$timestamp": {
+              "t": 1793602611,
+              "i": 1
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,74 @@
+{
+  "baseline_commit": "f438611",
+  "node": "v24.19.0",
+  "method": "Local production Vite build; entry asset bytes. gzip is Python gzip level 9 with mtime=0. Fonts and HTML unchanged and excluded. No network/load performance claim.",
+  "before": {
+    "baseline_commit": "f438611",
+    "assets": [
+      {
+        "name": "index-DE1opLlT.js",
+        "type": ".js",
+        "bytes": 262071,
+        "gzip_bytes": 80680
+      },
+      {
+        "name": "index-Du9Kk0HJ.css",
+        "type": ".css",
+        "bytes": 60258,
+        "gzip_bytes": 10977
+      }
+    ],
+    "source_lines": {
+      "Frontend/src/App.jsx": 927,
+      "Frontend/src/index.css": 911,
+      "Frontend/src/orbit.css": 3080,
+      "Frontend/src/App.css": 11
+    }
+  },
+  "after": {
+    "assets": [
+      {
+        "name": "index-BV1ddRNp.css",
+        "type": ".css",
+        "bytes": 50422,
+        "gzip_bytes": 9615
+      },
+      {
+        "name": "index-C7NDHEgA.js",
+        "type": ".js",
+        "bytes": 263375,
+        "gzip_bytes": 81290
+      }
+    ],
+    "source_lines": {
+      "Frontend/src/App.jsx": 497,
+      "Frontend/src/index.css": 500,
+      "Frontend/src/orbit.css": 2893
+    }
+  },
+  "css_cleanup": {
+    "shadowed_declarations_removed": 438,
+    "unused_selectors_removed": 16,
+    "computed_style_states": 10,
+    "differences_before_intentional_mobile_changes": 0
+  },
+  "tests": {
+    "files": 20,
+    "passed": 104,
+    "duration_seconds": 12.28
+  },
+  "browser": {
+    "browser": "151.0.7922.173",
+    "checks": [
+      "Saved persistence, detail browser history, dialog focus trap and slash shortcut",
+      "Mobile filter dismissal/focus, short viewport scrolling, 44px clear target and 16px inputs",
+      "Initial loading, failure/retry, retained results during outage and empty recovery",
+      "Cancellable deep-link loading ignores a late response"
+    ],
+    "uncaughtErrors": [],
+    "servers_verified": [
+      "Vite development",
+      "Vite production preview"
+    ]
+  }
+}

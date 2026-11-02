@@ -1,0 +1,254 @@
+"""
+schemas.py — Pydantic models for request validation and OpenAPI response contracts.
+
+Provides strongly typed schemas for:
+- HackathonOut: Normalized hackathon entity exposed to consumers
+- StatsOut: Aggregated radar statistics and telemetry metrics
+- HackathonsResponse: Primary payload for /api/hackathons and /api/v1/hackathons
+- HealthResponse: System liveness and readiness probe
+- MetricsResponse: Performance telemetry (p50, p95 latency)
+- RefreshResponse: Cache eviction contract
+"""
+
+from typing import Optional, Any
+from pydantic import BaseModel, Field
+from event_contract import CanonicalEvent
+
+
+class HackathonOut(BaseModel):
+    id: Optional[str] = Field(default=None, alias="_id", description="MongoDB ObjectID hex string")
+    canonical: Optional[CanonicalEvent] = None
+    title: str = Field(default="", description="Official hackathon title")
+    link: str = Field(default="", description="Sanitized destination URL")
+    source: str = Field(default="Unknown", description="Origin platform (Devfolio, Unstop, Devpost, HackerEarth, etc.)")
+    deadline: Optional[str] = Field(default="TBA", description="Human-readable deadline")
+    registration_deadline: Optional[dict] = None
+    registration_opens_at: Optional[str] = None
+    event_start: Optional[str] = None
+    event_end: Optional[str] = None
+    deadline_iso: Optional[str] = Field(default=None, description="ISO-8601 formatted date (YYYY-MM-DD)")
+    mode: Optional[str] = Field(default=None, description="Event format (Online, Offline, Hybrid), only when known")
+    location: Optional[str] = Field(default=None, description="Physical city/venue or Online")
+    venue: Optional[str] = Field(default=None, description="Physical campus or venue name (e.g. IIIT Hyderabad)")
+    city: Optional[str] = Field(default=None, description="Host city")
+    lat: Optional[float] = Field(default=None, description="Latitude coordinate")
+    lng: Optional[float] = Field(default=None, description="Longitude coordinate")
+    distance_km: Optional[float] = Field(default=None, description="Calculated Haversine distance from client location")
+    tags: list[str] = Field(default_factory=list, description="Categorization and technology tags")
+    prize: Optional[str] = Field(default=None, description="Raw prize pool string")
+    is_top_college: Optional[bool] = Field(default=False, description="Flag for premier institutes (IIT/NIT/IIIT/BITS)")
+    college_name: Optional[str] = Field(default=None, description="Name of host college/university")
+    college_type: Optional[str] = Field(default=None, description="Category of premier college (IIT, NIT, IIIT, BITS)")
+    is_internship: Optional[bool] = Field(default=False, description="Flag indicating PPI or hiring opportunity")
+    status: Optional[str] = Field(default=None, description="Registration status, only when supported by source evidence")
+    is_past: Optional[bool] = Field(default=False, description="Whether event registration has passed")
+    total_registrations: Optional[Any] = Field(default=None, description="Total verified participants")
+    registrations: Optional[Any] = Field(default=None, description="Legacy registration count alias")
+    min_team_size: Optional[Any] = Field(default=None, description="Minimum team size requirement")
+    max_team_size: Optional[Any] = Field(default=None, description="Maximum team size limit")
+    scraped_at: Optional[str] = Field(default=None, description="ISO timestamp of discovery sweep")
+    desc: Optional[str] = Field(default=None, description="Event description or theme excerpt")
+    opportunity_type: Optional[str] = Field(default=None, description="Type (Hackathon, Internship, Hiring Challenge)")
+    discovery_source: Optional[str] = Field(default=None, description="Discovery channel (platform, instagram, web_discovery)")
+    verified: Optional[bool] = Field(default=None, description="Whether the hackathon passed multi-signal verification")
+    verification_confidence: Optional[float] = Field(default=None, description="Verification confidence score (0.0-1.0)")
+    source_account: Optional[str] = Field(default=None, description="Instagram/social account that posted the hackathon")
+    instagram_post_url: Optional[str] = Field(default=None, description="Original Instagram post URL if discovered from Instagram")
+    image: Optional[str] = Field(default=None, description="Event banner/poster image URL")
+
+    model_config = {
+        "populate_by_name": True,
+        "extra": "ignore",
+    }
+
+
+class StatsOut(BaseModel):
+    open_count: int = 0
+    closing_count: int = 0
+    total: int = Field(default=0, description="Active upcoming hackathons currently indexed (excluding lost opportunities)")
+    active_count: Optional[int] = Field(default=0, description="Count of active/upcoming hackathons")
+    lost_opportunities_count: Optional[int] = Field(default=0, description="Count of past/expired hackathons (lost opportunities)")
+    all_total: Optional[int] = Field(default=0, description="Total count across all active and lost opportunities")
+    unique_tags: int = Field(default=0, description="Count of distinct tech/theme tags")
+    sources: list[str] = Field(default_factory=list, description="List of active scraper sources")
+    source_counts: dict[str, int] = Field(default_factory=dict, description="Count of hackathons per source platform")
+    last_scraped: str = Field(default="", description="ISO timestamp of most recent scraper sweep")
+    top_college_count: int = Field(default=0, description="Number of IIT/NIT/IIIT/BITS events")
+    internship_count: int = Field(default=0, description="Number of PPI/internship opportunities")
+    college_types: list[str] = Field(default_factory=list, description="Active college tiers indexed")
+    online_count: int = Field(default=0, description="Count of virtual events")
+    offline_count: int = Field(default=0, description="Count of in-person events")
+    unique_sources_count: int = Field(default=0, description="Count from boutique/unique sources")
+    hackathon_count: int = Field(default=0, description="Verified hackathons count")
+    total_prize_pool_inr: float = Field(default=0.0, description="Aggregated prize pool in Indian Rupees")
+    total_prize_pool_formatted: str = Field(default="₹0", description="Formatted prize pool string (Cr/Lakh)")
+    total_registrations: int = Field(default=0, description="Sum of registered participants across all events")
+    total_registrations_formatted: str = Field(default="0", description="Formatted registration count (e.g. 42.5k)")
+    p50_latency_ms: Optional[float] = Field(default=None, description="Measured median API server response latency, when available")
+    recalculated_cadence: Optional[str] = Field(default=None, description="Reported collection schedule, when available")
+    calculated_at: str = Field(default="", description="ISO timestamp of statistics aggregation")
+
+
+class HackathonsResponse(BaseModel):
+    success: bool = Field(default=True, description="Request execution status")
+    count: int = Field(default=0, description="Number of hackathons returned in this page")
+    data: list[HackathonOut] = Field(default_factory=list, description="Paginated hackathon entities")
+    upcoming_total: int = Field(default=0, description="Total upcoming opportunities matching filter")
+    missed_total: int = Field(default=0, description="Total past opportunities matching filter")
+    lost_opportunities_total: Optional[int] = Field(default=0, description="Total lost opportunities matching filter")
+    all_total: Optional[int] = Field(default=0, description="Total opportunities matching filter across all tabs")
+    stats: Optional[StatsOut] = Field(default=None, description="System-wide aggregate radar telemetry")
+
+
+class HackathonDetailOut(HackathonOut):
+    mode: Optional[str] = None
+    status: Optional[str] = None
+    tagline: Optional[str] = None
+    organizer: Optional[str] = Field(default=None, description="Organizer name, only when supplied by the source")
+    eligibility: Optional[str] = Field(default=None, description="Eligibility requirements, only when supplied by the source")
+
+
+class HackathonDetailResponse(BaseModel):
+    success: bool = True
+    data: Optional[HackathonDetailOut] = None
+    error: Optional[str] = None
+
+
+class HealthResponse(BaseModel):
+    status: str = Field(..., description="Service status ('healthy' or 'unhealthy')")
+    database: Optional[str] = Field(default=None, description="MongoDB connection state")
+    reason: Optional[str] = Field(default=None, description="Failure reason if degraded")
+
+
+class MetricsResponse(BaseModel):
+    request_count: Optional[int] = Field(default=None, description="Total requests tracked in sample window")
+    p50_ms: Optional[float] = Field(default=None, description="Median latency in milliseconds")
+    p95_ms: Optional[float] = Field(default=None, description="95th percentile latency in milliseconds")
+    min_ms: Optional[float] = Field(default=None, description="Minimum observed latency")
+    max_ms: Optional[float] = Field(default=None, description="Maximum observed latency")
+    cache_ttl_seconds: Optional[int] = Field(default=None, description="Configured cache expiration time")
+    cache_size: Optional[int] = Field(default=None, description="Active items in in-memory TTLCache")
+    message: Optional[str] = Field(default=None, description="Notice if insufficient requests recorded")
+
+
+class RefreshResponse(BaseModel):
+    success: bool = Field(..., description="Whether cache purge succeeded")
+    cleared: Optional[int] = Field(default=None, description="Number of cache slots evicted")
+    message: Optional[str] = Field(default=None, description="Operational summary message")
+    error: Optional[str] = Field(default=None, description="Error reason on rejection")
+
+
+class CommunitySubmissionRequest(BaseModel):
+    url: str = Field(min_length=10, max_length=2048)
+
+
+class HackathonAutoListRequest(BaseModel):
+    link: str = Field(..., description="Target hackathon URL or registration link")
+    title: Optional[str] = Field(default=None, description="Title (auto-extracted from page if omitted)")
+    desc: Optional[str] = Field(default=None, description="Description or themes")
+    mode: Optional[str] = Field(default=None, description="Event format (Online, Offline, Hybrid), only when known")
+    location: Optional[str] = Field(default=None, description="Physical city or venue if offline")
+    venue: Optional[str] = Field(default=None, description="Specific campus or venue name (e.g. IIIT Hyderabad)")
+    city: Optional[str] = Field(default=None, description="Host city")
+    deadline: Optional[str] = Field(default=None, description="Human-readable or ISO deadline")
+    deadline_iso: Optional[str] = Field(default=None, description="ISO-8601 formatted date (YYYY-MM-DD)")
+    prize: Optional[str] = Field(default=None, description="Prize pool information")
+    tags: Optional[list[str]] = Field(default_factory=list, description="Categorization or technology tags")
+    source: Optional[str] = Field(default=None, description="Origin platform or organization")
+    fetch_metadata: Optional[bool] = Field(default=True, description="Whether to scrape OpenGraph/HTML metadata if missing")
+
+
+class HackathonAutoListResponse(BaseModel):
+    success: bool = Field(..., description="Whether hackathon was auto-listed successfully")
+    message: str = Field(..., description="Status summary or operational details")
+    is_new: bool = Field(default=True, description="True if new insert, False if updated existing")
+    data: Optional[HackathonOut] = Field(default=None, description="Enriched hackathon document")
+
+
+class HackathonPreviewRequest(BaseModel):
+    link: str = Field(..., description="Target URL to fetch preview metadata for")
+
+
+class HackathonPreviewResponse(BaseModel):
+    success: bool = Field(..., description="Whether preview metadata was successfully scraped")
+    title: Optional[str] = None
+    desc: Optional[str] = None
+    source: Optional[str] = None
+    mode: Optional[str] = None
+    location: Optional[str] = None
+    venue: Optional[str] = None
+    city: Optional[str] = None
+    tags: list[str] = Field(default_factory=list)
+    image: Optional[str] = None
+    message: Optional[str] = None
+
+
+class ScannerTriggerRequest(BaseModel):
+    keywords: Optional[list[str]] = Field(default=None, description="Keywords to scan (e.g. ['iit', 'pune', 'iiit hyderabad']). If omitted, scans all defaults.")
+
+
+class ScannerTriggerResponse(BaseModel):
+    success: bool = Field(..., description="Scan execution status")
+    message: str = Field(..., description="Summary message")
+    total_found: int = Field(default=0, description="Total opportunities discovered across web")
+    new_indexed: int = Field(default=0, description="Count of newly indexed unique hackathons")
+    keywords_scanned: list[str] = Field(default_factory=list, description="List of keywords processed")
+    elapsed_seconds: Optional[float] = Field(default=None, description="Time taken to scan in seconds")
+
+
+class ScannerStatusResponse(BaseModel):
+    is_scanning: bool = Field(default=False)
+    last_scanned_at: Optional[str] = None
+    total_scans_run: int = Field(default=0)
+    total_new_indexed: int = Field(default=0)
+    active_keywords: dict[str, list[str]] = Field(default_factory=dict)
+    last_scan_logs: list[str] = Field(default_factory=list)
+
+
+class InstagramScanRequest(BaseModel):
+    accounts: Optional[list[str]] = Field(default=None, description="Instagram accounts to scan (defaults to curated list)")
+    hashtags: Optional[list[str]] = Field(default=None, description="Instagram hashtags to scan (defaults to curated list)")
+
+
+class InstagramScanResponse(BaseModel):
+    success: bool = Field(..., description="Whether Instagram scan completed")
+    message: str = Field(..., description="Status summary")
+    total_found: int = Field(default=0, description="Total posts discovered")
+    new_indexed: int = Field(default=0, description="New hackathons indexed")
+    elapsed_seconds: Optional[float] = Field(default=None, description="Time taken")
+
+
+class WebDiscoveryRequest(BaseModel):
+    queries: Optional[list[str]] = Field(default=None, description="Custom search queries")
+
+
+class WebDiscoveryResponse(BaseModel):
+    success: bool = Field(..., description="Whether web discovery completed")
+    message: str = Field(..., description="Status summary")
+    total_found: int = Field(default=0, description="Total events discovered")
+    new_indexed: int = Field(default=0, description="New hackathons indexed")
+    elapsed_seconds: Optional[float] = Field(default=None, description="Time taken")
+
+
+class VerifyHackathonRequest(BaseModel):
+    title: str = Field(..., description="Hackathon title")
+    link: str = Field(..., description="Hackathon URL")
+    desc: Optional[str] = Field(default="", description="Description")
+    source: Optional[str] = Field(default="", description="Source platform")
+    deadline_iso: Optional[str] = Field(default=None, description="ISO deadline")
+
+
+class VerifyHackathonResponse(BaseModel):
+    is_verified: bool = Field(..., description="Deprecated; always false for heuristic screening")
+    confidence: Optional[float] = Field(default=None, description="Unknown: heuristic screening is not verification")
+    screening_passed: Optional[bool] = None
+    heuristic_score: Optional[float] = None
+    signals: dict = Field(default_factory=dict, description="Individual signal scores")
+    issues: list[str] = Field(default_factory=list, description="Problems found")
+    recommendation: str = Field(default="", description="accept, review, or reject")
+
+
+class SubmissionReviewRequest(BaseModel):
+    decision: str = Field(pattern=r'^(approve|reject)$')
+    event: dict = Field(default_factory=dict, description='Administrator-curated source facts; link comes from submitted URL')
+    note: str = Field(default='', max_length=2000)

@@ -1,0 +1,883 @@
+{
+  "description": "Entirely synthetic author-labeled examples. Names, platforms and URLs are invented; labels encode fixture intent, not real-world ground truth. Expected REVIEW is an algorithm abstention, not a third ground-truth class.",
+  "cases": [
+    {
+      "name": "canonical_tracking",
+      "same_entity": true,
+      "expected": "MATCH",
+      "left": {
+        "title": "Synthetic Lantern Constellation Hackathon 2027",
+        "organizer": "Synthetic Northlake University",
+        "event_start": "2027-06-12",
+        "mode": "Online",
+        "source": "Fixture Platform A",
+        "source_event_id": "edition-1",
+        "link": "https://example.com/lantern",
+        "registration_deadline": {
+          "date": "2027-06-01"
+        }
+      },
+      "right": {
+        "title": "Synthetic Lantern Constellation Hackathon 2027",
+        "organizer": "Synthetic Northlake University",
+        "event_start": "2027-06-12",
+        "mode": "Online",
+        "source": "Fixture Platform A",
+        "source_event_id": "edition-1",
+        "link": "https://EXAMPLE.com:443/lantern?utm_source=fixture",
+        "registration_deadline": {
+          "date": "2027-06-01"
+        }
+      }
+    },
+    {
+      "name": "provider_rename",
+      "same_entity": true,
+      "expected": "MATCH",
+      "left": {
+        "title": "Synthetic Lantern Constellation Hackathon 2027",
+        "organizer": "Synthetic Northlake University",
+        "event_start": "2027-06-12",
+        "mode": "Online",
+        "source": "Fixture Platform A",
+        "source_event_id": "edition-1",
+        "link": "https://example.com/lantern",
+        "registration_deadline": {
+          "date": "2027-06-01"
+        }
+      },
+      "right": {
+        "title": "Synthetic Renamed Workshop",
+        "organizer": "Synthetic Northlake University",
+        "event_start": "2027-06-12",
+        "mode": "Online",
+        "source": "Fixture Platform A",
+        "source_event_id": "edition-1",
+        "link": "https://example.com/renamed",
+        "registration_deadline": {
+          "date": "2027-06-01"
+        }
+      }
+    },
+    {
+      "name": "legacy_exact_edition",
+      "same_entity": true,
+      "expected": "MATCH",
+      "left": {
+        "title": "Synthetic Lantern Constellation Hackathon 2027",
+        "organizer": "Synthetic Northlake University",
+        "event_start": "2027-06-12",
+        "mode": "Online",
+        "source": "Fixture Platform A",
+        "source_event_id": "edition-1",
+        "link": "https://example.com/lantern",
+        "registration_deadline": {
+          "date": "2027-06-01"
+        }
+      },
+      "right": {
+        "title": "Synthetic Lantern Constellation Hackathon 2027",
+        "organizer": "Synthetic Northlake University",
+        "event_start": "2027-06-12",
+        "mode": "Online",
+        "source": "Fixture B",
+        "source_event_id": "mirror",
+        "link": "https://mirror.example/one",
+        "registration_deadline": {
+          "date": "2027-06-01"
+        }
+      }
+    },
+    {
+      "name": "title_typo",
+      "same_entity": true,
+      "expected": "MATCH",
+      "left": {
+        "title": "Synthetic Lantern Constellation Hackathon 2027",
+        "organizer": "Synthetic Northlake University",
+        "event_start": "2027-06-12",
+        "mode": "Online",
+        "source": "Fixture Platform A",
+        "source_event_id": "edition-1",
+        "link": "https://example.com/lantern",
+        "registration_deadline": {
+          "date": "2027-06-01"
+        }
+      },
+      "right": {
+        "title": "Synthetic Lantarn Constellation Hackathon 2027",
+        "organizer": "Synthetic Northlake University",
+        "event_start": "2027-06-12",
+        "mode": "Online",
+        "source": "Fixture B",
+        "source_event_id": "mirror",
+        "link": "https://mirror.example/typo",
+        "registration_deadline": {
+          "date": "2027-06-01"
+        }
+      }
+    },
+    {
+      "name": "organizer_abbreviation",
+      "same_entity": true,
+      "expected": "MATCH",
+      "left": {
+        "title": "Synthetic Lantern Constellation Hackathon 2027",
+        "organizer": "Synthetic Northlake University",
+        "event_start": "2027-06-12",
+        "mode": "Online",
+        "source": "Fixture Platform A",
+        "source_event_id": "edition-1",
+        "link": "https://example.com/lantern",
+        "registration_deadline": {
+          "date": "2027-06-01"
+        }
+      },
+      "right": {
+        "title": "Synthetic Lantern Constellation Hackathon 2027",
+        "organizer": "Synthetic Northlake Univ.",
+        "event_start": "2027-06-12",
+        "mode": "Online",
+        "source": "Fixture B",
+        "source_event_id": "mirror",
+        "link": "https://mirror.example/abbrev",
+        "registration_deadline": {
+          "date": "2027-06-01"
+        }
+      }
+    },
+    {
+      "name": "date_shift",
+      "same_entity": true,
+      "expected": "MATCH",
+      "left": {
+        "title": "Synthetic Lantern Constellation Hackathon 2027",
+        "organizer": "Synthetic Northlake University",
+        "event_start": "2027-06-12",
+        "mode": "Online",
+        "source": "Fixture Platform A",
+        "source_event_id": "edition-1",
+        "link": "https://example.com/lantern",
+        "registration_deadline": {
+          "date": "2027-06-01"
+        }
+      },
+      "right": {
+        "title": "Synthetic Lantern Constellation Hackathon 2027",
+        "organizer": "Synthetic Northlake University",
+        "event_start": "2027-06-14",
+        "mode": "Online",
+        "source": "Fixture B",
+        "source_event_id": "mirror",
+        "link": "https://mirror.example/shift",
+        "registration_deadline": {
+          "date": "2027-06-01"
+        }
+      }
+    },
+    {
+      "name": "title_reorder",
+      "same_entity": true,
+      "expected": "MATCH",
+      "left": {
+        "title": "Synthetic Lantern Constellation Hackathon 2027",
+        "organizer": "Synthetic Northlake University",
+        "event_start": "2027-06-12",
+        "mode": "Online",
+        "source": "Fixture Platform A",
+        "source_event_id": "edition-1",
+        "link": "https://example.com/lantern",
+        "registration_deadline": {
+          "date": "2027-06-01"
+        }
+      },
+      "right": {
+        "title": "Constellation Lantern Synthetic 2027 Hackathon",
+        "organizer": "Synthetic Northlake University",
+        "event_start": "2027-06-12",
+        "mode": "Online",
+        "source": "Fixture B",
+        "source_event_id": "mirror",
+        "link": "https://mirror.example/reorder",
+        "registration_deadline": {
+          "date": "2027-06-01"
+        }
+      }
+    },
+    {
+      "name": "missing_organizer_exact_url",
+      "same_entity": true,
+      "expected": "MATCH",
+      "left": {
+        "title": "Synthetic Lantern Constellation Hackathon 2027",
+        "organizer": "Synthetic Northlake University",
+        "event_start": "2027-06-12",
+        "mode": "Online",
+        "source": "Fixture Platform A",
+        "source_event_id": "edition-1",
+        "link": "https://example.com/lantern",
+        "registration_deadline": {
+          "date": "2027-06-01"
+        }
+      },
+      "right": {
+        "title": "Synthetic Lantern Constellation Hackathon 2027",
+        "organizer": null,
+        "event_start": "2027-06-12",
+        "mode": "Online",
+        "source": "Fixture B",
+        "source_event_id": null,
+        "link": "https://example.com/lantern",
+        "registration_deadline": {
+          "date": "2027-06-01"
+        }
+      }
+    },
+    {
+      "name": "missing_dates_exact_id",
+      "same_entity": true,
+      "expected": "MATCH",
+      "left": {
+        "title": "Synthetic Lantern Constellation Hackathon 2027",
+        "organizer": "Synthetic Northlake University",
+        "event_start": "2027-06-12",
+        "mode": "Online",
+        "source": "Fixture Platform A",
+        "source_event_id": "edition-1",
+        "link": "https://example.com/lantern",
+        "registration_deadline": {
+          "date": "2027-06-01"
+        }
+      },
+      "right": {
+        "title": "Synthetic Lantern Constellation Hackathon 2027",
+        "organizer": "Synthetic Northlake University",
+        "event_start": null,
+        "mode": "Online",
+        "source": "Fixture Platform A",
+        "source_event_id": "edition-1",
+        "link": "https://mirror.example/no-date",
+        "registration_deadline": {
+          "date": "2027-06-01"
+        }
+      }
+    },
+    {
+      "name": "physical_location_typography",
+      "same_entity": true,
+      "expected": "MATCH",
+      "left": {
+        "title": "Synthetic Lantern Constellation Hackathon 2027",
+        "organizer": "Synthetic Northlake University",
+        "event_start": "2027-06-12",
+        "mode": "Offline",
+        "source": "Fixture Platform A",
+        "source_event_id": "edition-1",
+        "link": "https://example.com/lantern",
+        "registration_deadline": {
+          "date": "2027-06-01"
+        },
+        "city": "Synthetic Harbor"
+      },
+      "right": {
+        "title": "Synthetic Lantern Constellation Hackathon 2027",
+        "organizer": "Synthetic Northlake University",
+        "event_start": "2027-06-12",
+        "mode": "Offline",
+        "source": "Fixture B",
+        "source_event_id": "mirror",
+        "link": "https://mirror.example/physical",
+        "registration_deadline": {
+          "date": "2027-06-01"
+        },
+        "city": "Synthetic-Harbor"
+      }
+    },
+    {
+      "name": "missing_date_fuzzy",
+      "same_entity": true,
+      "expected": "REVIEW",
+      "left": {
+        "title": "Synthetic Lantern Constellation Hackathon 2027",
+        "organizer": "Synthetic Northlake University",
+        "event_start": "2027-06-12",
+        "mode": "Online",
+        "source": "Fixture Platform A",
+        "source_event_id": "edition-1",
+        "link": "https://example.com/lantern",
+        "registration_deadline": {
+          "date": "2027-06-01"
+        }
+      },
+      "right": {
+        "title": "Synthetic Lantern Constellation Hackathon 2027",
+        "organizer": "Synthetic Northlake University",
+        "event_start": null,
+        "mode": "Online",
+        "source": "Fixture B",
+        "source_event_id": "mirror",
+        "link": "https://mirror.example/missing",
+        "registration_deadline": {
+          "date": "2027-06-01"
+        }
+      }
+    },
+    {
+      "name": "two_week_disagreement",
+      "same_entity": true,
+      "expected": "REVIEW",
+      "left": {
+        "title": "Synthetic Lantern Constellation Hackathon 2027",
+        "organizer": "Synthetic Northlake University",
+        "event_start": "2027-06-12",
+        "mode": "Online",
+        "source": "Fixture Platform A",
+        "source_event_id": "edition-1",
+        "link": "https://example.com/lantern",
+        "registration_deadline": {
+          "date": "2027-06-01"
+        }
+      },
+      "right": {
+        "title": "Synthetic Lantern Constellation Hackathon 2027",
+        "organizer": "Synthetic Northlake University",
+        "event_start": "2027-06-26",
+        "mode": "Online",
+        "source": "Fixture B",
+        "source_event_id": "mirror",
+        "link": "https://mirror.example/two-week",
+        "registration_deadline": {
+          "date": "2027-06-01"
+        }
+      }
+    },
+    {
+      "name": "missing_location_fuzzy",
+      "same_entity": true,
+      "expected": "REVIEW",
+      "left": {
+        "title": "Synthetic Lantern Constellation Hackathon 2027",
+        "organizer": "Synthetic Northlake University",
+        "event_start": "2027-06-12",
+        "mode": "Offline",
+        "source": "Fixture Platform A",
+        "source_event_id": "edition-1",
+        "link": "https://example.com/lantern",
+        "registration_deadline": {
+          "date": "2027-06-01"
+        },
+        "city": "Synthetic Harbor"
+      },
+      "right": {
+        "title": "Synthetic Lantern Constellation Hackathon 2027",
+        "organizer": "Synthetic Northlake University",
+        "event_start": "2027-06-12",
+        "mode": "Offline",
+        "source": "Fixture B",
+        "source_event_id": "mirror",
+        "link": "https://mirror.example/unknown-location",
+        "registration_deadline": {
+          "date": "2027-06-01"
+        },
+        "city": null,
+        "location": null
+      }
+    },
+    {
+      "name": "annual_new_url",
+      "same_entity": false,
+      "expected": "DISTINCT",
+      "left": {
+        "title": "Synthetic Lantern Constellation Hackathon 2027",
+        "organizer": "Synthetic Northlake University",
+        "event_start": "2027-06-12",
+        "mode": "Online",
+        "source": "Fixture Platform A",
+        "source_event_id": "edition-1",
+        "link": "https://example.com/lantern",
+        "registration_deadline": {
+          "date": "2027-06-01"
+        }
+      },
+      "right": {
+        "title": "Synthetic Lantern Constellation Hackathon 2028",
+        "organizer": "Synthetic Northlake University",
+        "event_start": "2028-06-12",
+        "mode": "Online",
+        "source": "Fixture B",
+        "source_event_id": "edition-2",
+        "link": "https://mirror.example/2028",
+        "registration_deadline": {
+          "date": "2027-06-01"
+        }
+      }
+    },
+    {
+      "name": "annual_reused_url",
+      "same_entity": false,
+      "expected": "REVIEW",
+      "left": {
+        "title": "Synthetic Lantern Constellation Hackathon 2027",
+        "organizer": "Synthetic Northlake University",
+        "event_start": "2027-06-12",
+        "mode": "Online",
+        "source": "Fixture Platform A",
+        "source_event_id": "edition-1",
+        "link": "https://example.com/lantern",
+        "registration_deadline": {
+          "date": "2027-06-01"
+        }
+      },
+      "right": {
+        "title": "Synthetic Lantern Constellation Hackathon 2028",
+        "organizer": "Synthetic Northlake University",
+        "event_start": "2028-06-12",
+        "mode": "Online",
+        "source": "Fixture Platform A",
+        "source_event_id": "edition-2",
+        "link": "https://example.com/lantern",
+        "registration_deadline": {
+          "date": "2027-06-01"
+        }
+      }
+    },
+    {
+      "name": "annual_reused_source_id",
+      "same_entity": false,
+      "expected": "REVIEW",
+      "left": {
+        "title": "Synthetic Lantern Constellation Hackathon 2027",
+        "organizer": "Synthetic Northlake University",
+        "event_start": "2027-06-12",
+        "mode": "Online",
+        "source": "Fixture Platform A",
+        "source_event_id": "edition-1",
+        "link": "https://example.com/lantern",
+        "registration_deadline": {
+          "date": "2027-06-01"
+        }
+      },
+      "right": {
+        "title": "Synthetic Lantern Constellation Hackathon 2028",
+        "organizer": "Synthetic Northlake University",
+        "event_start": "2028-06-12",
+        "mode": "Online",
+        "source": "Fixture Platform A",
+        "source_event_id": "edition-1",
+        "link": "https://example.com/2028",
+        "registration_deadline": {
+          "date": "2027-06-01"
+        }
+      }
+    },
+    {
+      "name": "annual_title_only_reused_url",
+      "same_entity": false,
+      "expected": "REVIEW",
+      "left": {
+        "title": "Synthetic Lantern Constellation Hackathon 2027",
+        "organizer": "Synthetic Northlake University",
+        "event_start": null,
+        "mode": "Online",
+        "source": "Fixture Platform A",
+        "source_event_id": "edition-1",
+        "link": "https://example.com/lantern",
+        "registration_deadline": {
+          "date": "2027-06-01"
+        }
+      },
+      "right": {
+        "title": "Synthetic Lantern Constellation Hackathon 2028",
+        "organizer": "Synthetic Northlake University",
+        "event_start": null,
+        "mode": "Online",
+        "source": "Fixture B",
+        "source_event_id": null,
+        "link": "https://example.com/lantern",
+        "registration_deadline": {
+          "date": "2027-06-01"
+        }
+      }
+    },
+    {
+      "name": "near_organizer_hard_negative",
+      "same_entity": false,
+      "expected": "REVIEW",
+      "left": {
+        "title": "Synthetic Lantern Constellation Hackathon 2027",
+        "organizer": "Synthetic Northlake University",
+        "event_start": "2027-06-12",
+        "mode": "Online",
+        "source": "Fixture Platform A",
+        "source_event_id": "edition-1",
+        "link": "https://example.com/lantern",
+        "registration_deadline": {
+          "date": "2027-06-01"
+        }
+      },
+      "right": {
+        "title": "Synthetic Lantern Constellation Hackathon 2027",
+        "organizer": "Synthetic Southlake University",
+        "event_start": "2027-06-12",
+        "mode": "Online",
+        "source": "Fixture B",
+        "source_event_id": "other",
+        "link": "https://mirror.example/south",
+        "registration_deadline": {
+          "date": "2027-06-01"
+        }
+      }
+    },
+    {
+      "name": "different_physical_city",
+      "same_entity": false,
+      "expected": "REVIEW",
+      "left": {
+        "title": "Synthetic Lantern Constellation Hackathon 2027",
+        "organizer": "Synthetic Northlake University",
+        "event_start": "2027-06-12",
+        "mode": "Offline",
+        "source": "Fixture Platform A",
+        "source_event_id": "edition-1",
+        "link": "https://example.com/lantern",
+        "registration_deadline": {
+          "date": "2027-06-01"
+        },
+        "city": "Synthetic Harbor"
+      },
+      "right": {
+        "title": "Synthetic Lantern Constellation Hackathon 2027",
+        "organizer": "Synthetic Northlake University",
+        "event_start": "2027-06-12",
+        "mode": "Offline",
+        "source": "Fixture B",
+        "source_event_id": "other",
+        "link": "https://mirror.example/city",
+        "registration_deadline": {
+          "date": "2027-06-01"
+        },
+        "city": "Synthetic Mountain"
+      }
+    },
+    {
+      "name": "different_format",
+      "same_entity": false,
+      "expected": "REVIEW",
+      "left": {
+        "title": "Synthetic Lantern Constellation Hackathon 2027",
+        "organizer": "Synthetic Northlake University",
+        "event_start": "2027-06-12",
+        "mode": "Online",
+        "source": "Fixture Platform A",
+        "source_event_id": "edition-1",
+        "link": "https://example.com/lantern",
+        "registration_deadline": {
+          "date": "2027-06-01"
+        }
+      },
+      "right": {
+        "title": "Synthetic Lantern Constellation Hackathon 2027",
+        "organizer": "Synthetic Northlake University",
+        "event_start": "2027-06-12",
+        "mode": "Offline",
+        "source": "Fixture B",
+        "source_event_id": "other",
+        "link": "https://mirror.example/offline",
+        "registration_deadline": {
+          "date": "2027-06-01"
+        },
+        "city": "Synthetic Harbor"
+      }
+    },
+    {
+      "name": "different_theme_same_host_day",
+      "same_entity": false,
+      "expected": "DISTINCT",
+      "left": {
+        "title": "Synthetic Lantern Constellation Hackathon 2027",
+        "organizer": "Synthetic Northlake University",
+        "event_start": "2027-06-12",
+        "mode": "Online",
+        "source": "Fixture Platform A",
+        "source_event_id": "edition-1",
+        "link": "https://example.com/lantern",
+        "registration_deadline": {
+          "date": "2027-06-01"
+        }
+      },
+      "right": {
+        "title": "Synthetic Ocean Robotics Challenge 2027",
+        "organizer": "Synthetic Northlake University",
+        "event_start": "2027-06-12",
+        "mode": "Online",
+        "source": "Fixture B",
+        "source_event_id": "other",
+        "link": "https://mirror.example/robotics",
+        "registration_deadline": {
+          "date": "2027-06-01"
+        }
+      }
+    },
+    {
+      "name": "same_year_distant_edition",
+      "same_entity": false,
+      "expected": "DISTINCT",
+      "left": {
+        "title": "Synthetic Lantern Constellation Hackathon 2027",
+        "organizer": "Synthetic Northlake University",
+        "event_start": "2027-06-12",
+        "mode": "Online",
+        "source": "Fixture Platform A",
+        "source_event_id": "edition-1",
+        "link": "https://example.com/lantern",
+        "registration_deadline": {
+          "date": "2027-06-01"
+        }
+      },
+      "right": {
+        "title": "Synthetic Lantern Constellation Hackathon 2027",
+        "organizer": "Synthetic Northlake University",
+        "event_start": "2027-11-12",
+        "mode": "Online",
+        "source": "Fixture B",
+        "source_event_id": "other",
+        "link": "https://mirror.example/winter",
+        "registration_deadline": {
+          "date": "2027-06-01"
+        }
+      }
+    },
+    {
+      "name": "registration_dates_are_not_event_dates",
+      "same_entity": false,
+      "expected": "DISTINCT",
+      "left": {
+        "title": "Synthetic Lantern Constellation Hackathon 2027",
+        "organizer": "Synthetic Northlake University",
+        "event_start": "2027-01-12",
+        "mode": "Online",
+        "source": "Fixture Platform A",
+        "source_event_id": "edition-1",
+        "link": "https://example.com/lantern",
+        "registration_deadline": {
+          "date": "2027-06-01"
+        }
+      },
+      "right": {
+        "title": "Synthetic Lantern Constellation Hackathon 2027",
+        "organizer": "Synthetic Northlake University",
+        "event_start": "2027-12-12",
+        "mode": "Online",
+        "source": "Fixture B",
+        "source_event_id": "other",
+        "link": "https://mirror.example/calendar",
+        "registration_deadline": {
+          "date": "2027-06-01"
+        }
+      }
+    },
+    {
+      "name": "conflicting_title_year_and_date",
+      "same_entity": false,
+      "expected": "DISTINCT",
+      "left": {
+        "title": "Synthetic Lantern Constellation Hackathon 2027",
+        "organizer": "Synthetic Northlake University",
+        "event_start": "2027-06-12",
+        "mode": "Online",
+        "source": "Fixture Platform A",
+        "source_event_id": "edition-1",
+        "link": "https://example.com/lantern",
+        "registration_deadline": {
+          "date": "2027-06-01"
+        }
+      },
+      "right": {
+        "title": "Synthetic Lantern Constellation Hackathon 2028",
+        "organizer": "Synthetic Northlake University",
+        "event_start": "2027-06-12",
+        "mode": "Online",
+        "source": "Fixture B",
+        "source_event_id": "other",
+        "link": "https://mirror.example/year-conflict",
+        "registration_deadline": {
+          "date": "2027-06-01"
+        }
+      }
+    },
+    {
+      "name": "platform_ids_differ_same_day",
+      "same_entity": false,
+      "expected": "REVIEW",
+      "left": {
+        "title": "Synthetic Lantern Constellation Hackathon 2027",
+        "organizer": "Synthetic Northlake University",
+        "event_start": "2027-06-12",
+        "mode": "Online",
+        "source": "Fixture Platform A",
+        "source_event_id": "edition-1",
+        "link": "https://example.com/lantern",
+        "registration_deadline": {
+          "date": "2027-06-01"
+        }
+      },
+      "right": {
+        "title": "Synthetic Lantern Constellation Hackathon 2027",
+        "organizer": "Synthetic Northlake University",
+        "event_start": "2027-06-12",
+        "mode": "Online",
+        "source": "Fixture Platform A",
+        "source_event_id": "different-event",
+        "link": "https://example.com/second",
+        "registration_deadline": {
+          "date": "2027-06-01"
+        }
+      }
+    },
+    {
+      "name": "unicode_normalization",
+      "same_entity": true,
+      "expected": "MATCH",
+      "left": {
+        "title": "\uff33ynthetic Lantern Constellation 2027",
+        "organizer": "Synthetic Northlake University",
+        "event_start": "2027-06-12",
+        "mode": "Online",
+        "source": "Fixture Platform A",
+        "source_event_id": "edition-1",
+        "link": "https://example.com/lantern",
+        "registration_deadline": {
+          "date": "2027-06-01"
+        }
+      },
+      "right": {
+        "title": "Synthetic Lantern Constellation 2027",
+        "organizer": "Synthetic Northlake University",
+        "event_start": "2027-06-12",
+        "mode": "Online",
+        "source": "Fixture B",
+        "source_event_id": "mirror",
+        "link": "https://mirror.example/unicode",
+        "registration_deadline": {
+          "date": "2027-06-01"
+        }
+      }
+    },
+    {
+      "name": "organizer_suffix_hard_negative",
+      "same_entity": false,
+      "expected": "REVIEW",
+      "left": {
+        "title": "Synthetic Lantern Constellation Hackathon 2027",
+        "organizer": "Synthetic Northlake University A",
+        "event_start": "2027-06-12",
+        "mode": "Online",
+        "source": "Fixture Platform A",
+        "source_event_id": "edition-1",
+        "link": "https://example.com/lantern",
+        "registration_deadline": {
+          "date": "2027-06-01"
+        }
+      },
+      "right": {
+        "title": "Synthetic Lantern Constellation Hackathon 2027",
+        "organizer": "Synthetic Northlake University B",
+        "event_start": "2027-06-12",
+        "mode": "Online",
+        "source": "Fixture B",
+        "source_event_id": "separate",
+        "link": "https://mirror.example/organizer_suffix_hard_negative",
+        "registration_deadline": {
+          "date": "2027-06-01"
+        }
+      }
+    },
+    {
+      "name": "title_variant_hard_negative",
+      "same_entity": false,
+      "expected": "REVIEW",
+      "left": {
+        "title": "Synthetic Lantern Constellation Hackathon 2027",
+        "organizer": "Synthetic Northlake University",
+        "event_start": "2027-06-12",
+        "mode": "Online",
+        "source": "Fixture Platform A",
+        "source_event_id": "edition-1",
+        "link": "https://example.com/lantern",
+        "registration_deadline": {
+          "date": "2027-06-01"
+        }
+      },
+      "right": {
+        "title": "Synthetic Lantern Constellation Pro Hackathon 2027",
+        "organizer": "Synthetic Northlake University",
+        "event_start": "2027-06-12",
+        "mode": "Online",
+        "source": "Fixture B",
+        "source_event_id": "separate",
+        "link": "https://mirror.example/title_variant_hard_negative",
+        "registration_deadline": {
+          "date": "2027-06-01"
+        }
+      }
+    },
+    {
+      "name": "numbered_editions_same_year",
+      "same_entity": false,
+      "expected": "DISTINCT",
+      "left": {
+        "title": "Synthetic Lantern Constellation Round 1 2027",
+        "organizer": "Synthetic Northlake University",
+        "event_start": "2027-06-12",
+        "mode": "Online",
+        "source": "Fixture Platform A",
+        "source_event_id": "edition-1",
+        "link": "https://example.com/lantern",
+        "registration_deadline": {
+          "date": "2027-06-01"
+        }
+      },
+      "right": {
+        "title": "Synthetic Lantern Constellation Round 2 2027",
+        "organizer": "Synthetic Northlake University",
+        "event_start": "2027-06-12",
+        "mode": "Online",
+        "source": "Fixture B",
+        "source_event_id": "separate",
+        "link": "https://mirror.example/numbered_editions_same_year",
+        "registration_deadline": {
+          "date": "2027-06-01"
+        }
+      }
+    },
+    {
+      "name": "variant_plus_typo_hard_negative",
+      "same_entity": false,
+      "expected": "REVIEW",
+      "left": {
+        "title": "Synthetic Lantern Constellation Hackathon 2027",
+        "organizer": "Synthetic Northlake University",
+        "event_start": "2027-06-12",
+        "mode": "Online",
+        "source": "Fixture Platform A",
+        "source_event_id": "edition-1",
+        "link": "https://example.com/lantern",
+        "registration_deadline": {
+          "date": "2027-06-01"
+        }
+      },
+      "right": {
+        "title": "Synthetic Lantarn Constellation Pro Hackathon 2027",
+        "organizer": "Synthetic Northlake University",
+        "event_start": "2027-06-12",
+        "mode": "Online",
+        "source": "Fixture B",
+        "source_event_id": "separate",
+        "link": "https://mirror.example/pro-typo",
+        "registration_deadline": {
+          "date": "2027-06-01"
+        }
+      }
+    }
+  ]
+}

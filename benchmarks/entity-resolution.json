@@ -1,0 +1,217 @@
+{
+  "python": "3.12.14",
+  "platform": "Linux-6.18.57-x86_64-with-glibc2.41",
+  "rapidfuzz": "3.14.3",
+  "resolver_sha256": "69803a56d8e8141a7e3212e4a265b42650f34e6f8fb3fc8af4103d68cf31312b",
+  "fixture_sha256": "e97f5f13fac74f1b5bd47ef59002afdecf2fcf8a7213e84feb20afcc2f88e707",
+  "fixture_pairs": 30,
+  "repeats": 3,
+  "method": "Synthetic labels only. REVIEW counts as a non-match. False-merge rate=FP/negative pairs. Memory=tracemalloc Python peak; timings include shared normalization, index build and query work, with tracing enabled. No MongoDB, network or production traffic measured.",
+  "quality": {
+    "exact_ids": {
+      "precision": 0.5714285714285714,
+      "recall": 0.2857142857142857,
+      "f1": 0.38095238095238093,
+      "false_merge_rate": 0.1875,
+      "tp": 4,
+      "fp": 3,
+      "fn": 10,
+      "negative_pairs": 16,
+      "outcomes": {
+        "MATCH": 7,
+        "DISTINCT": 23
+      },
+      "cross_year_false_merges": 3,
+      "candidate_pairs": null
+    },
+    "legacy_exact_edition": {
+      "precision": 0.6666666666666666,
+      "recall": 0.42857142857142855,
+      "f1": 0.5217391304347826,
+      "false_merge_rate": 0.1875,
+      "tp": 6,
+      "fp": 3,
+      "fn": 8,
+      "negative_pairs": 16,
+      "outcomes": {
+        "MATCH": 9,
+        "DISTINCT": 21
+      },
+      "cross_year_false_merges": 2,
+      "candidate_pairs": null
+    },
+    "resolver_v1": {
+      "precision": 1.0,
+      "recall": 0.7857142857142857,
+      "f1": 0.88,
+      "false_merge_rate": 0.0,
+      "tp": 11,
+      "fp": 0,
+      "fn": 3,
+      "negative_pairs": 16,
+      "outcomes": {
+        "MATCH": 11,
+        "REVIEW": 13,
+        "DISTINCT": 6
+      },
+      "cross_year_false_merges": 0,
+      "candidate_pairs": 30
+    }
+  },
+  "workloads": {
+    "200": {
+      "exact_ids": {
+        "build_seconds_median": 0.035698556000170356,
+        "total_seconds_median": 0.07195000599949708,
+        "python_peak_bytes_median": 446251,
+        "correct_matches": 0,
+        "queries": 200,
+        "candidate_comparisons": 0,
+        "runs": [
+          {
+            "build_seconds": 0.03603285400004097,
+            "total_seconds": 0.07268753399966954,
+            "python_peak_bytes": 457455
+          },
+          {
+            "build_seconds": 0.03542765200018039,
+            "total_seconds": 0.07133829400027025,
+            "python_peak_bytes": 446251
+          },
+          {
+            "build_seconds": 0.035698556000170356,
+            "total_seconds": 0.07195000599949708,
+            "python_peak_bytes": 438841
+          }
+        ]
+      },
+      "legacy_exact_edition": {
+        "build_seconds_median": 0.09479548900071677,
+        "total_seconds_median": 0.1905849880004098,
+        "python_peak_bytes_median": 484331,
+        "correct_matches": 0,
+        "queries": 200,
+        "candidate_comparisons": 0,
+        "runs": [
+          {
+            "build_seconds": 0.09400836700024229,
+            "total_seconds": 0.18950563100042928,
+            "python_peak_bytes": 484363
+          },
+          {
+            "build_seconds": 0.09479548900071677,
+            "total_seconds": 0.1905849880004098,
+            "python_peak_bytes": 484331
+          },
+          {
+            "build_seconds": 0.09867395499986742,
+            "total_seconds": 0.19465649199992185,
+            "python_peak_bytes": 484323
+          }
+        ]
+      },
+      "resolver_v1": {
+        "build_seconds_median": 0.052829860000201734,
+        "total_seconds_median": 0.12101810300009674,
+        "python_peak_bytes_median": 1795336,
+        "correct_matches": 200,
+        "queries": 200,
+        "candidate_comparisons": 200,
+        "runs": [
+          {
+            "build_seconds": 0.052676760999929684,
+            "total_seconds": 0.12010482200003025,
+            "python_peak_bytes": 1795336
+          },
+          {
+            "build_seconds": 0.06053445399993507,
+            "total_seconds": 0.14278973700038478,
+            "python_peak_bytes": 1795336
+          },
+          {
+            "build_seconds": 0.052829860000201734,
+            "total_seconds": 0.12101810300009674,
+            "python_peak_bytes": 1795336
+          }
+        ]
+      }
+    },
+    "1000": {
+      "exact_ids": {
+        "build_seconds_median": 0.1836469859999852,
+        "total_seconds_median": 0.3740662570007771,
+        "python_peak_bytes_median": 2007771,
+        "correct_matches": 0,
+        "queries": 1000,
+        "candidate_comparisons": 0,
+        "runs": [
+          {
+            "build_seconds": 0.1822760439999911,
+            "total_seconds": 0.3679289570000037,
+            "python_peak_bytes": 2007811
+          },
+          {
+            "build_seconds": 0.1836469859999852,
+            "total_seconds": 0.3740662570007771,
+            "python_peak_bytes": 2007771
+          },
+          {
+            "build_seconds": 0.19341237999924488,
+            "total_seconds": 0.386821764999695,
+            "python_peak_bytes": 2007763
+          }
+        ]
+      },
+      "legacy_exact_edition": {
+        "build_seconds_median": 0.48225035599989496,
+        "total_seconds_median": 0.9665265949997774,
+        "python_peak_bytes_median": 2149291,
+        "correct_matches": 0,
+        "queries": 1000,
+        "candidate_comparisons": 0,
+        "runs": [
+          {
+            "build_seconds": 0.4950617169997713,
+            "total_seconds": 0.9880043019993536,
+            "python_peak_bytes": 2149323
+          },
+          {
+            "build_seconds": 0.47817674500038265,
+            "total_seconds": 0.9612530169997626,
+            "python_peak_bytes": 2149291
+          },
+          {
+            "build_seconds": 0.48225035599989496,
+            "total_seconds": 0.9665265949997774,
+            "python_peak_bytes": 2149283
+          }
+        ]
+      },
+      "resolver_v1": {
+        "build_seconds_median": 0.27880370399998355,
+        "total_seconds_median": 0.6259096690000661,
+        "python_peak_bytes_median": 8485539,
+        "correct_matches": 1000,
+        "queries": 1000,
+        "candidate_comparisons": 1000,
+        "runs": [
+          {
+            "build_seconds": 0.27880370399998355,
+            "total_seconds": 0.6259096690000661,
+            "python_peak_bytes": 8485955
+          },
+          {
+            "build_seconds": 0.27251987300041947,
+            "total_seconds": 0.6142604370006666,
+            "python_peak_bytes": 8485539
+          },
+          {
+            "build_seconds": 0.2875218560002395,
+            "total_seconds": 0.6487875030006762,
+            "python_peak_bytes": 8485539
+          }
+        ]
+      }
+    }
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "passed": true,
+  "read_only_plan": {
+    "scanned": 1,
+    "planned": 1,
+    "modified": 0,
+    "raced": 0,
+    "apply": false
+  },
+  "applied": {
+    "scanned": 1,
+    "planned": 1,
+    "modified": 1,
+    "raced": 0,
+    "apply": true
+  },
+  "idempotent": true,
+  "ids_flags_receipts_preserved": true,
+  "restore_documents_equal": true,
+  "nonempty_restore_refused": true,
+  "published_records": 1,
+  "source_snapshot_sha256": "ec8486370ce452edbe3babe1233a5aced1b4799faa4fe338b08d68d1324e48c2",
+  "production_access": false
+}
